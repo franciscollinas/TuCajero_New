@@ -1,0 +1,485 @@
+import { app } from 'electron';
+import fs from 'fs';
+import path from 'path';
+
+import * as XLSX from 'xlsx';
+
+import type { AuditLogEntry } from '../../renderer/src/shared/types/audit.types';
+import type {
+  CashSessionReportRow,
+  InventoryReportRow,
+  InventorySummary,
+  ReportDateRange,
+  ReportExportResult,
+  ReportFormat,
+  ReportsDashboardData,
+  ReportsSummary,
+  ReportType,
+  SalesReportRow,
+  AuditSummary,
+} from '../../renderer/src/shared/types/reports.types';
+import { prisma } from '../repositories/prisma';
+import { AppError, ErrorCode } from '../utils/errors';
+import { AuditService } from './audit.service';
+
+const auditService = new AuditService();
+
+function startOfDay(value: Date): Date {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function endOfDay(value: Date): Date {
+  const date = new Date(value);
+  date.setHours(23, 59, 59, 999);
+  return date;
+}
+
+function toIsoDate(value: Date): string {
+  return value.toISOString().slice(0, 10);
+}
+
+function toFileDate(value: Date): string {
+  return value.toISOString().replace(/[:.]/g, '-');
+}
+
+function toInventoryStatus(row: { stock: number; minStock: number; criticalStock: number; expiryDate: Date | null }): InventoryReportRow['status'] {
+  if (row.expiryDate) {
+    const now = new Date();
+    const expiry = row.expiryDate;
+    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+
+    if (expiry.getTime() < now.getTime()) {
+      return 'expired';
+    }
+
+    if (expiry.getTime() - now.getTime() <= thirtyDays) {
+      return 'expiring';
+    }
+  }
+
+  if (row.stock <= row.criticalStock) {
+    return 'critical';
+  }
+
+  if (row.stock <= row.minStock) {
+    return 'warning';
+  }
+
+  return 'ok';
+}
+
+export class ReportsService {
+  private async assertReportsAccess(actorUserId: number): Promise<void> {
+    const actor = await prisma.user.findUnique({
+      where: { id: actorUserId },
+      select: { active: true, role: true },
+    });
+
+    if (!actor || !actor.active) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Usuario invÃ¡lido o inactivo.');
+    }
+
+    if (!['ADMIN', 'SUPERVISOR'].includes(actor.role)) {
+      throw new AppError(ErrorCode.FORBIDDEN, 'No tienes permisos para consultar reportes.');
+    }
+  }
+
+  private resolveRange(input: ReportDateRange): { start: Date; end: Date; normalized: ReportDateRange } {
+    const start = startOfDay(new Date(input.startDate));
+    const end = endOfDay(new Date(input.endDate));
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new AppError(ErrorCode.VALIDATION, 'El rango de fechas no es vÃ¡lido.');
+    }
+
+    if (start.getTime() > end.getTime()) {
+      throw new AppError(ErrorCode.VALIDATION, 'La fecha inicial no puede ser mayor que la fecha final.');
+    }
+
+    return {
+      start,
+      end,
+      normalized: {
+        startDate: toIsoDate(start),
+        endDate: toIsoDate(end),
+      },
+    };
+  }
+
+  private async loadSales(start: Date, end: Date): Promise<SalesReportRow[]> {
+    const sales = await prisma.sale.findMany({
+      where: {
+        createdAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+      include: {
+        payments: true,
+        items: true,
+        user: {
+          select: {
+            fullName: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return sales.map((sale) => {
+      const paymentMap = sale.payments.reduce<Record<string, number>>((acc, payment) => {
+        acc[payment.method] = (acc[payment.method] ?? 0) + Number(payment.amount);
+        return acc;
+      }, {});
+
+      return {
+        id: sale.id,
+        saleNumber: sale.saleNumber,
+        createdAt: sale.createdAt.toISOString(),
+        cashierName: sale.user.fullName,
+        status: sale.status,
+        itemsCount: sale.items.length,
+        subtotal: Number(sale.subtotal),
+        tax: Number(sale.tax),
+        discount: Number(sale.discount),
+        total: Number(sale.total),
+        payments: Object.entries(paymentMap).map(([label, value]) => ({ label, value })),
+      };
+    });
+  }
+
+  private buildSalesSummary(sales: SalesReportRow[]): ReportsSummary {
+    const completed = sales.filter((sale) => sale.status === 'COMPLETED');
+    const paymentsByMethod = completed.reduce<Record<string, number>>((acc, sale) => {
+      sale.payments.forEach((payment) => {
+        acc[payment.label] = (acc[payment.label] ?? 0) + payment.value;
+      });
+      return acc;
+    }, {});
+
+    const grossRevenue = completed.reduce((sum, sale) => sum + sale.subtotal + sale.tax, 0);
+    const totalDiscount = completed.reduce((sum, sale) => sum + sale.discount, 0);
+    const netRevenue = completed.reduce((sum, sale) => sum + sale.total, 0);
+
+    return {
+      totalSales: sales.length,
+      completedSales: completed.length,
+      cancelledSales: sales.filter((sale) => sale.status === 'CANCELLED').length,
+      grossRevenue,
+      netRevenue,
+      totalTax: completed.reduce((sum, sale) => sum + sale.tax, 0),
+      totalDiscount,
+      averageTicket: completed.length > 0 ? netRevenue / completed.length : 0,
+      paymentsByMethod: Object.entries(paymentsByMethod).map(([label, value]) => ({ label, value })),
+    };
+  }
+
+  private async loadCashSessions(start: Date, end: Date): Promise<CashSessionReportRow[]> {
+    const sessions = await prisma.cashSession.findMany({
+      where: {
+        openedAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+        sales: {
+          where: {
+            status: 'COMPLETED',
+          },
+          select: {
+            total: true,
+          },
+        },
+      },
+      orderBy: {
+        openedAt: 'desc',
+      },
+    });
+
+    return sessions.map((session) => ({
+      id: session.id,
+      userId: session.userId,
+      cashierName: session.user.fullName,
+      openedAt: session.openedAt.toISOString(),
+      closedAt: session.closedAt ? session.closedAt.toISOString() : null,
+      status: session.status,
+      initialCash: Number(session.initialCash),
+      expectedCash: session.expectedCash ? Number(session.expectedCash) : null,
+      finalCash: session.finalCash ? Number(session.finalCash) : null,
+      difference: session.difference ? Number(session.difference) : null,
+      salesCount: session.sales.length,
+      salesTotal: session.sales.reduce((sum, sale) => sum + Number(sale.total), 0),
+    }));
+  }
+
+  private async loadInventory(): Promise<InventoryReportRow[]> {
+    const products = await prisma.product.findMany({
+      where: {
+        isActive: true,
+      },
+      include: {
+        category: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    return products.map((product) => ({
+      id: product.id,
+      code: product.code,
+      barcode: product.barcode,
+      name: product.name,
+      categoryName: product.category.name,
+      stock: product.stock,
+      minStock: product.minStock,
+      criticalStock: product.criticalStock,
+      price: Number(product.price),
+      cost: Number(product.cost),
+      stockValue: product.stock * Number(product.cost),
+      expiryDate: product.expiryDate ? product.expiryDate.toISOString() : null,
+      location: product.location,
+      status: toInventoryStatus(product),
+    }));
+  }
+
+  private buildInventorySummary(inventory: InventoryReportRow[]): InventorySummary {
+    return {
+      totalProducts: inventory.length,
+      totalUnits: inventory.reduce((sum, item) => sum + item.stock, 0),
+      totalStockValue: inventory.reduce((sum, item) => sum + item.stockValue, 0),
+      lowStockCount: inventory.filter((item) => item.status === 'warning').length,
+      criticalStockCount: inventory.filter((item) => item.status === 'critical').length,
+      expiredCount: inventory.filter((item) => item.status === 'expired').length,
+      expiringCount: inventory.filter((item) => item.status === 'expiring').length,
+    };
+  }
+
+  private async loadAuditLogs(start: Date, end: Date): Promise<AuditLogEntry[]> {
+    const logs = await prisma.auditLog.findMany({
+      where: {
+        createdAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 200,
+    });
+
+    return logs.map((entry) => ({
+      id: entry.id,
+      userId: entry.userId,
+      action: entry.action,
+      entity: entry.entity,
+      entityId: entry.entityId,
+      payload: entry.payload,
+      createdAt: entry.createdAt.toISOString(),
+      user: {
+        id: entry.user.id,
+        username: entry.user.username,
+        fullName: entry.user.fullName,
+        role: entry.user.role,
+      },
+    }));
+  }
+
+  private buildAuditSummary(logs: AuditLogEntry[]): AuditSummary {
+    const actionMap = logs.reduce<Record<string, number>>((acc, log) => {
+      acc[log.action] = (acc[log.action] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    const topActions = Object.entries(actionMap)
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 5)
+      .map(([label, value]) => ({ label, value }));
+
+    return {
+      totalLogs: logs.length,
+      topActions,
+    };
+  }
+
+  async getDashboardData(actorUserId: number, range: ReportDateRange): Promise<ReportsDashboardData> {
+    await this.assertReportsAccess(actorUserId);
+    const { start, end, normalized } = this.resolveRange(range);
+
+    const [sales, cashSessions, inventory, auditLogs] = await Promise.all([
+      this.loadSales(start, end),
+      this.loadCashSessions(start, end),
+      this.loadInventory(),
+      this.loadAuditLogs(start, end),
+    ]);
+
+    const expiringProducts = inventory.filter(
+      (item) => item.status === 'expired' || item.status === 'expiring',
+    );
+
+    return {
+      range: normalized,
+      salesSummary: this.buildSalesSummary(sales),
+      sales,
+      cashSessions,
+      inventorySummary: this.buildInventorySummary(inventory),
+      inventory,
+      expiringProducts,
+      auditSummary: this.buildAuditSummary(auditLogs),
+      auditLogs,
+    };
+  }
+
+  private ensureOutputDir(): string {
+    const reportsDir = path.join(app.getPath('downloads'), 'TuCajero-reportes');
+    fs.mkdirSync(reportsDir, { recursive: true });
+    return reportsDir;
+  }
+
+  private createSheetRows(reportType: ReportType, data: ReportsDashboardData): Record<string, string | number | null>[] {
+    switch (reportType) {
+      case 'sales':
+        return data.sales.map((sale) => ({
+          venta_id: sale.id,
+          numero: sale.saleNumber,
+          fecha: sale.createdAt,
+          cajero: sale.cashierName,
+          estado: sale.status,
+          items: sale.itemsCount,
+          subtotal: sale.subtotal,
+          iva: sale.tax,
+          descuento: sale.discount,
+          total: sale.total,
+          pagos: sale.payments.map((payment) => `${payment.label}:${payment.value}`).join(' | '),
+        }));
+      case 'cashSessions':
+        return data.cashSessions.map((session) => ({
+          caja_id: session.id,
+          cajero: session.cashierName,
+          apertura: session.openedAt,
+          cierre: session.closedAt,
+          estado: session.status,
+          efectivo_inicial: session.initialCash,
+          efectivo_esperado: session.expectedCash,
+          efectivo_final: session.finalCash,
+          diferencia: session.difference,
+          ventas: session.salesCount,
+          total_ventas: session.salesTotal,
+        }));
+      case 'inventory':
+        return data.inventory.map((item) => ({
+          producto_id: item.id,
+          codigo: item.code,
+          barcode: item.barcode,
+          nombre: item.name,
+          categoria: item.categoryName,
+          stock: item.stock,
+          stock_minimo: item.minStock,
+          stock_critico: item.criticalStock,
+          costo: item.cost,
+          precio: item.price,
+          valor_stock: item.stockValue,
+          vencimiento: item.expiryDate,
+          ubicacion: item.location,
+          estado: item.status,
+        }));
+      case 'expiring':
+        return data.expiringProducts.map((item) => ({
+          producto_id: item.id,
+          codigo: item.code,
+          nombre: item.name,
+          categoria: item.categoryName,
+          stock: item.stock,
+          vencimiento: item.expiryDate,
+          estado: item.status,
+        }));
+      case 'audit':
+        return data.auditLogs.map((log) => ({
+          log_id: log.id,
+          fecha: log.createdAt,
+          usuario: log.user.fullName,
+          username: log.user.username,
+          rol: log.user.role,
+          accion: log.action,
+          entidad: log.entity,
+          entidad_id: log.entityId,
+          detalle: log.payload,
+        }));
+      default:
+        return [];
+    }
+  }
+
+  async exportReport(
+    actorUserId: number,
+    reportType: ReportType,
+    format: ReportFormat,
+    range: ReportDateRange,
+  ): Promise<ReportExportResult> {
+    const data = await this.getDashboardData(actorUserId, range);
+    const rows = this.createSheetRows(reportType, data);
+    const dir = this.ensureOutputDir();
+    const timestamp = toFileDate(new Date());
+    const fileName = `${reportType}_${data.range.startDate}_${data.range.endDate}_${timestamp}.${format}`;
+    const filePath = path.join(dir, fileName);
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+
+    if (format === 'csv') {
+      const csv = XLSX.utils.sheet_to_csv(worksheet);
+      fs.writeFileSync(filePath, csv, 'utf8');
+    } else {
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, reportType);
+      XLSX.writeFile(workbook, filePath);
+    }
+
+    await auditService.log({
+      userId: actorUserId,
+      action: 'report:exported',
+      entity: 'Report',
+      payload: {
+        reportType,
+        format,
+        dateRange: data.range,
+        recordCount: rows.length,
+        fileName,
+      },
+    });
+
+    return {
+      fileName,
+      filePath,
+      reportType,
+      format,
+      recordCount: rows.length,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+}

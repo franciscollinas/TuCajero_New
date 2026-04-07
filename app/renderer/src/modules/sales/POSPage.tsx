@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 
 import { getActiveCashRegister } from '../../shared/api/cash.api';
 import { getAllProducts, getProductByBarcode } from '../../shared/api/inventory.api';
-import { createSale, generateInvoice } from '../../shared/api/sales.api';
+import { createSale } from '../../shared/api/sales.api';
+import { generateInvoice as printInvoice, openInvoice, printToHardware } from '../../shared/api/printer.api';
 import { useAuth } from '../../shared/context/AuthContext';
+import { useBarcodeScanner } from '../../shared/hooks/useBarcodeScanner';
 import { es } from '../../shared/i18n';
 import { tokens } from '../../shared/theme';
 import type { CashRegister } from '../../shared/types/cash.types';
@@ -29,6 +31,26 @@ export function POSPage(): JSX.Element {
   const [syncing, setSyncing] = useState(true);
   const [message, setMessage] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [lastInvoicePath, setLastInvoicePath] = useState<string | null>(null);
+  const [printResult, setPrintResult] = useState<string | null>(null);
+  const [lastInvoiceData, setLastInvoiceData] = useState<Parameters<typeof printToHardware>[0] | null>(null);
+
+  // Barcode scanner hook — detecta escáner HID global
+  const handleBarcodeScan = async (code: string): Promise<void> => {
+    if (!code.trim()) return;
+    const response = await getProductByBarcode(code.trim());
+    if (response.success && response.data) {
+      addToCart(response.data);
+      setMessage(es.alerts.scanDetected.replace('{code}', code));
+    } else {
+      setMessage('Producto no encontrado para código: ' + code);
+    }
+  };
+
+  useBarcodeScanner({
+    onScan: handleBarcodeScan,
+    enabled: !!user && !showPaymentModal,
+  });
 
   useEffect((): (() => void) | void => {
     if (!user) {
@@ -162,15 +184,47 @@ export function POSPage(): JSX.Element {
         return;
       }
 
+      // Generar factura HTML y abrirla
+      const invoiceData = {
+        invoiceNumber: response.data.saleNumber,
+        date: new Date().toISOString(),
+        cashierName: user.fullName,
+        businessName: 'TuCajero - Farmacia',
+        items: cart.map((item) => {
+          const itemSubtotal = item.quantity * item.unitPrice - item.discount;
+          const itemTax = itemSubtotal * (item.product.taxRate ?? 0.19);
+          return {
+            name: item.product.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            taxRate: item.product.taxRate ?? 0.19,
+            subtotal: itemSubtotal,
+            tax: itemTax,
+            total: itemSubtotal + itemTax,
+          };
+        }),
+        subtotal,
+        totalTax: tax,
+        discount: 0,
+        total,
+        payments: payments.map((p) => ({ method: p.method, amount: p.amount })),
+        change: totalPaid > total ? totalPaid - total : undefined,
+      };
+
+      setLastInvoiceData(invoiceData);
+
       let invoiceNotice = '';
-      const invoiceResponse = await generateInvoice(response.data.id);
+      const invoiceResponse = await printInvoice(invoiceData);
       if (invoiceResponse.success) {
-        invoiceNotice = ` Factura: ${invoiceResponse.data}`;
+        setLastInvoicePath(invoiceResponse.data.filePath);
+        await openInvoice(invoiceResponse.data.filePath);
+        invoiceNotice = ` Factura generada y abierta.`;
       }
 
       setMessage(`Venta ${response.data.saleNumber} completada.${invoiceNotice}`);
       setCart([]);
       setPayments([]);
+      setPrintResult(null);
 
       const cashResponse = await getActiveCashRegister(user.id);
       if (cashResponse.success) {
@@ -340,6 +394,38 @@ export function POSPage(): JSX.Element {
             >
               {loading ? es.common.loading : es.sales.completeSale}
             </button>
+
+            {lastInvoicePath && (
+              <button
+                type="button"
+                onClick={() => void openInvoice(lastInvoicePath)}
+                style={printButtonStyle}
+              >
+                {es.printer.openInvoice}
+              </button>
+            )}
+
+            {lastInvoiceData && (
+              <button
+                type="button"
+                onClick={async () => {
+                  setPrintResult('Imprimiendo...');
+                  const response = await printToHardware(lastInvoiceData);
+                  if (response.success) {
+                    setPrintResult(response.data.message);
+                  } else {
+                    setPrintResult(response.error.message);
+                  }
+                }}
+                style={thermalButtonStyle}
+              >
+                {es.printer.printHardware}
+              </button>
+            )}
+
+            {printResult && (
+              <p style={printResultStyle}>{printResult}</p>
+            )}
           </aside>
         </section>
       </section>
@@ -479,6 +565,9 @@ const paymentRowStyle: CSSProperties = { display: 'flex', justifyContent: 'space
 const paymentAmountStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px' };
 const ghostButtonStyle: CSSProperties = { border: 'none', background: 'transparent', color: '#DC2626', cursor: 'pointer', fontWeight: 700 };
 const completeButtonStyle: CSSProperties = { minHeight: '52px', borderRadius: '14px', border: 'none', background: '#2563EB', color: '#FFFFFF', fontWeight: 800, cursor: 'pointer' };
+const printButtonStyle: CSSProperties = { minHeight: '44px', borderRadius: '12px', border: '1px solid #D1D5DB', background: '#FFFFFF', color: '#0F766E', fontWeight: 700, cursor: 'pointer' };
+const thermalButtonStyle: CSSProperties = { minHeight: '44px', borderRadius: '12px', border: '1px solid #0F766E', background: '#F0FDFA', color: '#0F766E', fontWeight: 700, cursor: 'pointer' };
+const printResultStyle: CSSProperties = { margin: 0, padding: '10px 14px', borderRadius: '10px', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', fontSize: '14px' };
 const modalBackdropStyle: CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', display: 'grid', placeItems: 'center', padding: '24px', zIndex: 50 };
 const modalStyle: CSSProperties = { width: 'min(420px, 100%)', borderRadius: '18px', background: '#FFFFFF', padding: '24px', display: 'grid', gap: '14px', boxShadow: '0 30px 80px rgba(15, 23, 42, 0.25)' };
 const modalActionsStyle: CSSProperties = { display: 'flex', justifyContent: 'flex-end', gap: '12px' };

@@ -157,8 +157,31 @@ export function DashboardPage(): JSX.Element {
                   {es.users.title}
                 </Link>
               )}
+              {can('reports:all') && (
+                <Link to="/reports" style={secondaryLinkButtonStyle}>
+                  {es.reports.title}
+                </Link>
+              )}
+              {can('backup:all') && (
+                <Link to="/backup" style={secondaryLinkButtonStyle}>
+                  {es.backup.title}
+                </Link>
+              )}
+              {can('backup:all') && (
+                <Link to="/license" style={secondaryLinkButtonStyle}>
+                  {es.license.title}
+                </Link>
+              )}
+              {can('backup:all') && (
+                <Link to="/printer" style={secondaryLinkButtonStyle}>
+                  {es.settings.printer.title}
+                </Link>
+              )}
               <Link to="/inventory/import" style={secondaryLinkButtonStyle}>
                 {es.inventory.importCSV}
+              </Link>
+              <Link to="/alerts" style={secondaryLinkButtonStyle}>
+                {es.alerts.title}
               </Link>
               <Link to="/demo" style={secondaryLinkButtonStyle}>
                 {es.demo.button}

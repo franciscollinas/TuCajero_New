@@ -1,11 +1,16 @@
 import { app, BrowserWindow } from 'electron';
 import { join } from 'path';
 
+import { registerAlertsIpc } from './ipc/alerts.ipc';
 import { registerAuthIpc } from './ipc/auth.ipc';
+import { registerBackupIpc } from './ipc/backup.ipc';
 import { registerAuditIpc } from './ipc/audit.ipc';
 import { registerCashSessionIpc } from './ipc/cash-session.ipc';
 import { registerInventoryIpc } from './ipc/inventory.ipc';
+import { registerLicenseIpc } from './ipc/license.ipc';
 import { registerPingIpc } from './ipc/ping.ipc';
+import { registerPrinterIpc } from './ipc/printer.ipc';
+import { registerReportsIpc } from './ipc/reports.ipc';
 import { registerSalesIpc } from './ipc/sales.ipc';
 import { registerUsersIpc } from './ipc/users.ipc';
 import { prisma } from './repositories/prisma';
@@ -91,11 +96,16 @@ installProcessGuards();
 
 app.whenReady().then(async () => {
   await seedDatabase();
+  registerAlertsIpc();
   registerAuthIpc();
   registerAuditIpc();
+  registerBackupIpc();
   registerCashSessionIpc();
   registerInventoryIpc();
+  registerLicenseIpc();
   registerPingIpc();
+  registerPrinterIpc();
+  registerReportsIpc();
   registerSalesIpc();
   registerUsersIpc();
   createWindow();

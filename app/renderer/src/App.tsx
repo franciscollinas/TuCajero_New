@@ -1,12 +1,17 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { LoginPage } from './modules/auth/LoginPage';
+import { AlertsPage } from './modules/alerts/AlertsPage';
 import { AuditPage } from './modules/audit/AuditPage';
+import { BackupPage } from './modules/backup/BackupPage';
 import { CashRegisterPage } from './modules/cash/CashRegisterPage';
 import { DashboardPage } from './modules/dashboard/DashboardPage';
 import { DemoPage } from './modules/demo/DemoPage';
 import { InventoryBulkImportPage } from './modules/inventory/InventoryBulkImportPage';
 import { InventoryPage } from './modules/inventory/InventoryPage';
+import { LicensePage } from './modules/license/LicensePage';
+import { PrinterSettingsPage } from './modules/printer/PrinterSettingsPage';
+import { ReportsPage } from './modules/reports/ReportsPage';
 import { ProtectedRoute } from './modules/routing/ProtectedRoute';
 import { POSPage } from './modules/sales/POSPage';
 import { SalesHistoryPage } from './modules/sales/SalesHistoryPage';
@@ -60,6 +65,14 @@ export default function App(): JSX.Element {
             }
           />
           <Route
+            path="/alerts"
+            element={
+              <ProtectedRoute>
+                <AlertsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/cash"
             element={
               <ProtectedRoute roles={['ADMIN', 'CASHIER']}>
@@ -96,6 +109,38 @@ export default function App(): JSX.Element {
             element={
               <ProtectedRoute roles={['ADMIN', 'SUPERVISOR']}>
                 <InventoryBulkImportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute roles={['ADMIN', 'SUPERVISOR']}>
+                <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/backup"
+            element={
+              <ProtectedRoute roles={['ADMIN']}>
+                <BackupPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/license"
+            element={
+              <ProtectedRoute roles={['ADMIN']}>
+                <LicensePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/printer"
+            element={
+              <ProtectedRoute roles={['ADMIN']}>
+                <PrinterSettingsPage />
               </ProtectedRoute>
             }
           />

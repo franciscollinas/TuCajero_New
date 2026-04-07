@@ -61,7 +61,22 @@ Credenciales actuales de admin:
 - descuento automático de inventario
 - actualización de `expectedCash`
 - historial de ventas
-- generación de factura PDF
+- generación de factura HTML (abre automáticamente en navegador)
+- recibo térmico ESC/POS (contenido generado)
+
+### Escáner HID
+
+- `useBarcodeScanner.ts` hook — detecta escaneo por teclado HID
+- acumula keystrokes globales, ignora inputs manuales
+- dispara al detectar Enter tras ráfaga rápida (< 60ms entre teclas)
+- integrado en POSPage: escanear → agrega al carrito automáticamente
+
+### Alertas centralizadas
+
+- `alert.service.ts` (main) — stock crítico/bajo + vencimiento (expired/critical/warning)
+- `alerts.ipc.ts` + `alert.api.ts` + `alert.types.ts`
+- `useAlerts` hook + `useAlertStore` (Zustand)
+- `/alerts` — página con resumen por severidad y tabla detallada
 
 ### Auditoría
 
@@ -79,6 +94,32 @@ Credenciales actuales de admin:
 - creación de usuarios
 - edición de nombre/rol/password
 - activar/desactivar usuario
+
+### Reportes y exportación
+
+- `reports.service.ts` — consolidación de ventas, cortes de caja, inventario, vencimientos, auditoría
+- exportación CSV/XLSX en `Descargas/TuCajero-reportes`
+- `reports.ipc.ts` + `reports.api.ts`
+- pantalla `/reports` con filtro por fechas, tablas resumen y botones de exportación
+
+### Backup / Restore
+
+- `backup.service.ts` — crea, lista, elimina y restaura copias de la BD SQLite
+- validación de integridad (header SQLite format 3)
+- pre-restore backup automático con reversión si falla
+- `backup.ipc.ts` + `backup.api.ts` + `backup.types.ts`
+- pantalla `/backup` con info de BD, crear backup, tabla de backups con restaurar/eliminar
+- acciones registradas en auditoría
+
+### Licencia por hardware
+
+- `fingerprint.ts` — SHA-256 de CPU + disco + MAC + hostname
+- `license.service.ts` — genera, activa y valida licencia con HMAC-SHA256
+- persistencia en `userData/license.dat`
+- `license.ipc.ts` + `license.api.ts` + `license.types.ts`
+- pantalla `/license` — estado, fingerprint, activar, generar nueva licencia
+- `LicenseLockScreen` exportado para pantalla de bloqueo
+- RBAC: solo ADMIN
 
 ## Problemas ya resueltos
 
@@ -108,36 +149,25 @@ Se estaba siguiendo `MasterDoc.md` como guía principal, no solo `Fase1-4.md`.
 
 - fundación
 - núcleo operativo principal
-- ventas
+- ventas (con factura HTML + recibo térmico ESC/POS)
+- escáner HID
+- alertas centralizadas
 - auditoría
 - usuarios admin
+- reportes y exportación
+- backup / restore
+- licencia por hardware
 - parte de RBAC en UI
 
 ### Siguiente bloque recomendado
 
-1. Reportes y exportación
-2. Backup / Restore
-3. Licencia por hardware
-4. Escáner HID
-5. Impresora térmica
-6. Pulido UI/UX final
+1. Impresora térmica (hardware real — node-thermal-printer)
+2. Pulido UI/UX final
+3. Empaquetado instalador
 
 ## Recomendación para mañana
 
-Retomar por reportes/exportación porque:
-
-- ya existe suficiente data útil: ventas, caja, inventario, auditoría
-- encaja con `MasterDoc`
-- desbloquea administración casi completa
-
-### Orden sugerido
-
-1. crear `reports.service.ts`
-2. crear `reports.ipc.ts`
-3. exponer API tipada en renderer
-4. construir pantalla admin de reportes
-5. exportar a CSV/XLSX
-6. agregar enlaces en dashboard
+Retomar por **impresora térmica real** (conectar `node-thermal-printer` a una impresora física USB/red) y luego pasar al **pulido UI/UX final** + empaquetado instalador.
 
 ## Archivos clave para entender rápido el proyecto
 
@@ -147,34 +177,57 @@ Retomar por reportes/exportación porque:
 - `app/main/preload.ts`
 - `app/main/utils/errors.ts`
 - `app/main/utils/logger.ts`
+- `app/main/utils/fingerprint.ts`
 - `app/main/services/auth.service.ts`
+- `app/main/services/alert.service.ts`
+- `app/main/services/audit.service.ts`
+- `app/main/services/backup.service.ts`
 - `app/main/services/cash-session.service.ts`
 - `app/main/services/inventory.service.ts`
+- `app/main/services/license.service.ts`
+- `app/main/services/printer.service.ts`
+- `app/main/services/reports.service.ts`
 - `app/main/services/sales.service.ts`
-- `app/main/services/invoice.service.ts`
-- `app/main/services/audit.service.ts`
 - `app/main/services/users.service.ts`
 
 ### IPC
 
+- `app/main/ipc/alerts.ipc.ts`
 - `app/main/ipc/auth.ipc.ts`
+- `app/main/ipc/audit.ipc.ts`
+- `app/main/ipc/backup.ipc.ts`
 - `app/main/ipc/cash-session.ipc.ts`
 - `app/main/ipc/inventory.ipc.ts`
+- `app/main/ipc/license.ipc.ts`
+- `app/main/ipc/ping.ipc.ts`
+- `app/main/ipc/printer.ipc.ts`
+- `app/main/ipc/reports.ipc.ts`
 - `app/main/ipc/sales.ipc.ts`
-- `app/main/ipc/audit.ipc.ts`
 - `app/main/ipc/users.ipc.ts`
 
 ### Frontend
 
 - `app/renderer/src/App.tsx`
 - `app/renderer/src/shared/context/AuthContext.tsx`
+- `app/renderer/src/shared/hooks/useAlerts.ts`
+- `app/renderer/src/shared/hooks/useBarcodeScanner.ts`
 - `app/renderer/src/shared/hooks/useRBAC.ts`
+- `app/renderer/src/shared/store/alert.store.ts`
+- `app/renderer/src/shared/api/alert.api.ts`
+- `app/renderer/src/shared/api/backup.api.ts`
+- `app/renderer/src/shared/api/license.api.ts`
+- `app/renderer/src/shared/api/printer.api.ts`
+- `app/renderer/src/shared/api/reports.api.ts`
+- `app/renderer/src/modules/alerts/AlertsPage.tsx`
+- `app/renderer/src/modules/audit/AuditPage.tsx`
+- `app/renderer/src/modules/backup/BackupPage.tsx`
 - `app/renderer/src/modules/dashboard/DashboardPage.tsx`
 - `app/renderer/src/modules/inventory/InventoryPage.tsx`
 - `app/renderer/src/modules/inventory/InventoryBulkImportPage.tsx`
+- `app/renderer/src/modules/license/LicensePage.tsx`
+- `app/renderer/src/modules/reports/ReportsPage.tsx`
 - `app/renderer/src/modules/sales/POSPage.tsx`
 - `app/renderer/src/modules/sales/SalesHistoryPage.tsx`
-- `app/renderer/src/modules/audit/AuditPage.tsx`
 - `app/renderer/src/modules/users/UsersPage.tsx`
 
 ### Base de datos
