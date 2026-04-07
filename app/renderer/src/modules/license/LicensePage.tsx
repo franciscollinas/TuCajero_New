@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { activateLicense, generateLicense, getLicenseInfo } from '../../shared/api/license.api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useRBAC } from '../../shared/hooks/useRBAC';
 import { es } from '../../shared/i18n';
-import { tokens } from '../../shared/theme';
 import type { LicenseInfo } from '../../shared/types/license.types';
 
 function formatDate(value: string | Date): string {
@@ -93,149 +92,145 @@ export function LicensePage(): JSX.Element {
   };
 
   if (loading) {
-    return <div style={{ padding: '48px', textAlign: 'center' }}>{es.common.loading}</div>;
+    return <div style={{ padding: 'var(--space-12)', textAlign: 'center' }}>{es.common.loading}</div>;
   }
 
   if (!info) {
-    return <div style={{ padding: '48px', textAlign: 'center' }}>No se pudo cargar la información de licencia.</div>;
+    return <div style={{ padding: 'var(--space-12)', textAlign: 'center' }}>No se pudo cargar la informaci&#243;n de licencia.</div>;
   }
 
   const isValid = info.validation.valid;
   const daysRemaining = info.validation.daysRemaining;
 
+  const noticeClass = message
+    ? `tc-notice tc-notice--${messageType === 'error' ? 'error' : messageType === 'success' ? 'success' : 'info'}`
+    : '';
+
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
-        <header style={headerStyle}>
-          <div>
-            <p style={eyebrowStyle}>{es.license.title}</p>
-            <h1 style={titleStyle}>{es.license.title}</h1>
-            <p style={subtleStyle}>{es.license.subtitle}</p>
-          </div>
-        </header>
+    <>
+      <div className="tc-section-header" style={{ marginBottom: 'var(--space-6)' }}>
+        <div>
+          <p style={{ margin: 0, color: 'var(--brand-600)', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: '12px', fontWeight: 700 }}>{es.license.title}</p>
+          <h1 className="tc-section-title">{es.license.title}</h1>
+          <p className="tc-section-subtitle">{es.license.subtitle}</p>
+        </div>
+      </div>
 
-        {message ? (
-          <section style={{
-            ...noticeStyle,
-            ...(messageType === 'error' ? noticeErrorStyle : {}),
-            ...(messageType === 'success' ? noticeSuccessStyle : {}),
-          }}>
-            {message}
-          </section>
-        ) : null}
+      {message ? (
+        <section className={noticeClass}>{message}</section>
+      ) : null}
 
-        {/* Estado */}
-        <section style={panelStyle}>
-          <h2 style={sectionTitleStyle}>{es.license.statusTitle}</h2>
-          <div style={statusGridStyle}>
-            <div style={statusBadgeStyle(isValid ? 'valid' : 'invalid')}>
-              {isValid ? es.license.valid : info.validation.hasLicense ? es.license.invalid : es.license.noLicense}
+      {/* Estado */}
+      <section className="tc-section">
+        <h2 className="tc-section-title">{es.license.statusTitle}</h2>
+        <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+          <span className={`tc-badge ${isValid ? 'tc-badge--success' : 'tc-badge--danger'}`} style={{ padding: '8px 16px', fontSize: 'var(--text-sm)' }}>
+            {isValid ? es.license.valid : info.validation.hasLicense ? es.license.invalid : es.license.noLicense}
+          </span>
+          {daysRemaining !== undefined && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--gray-100)' }}>
+              <span style={{ fontWeight: 600, color: 'var(--gray-700)' }}>{es.license.daysRemaining}</span>
+              <span style={{ color: daysRemaining <= 30 ? 'var(--danger-600)' : 'var(--success-600)', fontSize: 'var(--text-sm)' }}>
+                {daysRemaining}
+              </span>
             </div>
-            {daysRemaining !== undefined && (
-              <div style={infoItemStyle}>
-                <span style={infoLabelStyle}>{es.license.daysRemaining}</span>
-                <span style={{ ...infoValueStyle, color: daysRemaining <= 30 ? '#DC2626' : '#16A34A' }}>
-                  {daysRemaining}
-                </span>
-              </div>
-            )}
-            {info.currentLicense && (
-              <div style={infoItemStyle}>
-                <span style={infoLabelStyle}>{es.license.expiryDate}</span>
-                <span style={infoValueStyle}>{formatDate(info.currentLicense.expiryDate)}</span>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Fingerprint */}
-        <section style={panelStyle}>
-          <h2 style={sectionTitleStyle}>{es.license.fingerprintTitle}</h2>
-          <div style={fingerprintRowStyle}>
-            <code style={fingerprintCodeStyle}>{info.fingerprint.fingerprint}</code>
-            <button type="button" onClick={handleCopyFingerprint} style={secondaryButtonStyle}>
-              {es.license.fingerprintCopy}
-            </button>
-          </div>
-          <div style={hwGridStyle}>
-            <div style={hwItemStyle}>
-              <span style={hwLabelStyle}>CPU</span>
-              <span style={hwValueStyle}>{info.fingerprint.cpuInfo}</span>
+          )}
+          {info.currentLicense && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--space-2) 0' }}>
+              <span style={{ fontWeight: 600, color: 'var(--gray-700)' }}>{es.license.expiryDate}</span>
+              <span style={{ color: 'var(--gray-800)', fontSize: 'var(--text-sm)' }}>{formatDate(info.currentLicense.expiryDate)}</span>
             </div>
-            <div style={hwItemStyle}>
-              <span style={hwLabelStyle}>Disco</span>
-              <span style={hwValueStyle}>{info.fingerprint.diskSerial}</span>
-            </div>
-            <div style={hwItemStyle}>
-              <span style={hwLabelStyle}>MAC</span>
-              <span style={hwValueStyle}>{info.fingerprint.macAddress}</span>
-            </div>
-            <div style={hwItemStyle}>
-              <span style={hwLabelStyle}>Hostname</span>
-              <span style={hwValueStyle}>{info.fingerprint.hostname}</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Activar */}
-        <section style={panelStyle}>
-          <h2 style={sectionTitleStyle}>{es.license.activateTitle}</h2>
-          <div style={{ display: 'grid', gap: '12px' }}>
-            <textarea
-              placeholder={es.license.activatePlaceholder}
-              value={licenseInput}
-              onChange={(e) => setLicenseInput(e.target.value)}
-              style={textareaStyle}
-              rows={4}
-              disabled={actionInProgress.length > 0}
-            />
-            <button
-              type="button"
-              onClick={() => void handleActivate()}
-              disabled={actionInProgress.length > 0 || !licenseInput.trim()}
-              style={primaryButtonStyle}
-            >
-              {actionInProgress === 'activate' ? es.common.loading : es.license.activateButton}
-            </button>
-          </div>
-        </section>
-
-        {/* Generar (solo admin con permiso) */}
-        {can('backup:all') && (
-          <section style={panelStyle}>
-            <h2 style={sectionTitleStyle}>{es.license.generateTitle}</h2>
-            <div style={{ display: 'grid', gap: '12px', gridTemplateColumns: '180px 1fr' }}>
-              <label style={fieldStyle}>
-                <span style={fieldLabelStyle}>{es.license.generateMonths}</span>
-                <input
-                  type="number"
-                  value={months}
-                  min={1}
-                  max={60}
-                  onChange={(e) => setMonths(Number(e.target.value) || 12)}
-                  style={inputStyle}
-                  disabled={actionInProgress.length > 0}
-                />
-              </label>
-              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                <button
-                  type="button"
-                  onClick={() => void handleGenerate()}
-                  disabled={actionInProgress.length > 0}
-                  style={primaryButtonStyle}
-                >
-                  {actionInProgress === 'generate' ? es.common.loading : es.license.generateButton}
-                </button>
-              </div>
-            </div>
-          </section>
-        )}
+          )}
+        </div>
       </section>
-    </main>
+
+      {/* Fingerprint */}
+      <section className="tc-section">
+        <h2 className="tc-section-title">{es.license.fingerprintTitle}</h2>
+        <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', flexWrap: 'wrap' }}>
+          <code style={{ flex: 1, padding: 'var(--space-3)', borderRadius: 'var(--radius-lg)', background: 'var(--gray-100)', fontFamily: 'monospace', fontSize: 'var(--text-sm)', wordBreak: 'break-all', border: '1px solid var(--border-light)' }}>{info.fingerprint.fingerprint}</code>
+          <button type="button" className="tc-btn tc-btn--secondary" onClick={handleCopyFingerprint}>
+            {es.license.fingerprintCopy}
+          </button>
+        </div>
+        <div className="tc-grid-4" style={{ marginTop: 'var(--space-4)' }}>
+          <div style={{ padding: 'var(--space-3)', borderRadius: 'var(--radius-lg)', background: 'var(--gray-50)', border: '1px solid var(--border-light)' }}>
+            <span style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', color: 'var(--gray-500)', fontWeight: 600 }}>CPU</span>
+            <span style={{ display: 'block', marginTop: 'var(--space-1)', fontFamily: 'monospace', fontSize: 'var(--text-xs)', color: 'var(--gray-800)', wordBreak: 'break-all' }}>{info.fingerprint.cpuInfo}</span>
+          </div>
+          <div style={{ padding: 'var(--space-3)', borderRadius: 'var(--radius-lg)', background: 'var(--gray-50)', border: '1px solid var(--border-light)' }}>
+            <span style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', color: 'var(--gray-500)', fontWeight: 600 }}>Disco</span>
+            <span style={{ display: 'block', marginTop: 'var(--space-1)', fontFamily: 'monospace', fontSize: 'var(--text-xs)', color: 'var(--gray-800)', wordBreak: 'break-all' }}>{info.fingerprint.diskSerial}</span>
+          </div>
+          <div style={{ padding: 'var(--space-3)', borderRadius: 'var(--radius-lg)', background: 'var(--gray-50)', border: '1px solid var(--border-light)' }}>
+            <span style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', color: 'var(--gray-500)', fontWeight: 600 }}>MAC</span>
+            <span style={{ display: 'block', marginTop: 'var(--space-1)', fontFamily: 'monospace', fontSize: 'var(--text-xs)', color: 'var(--gray-800)', wordBreak: 'break-all' }}>{info.fingerprint.macAddress}</span>
+          </div>
+          <div style={{ padding: 'var(--space-3)', borderRadius: 'var(--radius-lg)', background: 'var(--gray-50)', border: '1px solid var(--border-light)' }}>
+            <span style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', color: 'var(--gray-500)', fontWeight: 600 }}>Hostname</span>
+            <span style={{ display: 'block', marginTop: 'var(--space-1)', fontFamily: 'monospace', fontSize: 'var(--text-xs)', color: 'var(--gray-800)', wordBreak: 'break-all' }}>{info.fingerprint.hostname}</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Activar */}
+      <section className="tc-section">
+        <h2 className="tc-section-title">{es.license.activateTitle}</h2>
+        <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+          <textarea
+            className="tc-textarea"
+            placeholder={es.license.activatePlaceholder}
+            value={licenseInput}
+            onChange={(e) => setLicenseInput(e.target.value)}
+            rows={4}
+            disabled={actionInProgress.length > 0}
+          />
+          <button
+            type="button"
+            className="tc-btn tc-btn--primary"
+            onClick={() => void handleActivate()}
+            disabled={actionInProgress.length > 0 || !licenseInput.trim()}
+          >
+            {actionInProgress === 'activate' ? es.common.loading : es.license.activateButton}
+          </button>
+        </div>
+      </section>
+
+      {/* Generar (solo admin con permiso) */}
+      {can('backup:all') && (
+        <section className="tc-section">
+          <h2 className="tc-section-title">{es.license.generateTitle}</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 'var(--space-3)' }}>
+            <label className="tc-field">
+              <span className="tc-label">{es.license.generateMonths}</span>
+              <input
+                type="number"
+                className="tc-input"
+                value={months}
+                min={1}
+                max={60}
+                onChange={(e) => setMonths(Number(e.target.value) || 12)}
+                disabled={actionInProgress.length > 0}
+              />
+            </label>
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button
+                type="button"
+                className="tc-btn tc-btn--primary"
+                onClick={() => void handleGenerate()}
+                disabled={actionInProgress.length > 0}
+              >
+                {actionInProgress === 'generate' ? es.common.loading : es.license.generateButton}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+    </>
   );
 }
 
-/* ─── Lock Screen ─── */
+/* &#9472;&#9472;&#9472; Lock Screen &#9472;&#9472;&#9472; */
 
 export function LicenseLockScreen({ onActivated }: { onActivated?: () => void }): JSX.Element {
   const [licenseInput, setLicenseInput] = useState('');
@@ -272,103 +267,45 @@ export function LicenseLockScreen({ onActivated }: { onActivated?: () => void })
   };
 
   if (loading) {
-    return <div style={{ ...lockShellStyle, justifyContent: 'center', alignItems: 'center' }}>{es.common.loading}</div>;
+    return <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'linear-gradient(135deg, #1E3A5F 0%, #0F172A 100%)', padding: 'var(--space-6)' }}>{es.common.loading}</div>;
   }
 
   return (
-    <div style={lockShellStyle}>
-      <div style={lockCardStyle}>
-        <div style={lockIconStyle}>🔒</div>
-        <h1 style={lockTitleStyle}>{es.license.lockTitle}</h1>
-        <p style={lockMessageStyle}>{es.license.lockMessage}</p>
-        <p style={lockSubtleStyle}>{es.license.lockedNotice}</p>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1E3A5F 0%, #0F172A 100%)', padding: 'var(--space-6)' }}>
+      <div style={{ maxWidth: 520, width: '100%', padding: 'var(--space-10)', borderRadius: 'var(--radius-2xl)', background: '#FFFFFF', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', textAlign: 'center' }}>
+        <div style={{ fontSize: '56px' }}>&#128274;</div>
+        <h1 style={{ margin: 'var(--space-4) 0 var(--space-2)', fontSize: 'var(--text-2xl)', color: 'var(--danger-600)' }}>{es.license.lockTitle}</h1>
+        <p style={{ margin: 'var(--space-2) 0', color: 'var(--gray-700)', fontSize: 'var(--text-base)' }}>{es.license.lockMessage}</p>
+        <p style={{ margin: 'var(--space-2) 0 0', color: 'var(--gray-500)', fontSize: 'var(--text-sm)' }}>{es.license.lockedNotice}</p>
 
-        <div style={lockFingerprintSectionStyle}>
-          <span style={lockFpLabelStyle}>{es.license.lockFingerprint}</span>
-          <code style={lockFpCodeStyle}>{fingerprint}</code>
+        <div style={{ marginTop: 'var(--space-6)', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)', background: 'var(--gray-100)' }}>
+          <span style={{ display: 'block', fontSize: 'var(--text-xs)', textTransform: 'uppercase', color: 'var(--gray-500)', fontWeight: 600, marginBottom: 'var(--space-2)' }}>{es.license.lockFingerprint}</span>
+          <code style={{ display: 'block', fontFamily: 'monospace', fontSize: 'var(--text-sm)', wordBreak: 'break-all', color: 'var(--gray-800)' }}>{fingerprint}</code>
         </div>
 
-        <div style={lockInputSectionStyle}>
-          <p style={lockInputLabelStyle}>{es.license.lockEnterLicense}</p>
+        <div style={{ marginTop: 'var(--space-6)', display: 'grid', gap: 'var(--space-3)' }}>
+          <p style={{ margin: 0, fontWeight: 700, color: 'var(--gray-800)', textAlign: 'left' }}>{es.license.lockEnterLicense}</p>
           <textarea
+            className="tc-textarea"
             placeholder={es.license.activatePlaceholder}
             value={licenseInput}
             onChange={(e) => setLicenseInput(e.target.value)}
-            style={lockTextareaStyle}
             rows={4}
+            style={{ textAlign: 'center' }}
           />
           <button
             type="button"
+            className="tc-btn tc-btn--danger"
+            style={{ minHeight: '52px', fontSize: 'var(--text-base)' }}
             onClick={() => void handleActivate()}
             disabled={!licenseInput.trim()}
-            style={lockButtonStyle}
           >
             {es.license.lockActivate}
           </button>
         </div>
 
-        {message && <p style={lockMessageResultStyle}>{message}</p>}
+        {message && <p style={{ margin: 'var(--space-4) 0 0', padding: 'var(--space-3)', borderRadius: 'var(--radius-lg)', background: 'var(--danger-50)', border: '1px solid var(--danger-100)', color: 'var(--danger-600)' }}>{message}</p>}
       </div>
     </div>
   );
 }
-
-/* ─── Styles ─── */
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  padding: tokens.spacing[6],
-  background:
-    'radial-gradient(circle at top left, rgba(22, 163, 74, 0.08), transparent 24%), linear-gradient(180deg, #FAFAF9 0%, #F3F4F6 52%, #E5E7EB 100%)',
-};
-const shellStyle: CSSProperties = { maxWidth: 900, margin: '0 auto', display: 'grid', gap: tokens.spacing[5] };
-const headerStyle: CSSProperties = { padding: '24px', borderRadius: '18px', background: '#FFFFFF', boxShadow: tokens.shadows.md };
-const eyebrowStyle: CSSProperties = { margin: 0, color: '#0F766E', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: '12px', fontWeight: 700 };
-const titleStyle: CSSProperties = { margin: '6px 0 0', fontSize: '32px', color: '#111827' };
-const subtleStyle: CSSProperties = { margin: '8px 0 0', color: '#6B7280' };
-const panelStyle: CSSProperties = { padding: '24px', borderRadius: '18px', background: '#FFFFFF', boxShadow: tokens.shadows.sm, display: 'grid', gap: '16px' };
-const sectionTitleStyle: CSSProperties = { margin: 0, fontSize: '24px', color: '#111827' };
-const statusGridStyle: CSSProperties = { display: 'grid', gap: '12px' };
-const statusBadgeStyle = (type: 'valid' | 'invalid'): CSSProperties => ({
-  display: 'inline-block',
-  padding: '8px 16px',
-  borderRadius: '999px',
-  fontWeight: 700,
-  fontSize: '15px',
-  background: type === 'valid' ? '#DCFCE7' : '#FEE2E2',
-  color: type === 'valid' ? '#166534' : '#991B1B',
-});
-const infoItemStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F3F4F6' };
-const infoLabelStyle: CSSProperties = { fontWeight: 600, color: '#374151' };
-const infoValueStyle: CSSProperties = { color: '#111827', fontSize: '15px' };
-const fingerprintRowStyle: CSSProperties = { display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' };
-const fingerprintCodeStyle: CSSProperties = { flex: 1, padding: '12px', borderRadius: '12px', background: '#F3F4F6', fontFamily: 'monospace', fontSize: '14px', wordBreak: 'break-all', border: '1px solid #E5E7EB' };
-const hwGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' };
-const hwItemStyle: CSSProperties = { padding: '12px', borderRadius: '12px', background: '#F9FAFB', border: '1px solid #E5E7EB' };
-const hwLabelStyle: CSSProperties = { fontSize: '12px', textTransform: 'uppercase', color: '#6B7280', fontWeight: 600 };
-const hwValueStyle: CSSProperties = { display: 'block', marginTop: '4px', fontFamily: 'monospace', fontSize: '13px', color: '#111827', wordBreak: 'break-all' };
-const textareaStyle: CSSProperties = { minHeight: '80px', borderRadius: '12px', border: '1px solid #D1D5DB', padding: '12px', fontSize: '14px', fontFamily: 'monospace', resize: 'vertical' };
-const inputStyle: CSSProperties = { minHeight: '46px', borderRadius: '12px', border: '1px solid #D1D5DB', padding: '0 14px', fontSize: '15px', width: '100%' };
-const fieldStyle: CSSProperties = { display: 'grid', gap: '8px' };
-const fieldLabelStyle: CSSProperties = { fontWeight: 700, color: '#111827' };
-const noticeStyle: CSSProperties = { padding: '12px 16px', borderRadius: '12px', border: '1px solid' };
-const noticeSuccessStyle: CSSProperties = { background: '#F0FDFA', borderColor: '#99F6E4', color: '#0F766E' };
-const noticeErrorStyle: CSSProperties = { background: '#FEF2F2', borderColor: '#FECACA', color: '#DC2626' };
-const primaryButtonStyle: CSSProperties = { minHeight: '44px', padding: '0 16px', borderRadius: '12px', border: 'none', background: '#0F766E', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer' };
-const secondaryButtonStyle: CSSProperties = { minHeight: '44px', padding: '0 16px', borderRadius: '12px', border: '1px solid #CBD5E1', background: '#FFFFFF', color: '#111827', fontWeight: 700, cursor: 'pointer' };
-
-/* Lock screen */
-const lockShellStyle: CSSProperties = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1E3A5F 0%, #0F172A 100%)', padding: '24px' };
-const lockCardStyle: CSSProperties = { maxWidth: 520, width: '100%', padding: '40px', borderRadius: '24px', background: '#FFFFFF', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', textAlign: 'center' };
-const lockIconStyle: CSSProperties = { fontSize: '56px' };
-const lockTitleStyle: CSSProperties = { margin: '16px 0 8px', fontSize: '28px', color: '#DC2626' };
-const lockMessageStyle: CSSProperties = { margin: '8px 0', color: '#374151', fontSize: '16px' };
-const lockSubtleStyle: CSSProperties = { margin: '8px 0 0', color: '#6B7280', fontSize: '14px' };
-const lockFingerprintSectionStyle: CSSProperties = { marginTop: '24px', padding: '16px', borderRadius: '12px', background: '#F3F4F6' };
-const lockFpLabelStyle: CSSProperties = { display: 'block', fontSize: '12px', textTransform: 'uppercase', color: '#6B7280', fontWeight: 600, marginBottom: '8px' };
-const lockFpCodeStyle: CSSProperties = { display: 'block', fontFamily: 'monospace', fontSize: '13px', wordBreak: 'break-all', color: '#111827' };
-const lockInputSectionStyle: CSSProperties = { marginTop: '24px', display: 'grid', gap: '12px' };
-const lockInputLabelStyle: CSSProperties = { margin: 0, fontWeight: 700, color: '#111827', textAlign: 'left' };
-const lockTextareaStyle: CSSProperties = { minHeight: '80px', borderRadius: '12px', border: '1px solid #D1D5DB', padding: '12px', fontSize: '14px', fontFamily: 'monospace', resize: 'vertical', textAlign: 'center' };
-const lockButtonStyle: CSSProperties = { minHeight: '52px', padding: '0 24px', borderRadius: '12px', border: 'none', background: '#DC2626', color: '#FFFFFF', fontWeight: 700, fontSize: '16px', cursor: 'pointer' };
-const lockMessageResultStyle: CSSProperties = { margin: '16px 0 0', padding: '12px', borderRadius: '12px', background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626' };

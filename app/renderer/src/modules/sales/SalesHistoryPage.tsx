@@ -1,11 +1,10 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { getActiveCashRegister } from '../../shared/api/cash.api';
 import { cancelSale, generateInvoice, getSalesByCashRegister } from '../../shared/api/sales.api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { es } from '../../shared/i18n';
-import { tokens } from '../../shared/theme';
 import type { SaleRecord } from '../../shared/types/sales.types';
 
 export function SalesHistoryPage(): JSX.Element {
@@ -74,161 +73,162 @@ export function SalesHistoryPage(): JSX.Element {
   };
 
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
-        <header style={headerStyle}>
+    <div className="tc-page-container">
+      <section className="tc-section">
+        <div className="tc-section-header">
           <div>
-            <p style={eyebrowStyle}>{es.sales.historyTitle}</p>
-            <h1 style={titleStyle}>{es.sales.historyTitle}</h1>
-            <p style={subtleStyle}>{es.sales.historySubtitle}</p>
+            <h2 className="tc-section-title">{es.sales.historyTitle}</h2>
+            <p className="tc-section-subtitle">{es.sales.historySubtitle}</p>
           </div>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <Link to="/sales" style={primaryLinkStyle}>
+          <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+            <Link to="/sales" className="tc-btn tc-btn--primary">
               {es.sales.posTitle}
             </Link>
-            <Link to="/dashboard" style={secondaryLinkStyle}>
+            <Link to="/dashboard" className="tc-btn tc-btn--secondary">
               {es.dashboard.title}
             </Link>
           </div>
-        </header>
+        </div>
 
-        {message && <div style={noticeStyle}>{message}</div>}
+        {message && <div className="tc-notice tc-notice--info">{message}</div>}
+      </section>
 
-        <section style={panelStyle}>
-          {loading ? (
-            <p style={subtleStyle}>{es.common.loading}</p>
-          ) : sales.length === 0 ? (
-            <p style={subtleStyle}>{es.sales.noSalesYet}</p>
-          ) : (
-            <div style={tableWrapStyle}>
-              <table style={tableStyle}>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>{es.sales.saleNumber}</th>
-                    <th style={thStyle}>{es.sales.dateLabel}</th>
-                    <th style={thStyle}>{es.sales.itemsCount}</th>
-                    <th style={thStyle}>{es.sales.totalLabel}</th>
-                    <th style={thStyle}>{es.sales.statusLabel}</th>
-                    <th style={thStyle}>{es.sales.actionsLabel}</th>
+      <section className="tc-section">
+        {loading ? (
+          <p style={{ color: 'var(--gray-500)' }}>{es.common.loading}</p>
+        ) : sales.length === 0 ? (
+          <p style={{ color: 'var(--gray-500)' }}>{es.sales.noSalesYet}</p>
+        ) : (
+          <div className="tc-table-wrap">
+            <table className="tc-table">
+              <thead>
+                <tr>
+                  <th>{es.sales.saleNumber}</th>
+                  <th>{es.sales.dateLabel}</th>
+                  <th>{es.sales.itemsCount}</th>
+                  <th>{es.sales.totalLabel}</th>
+                  <th>{es.sales.statusLabel}</th>
+                  <th>{es.sales.actionsLabel}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sales.map((sale) => (
+                  <tr key={sale.id}>
+                    <td>{sale.saleNumber}</td>
+                    <td>{new Date(sale.createdAt).toLocaleString('es-CO')}</td>
+                    <td>{sale.items.length}</td>
+                    <td>{formatCurrency(sale.total)}</td>
+                    <td>
+                      <span className={sale.status === 'COMPLETED' ? 'tc-badge tc-badge--success' : 'tc-badge tc-badge--danger'}>
+                        {sale.status}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                        <button type="button" onClick={() => setSelectedSale(sale)} className="tc-btn tc-btn--ghost">
+                          Ver
+                        </button>
+                        <button type="button" onClick={() => void handleInvoice(sale.id)} className="tc-btn tc-btn--ghost">
+                          Factura
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleCancelSale(sale)}
+                          className="tc-btn tc-btn--danger"
+                          disabled={sale.status === 'CANCELLED'}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {sales.map((sale) => (
-                    <tr key={sale.id}>
-                      <td style={tdStyle}>{sale.saleNumber}</td>
-                      <td style={tdStyle}>{new Date(sale.createdAt).toLocaleString('es-CO')}</td>
-                      <td style={tdStyle}>{sale.items.length}</td>
-                      <td style={tdStyle}>{formatCurrency(sale.total)}</td>
-                      <td style={tdStyle}>
-                        <span style={sale.status === 'COMPLETED' ? successBadgeStyle : dangerBadgeStyle}>
-                          {sale.status}
-                        </span>
-                      </td>
-                      <td style={tdStyle}>
-                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                          <button type="button" onClick={() => setSelectedSale(sale)} style={inlineActionStyle}>
-                            Ver
-                          </button>
-                          <button type="button" onClick={() => void handleInvoice(sale.id)} style={inlineActionStyle}>
-                            Factura
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleCancelSale(sale)}
-                            style={dangerActionStyle}
-                            disabled={sale.status === 'CANCELLED'}
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {selectedSale && <SaleDetailsModal sale={selectedSale} onClose={() => setSelectedSale(null)} />}
-    </main>
+    </div>
   );
 }
 
 function SaleDetailsModal({ sale, onClose }: { sale: SaleRecord; onClose: () => void }): JSX.Element {
   return (
-    <div style={modalBackdropStyle}>
-      <section style={modalStyle}>
-        <div style={modalHeaderStyle}>
+    <div className="tc-modal-overlay">
+      <div className="tc-modal">
+        <div className="tc-section-header">
           <div>
-            <h2 style={sectionTitleStyle}>{sale.saleNumber}</h2>
-            <p style={subtleStyle}>{new Date(sale.createdAt).toLocaleString('es-CO')}</p>
+            <h3 className="tc-modal-title">{sale.saleNumber}</h3>
+            <p style={{ color: 'var(--gray-500)', fontSize: 'var(--text-sm)', marginTop: 'var(--space-1)' }}>
+              {new Date(sale.createdAt).toLocaleString('es-CO')}
+            </p>
           </div>
-          <button type="button" onClick={onClose} style={secondaryLinkStyle}>
+          <button type="button" onClick={onClose} className="tc-btn tc-btn--secondary">
             {es.common.close}
           </button>
         </div>
 
-        <div style={detailsGridStyle}>
-          <div>
-            <strong>{es.auth.title}</strong>
-            <p style={subtleStyle}>{sale.user.fullName}</p>
+        <div className="tc-grid-2">
+          <div className="tc-field">
+            <label className="tc-label">{es.auth.title}</label>
+            <p style={{ color: 'var(--gray-600)', fontSize: 'var(--text-sm)' }}>{sale.user.fullName}</p>
           </div>
-          <div>
-            <strong>{es.sales.statusLabel}</strong>
-            <p style={subtleStyle}>{sale.status}</p>
+          <div className="tc-field">
+            <label className="tc-label">{es.sales.statusLabel}</label>
+            <p style={{ color: 'var(--gray-600)', fontSize: 'var(--text-sm)' }}>{sale.status}</p>
           </div>
         </div>
 
-        <div style={tableWrapStyle}>
-          <table style={tableStyle}>
+        <div className="tc-table-wrap">
+          <table className="tc-table">
             <thead>
               <tr>
-                <th style={thStyle}>{es.inventory.name}</th>
-                <th style={thStyle}>{es.sales.itemsCount}</th>
-                <th style={thStyle}>{es.inventory.price}</th>
-                <th style={thStyle}>{es.sales.totalLabel}</th>
+                <th>{es.inventory.name}</th>
+                <th>{es.sales.itemsCount}</th>
+                <th>{es.inventory.price}</th>
+                <th>{es.sales.totalLabel}</th>
               </tr>
             </thead>
             <tbody>
               {sale.items.map((item) => (
                 <tr key={item.id}>
-                  <td style={tdStyle}>{item.product.name}</td>
-                  <td style={tdStyle}>{item.quantity}</td>
-                  <td style={tdStyle}>{formatCurrency(item.unitPrice)}</td>
-                  <td style={tdStyle}>{formatCurrency(item.total)}</td>
+                  <td>{item.product.name}</td>
+                  <td>{item.quantity}</td>
+                  <td>{formatCurrency(item.unitPrice)}</td>
+                  <td>{formatCurrency(item.total)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        <div style={summaryBoxStyle}>
+        <div style={{ padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)', background: 'var(--gray-50)', border: '1px solid var(--border-light)', display: 'grid', gap: 'var(--space-2)' }}>
           <SummaryRow label="Subtotal" value={formatCurrency(sale.subtotal)} />
           <SummaryRow label="IVA" value={formatCurrency(sale.tax)} />
           <SummaryRow label="Total" value={formatCurrency(sale.total)} strong />
         </div>
 
-        <div style={summaryBoxStyle}>
+        <div style={{ padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)', background: 'var(--gray-50)', border: '1px solid var(--border-light)', display: 'grid', gap: 'var(--space-2)' }}>
           <strong>{es.sales.paymentsTitle}</strong>
           {sale.payments.map((payment) => (
-            <div key={payment.id} style={summaryRowStyle}>
+            <div key={payment.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
               <span style={{ textTransform: 'capitalize' }}>{payment.method}</span>
               <span>{formatCurrency(payment.amount)}</span>
             </div>
           ))}
         </div>
-      </section>
+      </div>
     </div>
   );
 }
 
 function SummaryRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }): JSX.Element {
   return (
-    <div style={summaryRowStyle}>
-      <span style={strong ? summaryStrongStyle : summaryLabelStyle}>{label}</span>
-      <span style={strong ? summaryStrongStyle : summaryLabelStyle}>{value}</span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
+      <span style={strong ? { color: 'var(--gray-900)', fontWeight: 800 } : { color: 'var(--gray-600)' }}>{label}</span>
+      <span style={strong ? { color: 'var(--gray-900)', fontWeight: 800 } : { color: 'var(--gray-600)' }}>{value}</span>
     </div>
   );
 }
@@ -240,31 +240,3 @@ function formatCurrency(value: number): string {
     maximumFractionDigits: 0,
   }).format(value);
 }
-
-const pageStyle: CSSProperties = { minHeight: '100vh', padding: tokens.spacing[6], background: 'linear-gradient(180deg, #FFFFFF 0%, #F3F4F6 52%, #E5E7EB 100%)' };
-const shellStyle: CSSProperties = { maxWidth: 1320, margin: '0 auto', display: 'grid', gap: tokens.spacing[5] };
-const headerStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', padding: '24px', borderRadius: '18px', background: '#FFFFFF', boxShadow: tokens.shadows.md };
-const eyebrowStyle: CSSProperties = { margin: 0, color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: '12px', fontWeight: 700 };
-const titleStyle: CSSProperties = { margin: '6px 0 0', fontSize: '32px', color: '#111827' };
-const subtleStyle: CSSProperties = { margin: '8px 0 0', color: '#6B7280' };
-const primaryLinkStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '46px', padding: '0 16px', borderRadius: '12px', border: 'none', background: '#2563EB', color: '#FFFFFF', textDecoration: 'none', fontWeight: 700 };
-const secondaryLinkStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '42px', padding: '0 14px', borderRadius: '10px', border: '1px solid #D1D5DB', background: '#FFFFFF', color: '#111827', textDecoration: 'none', fontWeight: 700, cursor: 'pointer' };
-const noticeStyle: CSSProperties = { padding: '12px 16px', borderRadius: '12px', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8' };
-const panelStyle: CSSProperties = { padding: '24px', borderRadius: '18px', background: '#FFFFFF', boxShadow: tokens.shadows.sm };
-const tableWrapStyle: CSSProperties = { overflowX: 'auto', borderRadius: '16px', border: '1px solid #E5E7EB' };
-const tableStyle: CSSProperties = { width: '100%', borderCollapse: 'collapse' };
-const thStyle: CSSProperties = { textAlign: 'left', padding: '14px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6B7280', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' };
-const tdStyle: CSSProperties = { padding: '14px', borderBottom: '1px solid #F3F4F6', verticalAlign: 'top' };
-const successBadgeStyle: CSSProperties = { display: 'inline-flex', padding: '6px 10px', borderRadius: '999px', background: '#DCFCE7', color: '#166534', fontWeight: 700, fontSize: '12px' };
-const dangerBadgeStyle: CSSProperties = { display: 'inline-flex', padding: '6px 10px', borderRadius: '999px', background: '#FEE2E2', color: '#991B1B', fontWeight: 700, fontSize: '12px' };
-const inlineActionStyle: CSSProperties = { border: 'none', background: 'transparent', color: '#2563EB', cursor: 'pointer', fontWeight: 700 };
-const dangerActionStyle: CSSProperties = { ...inlineActionStyle, color: '#DC2626' };
-const modalBackdropStyle: CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', display: 'grid', placeItems: 'center', padding: '24px', zIndex: 50 };
-const modalStyle: CSSProperties = { width: 'min(920px, 100%)', maxHeight: '88vh', overflowY: 'auto', borderRadius: '18px', background: '#FFFFFF', padding: '24px', display: 'grid', gap: '16px' };
-const modalHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' };
-const sectionTitleStyle: CSSProperties = { margin: 0, fontSize: '22px', color: '#111827' };
-const detailsGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '16px' };
-const summaryBoxStyle: CSSProperties = { display: 'grid', gap: '10px', padding: '16px', borderRadius: '14px', background: '#F9FAFB', border: '1px solid #E5E7EB' };
-const summaryRowStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: '12px' };
-const summaryLabelStyle: CSSProperties = { color: '#374151' };
-const summaryStrongStyle: CSSProperties = { color: '#111827', fontWeight: 800 };

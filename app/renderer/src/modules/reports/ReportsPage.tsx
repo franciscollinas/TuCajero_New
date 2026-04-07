@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { exportReport, getReportsDashboardData } from '../../shared/api/reports.api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { es } from '../../shared/i18n';
-import { tokens } from '../../shared/theme';
 import type {
   CashSessionReportRow,
   InventoryReportRow,
@@ -128,139 +127,139 @@ export function ReportsPage(): JSX.Element {
   };
 
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
-        <header style={headerStyle}>
-          <div>
-            <p style={eyebrowStyle}>{es.reports.title}</p>
-            <h1 style={titleStyle}>{es.reports.title}</h1>
-            <p style={subtleStyle}>{es.reports.subtitle}</p>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <Link to="/dashboard" style={secondaryLinkStyle}>
-              {es.dashboard.title}
-            </Link>
-          </div>
-        </header>
+    <>
+      <div className="tc-section-header" style={{ marginBottom: 'var(--space-6)' }}>
+        <div>
+          <p style={{ margin: 0, color: 'var(--brand-600)', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: '12px', fontWeight: 700 }}>{es.reports.title}</p>
+          <h1 className="tc-section-title">{es.reports.title}</h1>
+          <p className="tc-section-subtitle">{es.reports.subtitle}</p>
+        </div>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <Link to="/dashboard" className="tc-btn tc-btn--secondary">
+            {es.dashboard.title}
+          </Link>
+        </div>
+      </div>
 
-        <section style={panelStyle}>
-          <div style={filtersGridStyle}>
-            <label style={fieldStyle}>
-              <span style={fieldLabelStyle}>{es.reports.startDate}</span>
-              <input
-                type="date"
-                value={range.startDate}
-                onChange={(event) => setRange((current) => ({ ...current, startDate: event.target.value }))}
-                style={inputStyle}
-              />
-            </label>
-            <label style={fieldStyle}>
-              <span style={fieldLabelStyle}>{es.reports.endDate}</span>
-              <input
-                type="date"
-                value={range.endDate}
-                onChange={(event) => setRange((current) => ({ ...current, endDate: event.target.value }))}
-                style={inputStyle}
-              />
-            </label>
-          </div>
-          {message ? <div style={noticeStyle}>{message}</div> : null}
-        </section>
-
-        {loading ? (
-          <section style={panelStyle}>
-            <p style={subtleStyle}>{es.common.loading}</p>
-          </section>
-        ) : null}
-
-        {!loading && data ? (
-          <>
-            <section style={summaryGridStyle}>
-              {summaryCards.map((card) => (
-                <article key={card.label} style={cardStyle}>
-                  <p style={eyebrowStyle}>{card.label}</p>
-                  <p style={cardValueStyle}>{card.value}</p>
-                </article>
-              ))}
-            </section>
-
-            <ReportSection
-              title={es.reports.salesSection}
-              subtitle={`${es.reports.totalSales}: ${data.salesSummary.totalSales} · ${es.reports.paymentMix}: ${renderMetricList(data.salesSummary.paymentsByMethod)}`}
-              exporting={exporting}
-              reportType="sales"
-              onExport={handleExport}
-            >
-              <SalesTable rows={data.sales.slice(0, 12)} />
-            </ReportSection>
-
-            <ReportSection
-              title={es.reports.cashSection}
-              subtitle={`${es.reports.sessions}: ${data.cashSessions.length}`}
-              exporting={exporting}
-              reportType="cashSessions"
-              onExport={handleExport}
-            >
-              <CashSessionsTable rows={data.cashSessions.slice(0, 12)} />
-            </ReportSection>
-
-            <ReportSection
-              title={es.reports.inventorySection}
-              subtitle={`${es.reports.products}: ${data.inventorySummary.totalProducts} · ${es.reports.lowStock}: ${data.inventorySummary.lowStockCount} · ${es.reports.criticalStock}: ${data.inventorySummary.criticalStockCount}`}
-              exporting={exporting}
-              reportType="inventory"
-              onExport={handleExport}
-            >
-              <InventoryTable rows={data.inventory.slice(0, 12)} />
-            </ReportSection>
-
-            <ReportSection
-              title={es.reports.expiringSection}
-              subtitle={`${es.reports.expiringCount}: ${data.inventorySummary.expiringCount} · ${es.reports.expiredCount}: ${data.inventorySummary.expiredCount}`}
-              exporting={exporting}
-              reportType="expiring"
-              onExport={handleExport}
-            >
-              <InventoryTable rows={data.expiringProducts.slice(0, 12)} />
-            </ReportSection>
-
-            <ReportSection
-              title={es.reports.auditSection}
-              subtitle={`${es.reports.auditRecords}: ${data.auditSummary.totalLogs} · ${es.reports.topActions}: ${renderMetricList(data.auditSummary.topActions)}`}
-              exporting={exporting}
-              reportType="audit"
-              onExport={handleExport}
-            >
-              <div style={tableWrapStyle}>
-                <table style={tableStyle}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>{es.audit.date}</th>
-                      <th style={thStyle}>{es.audit.user}</th>
-                      <th style={thStyle}>{es.audit.action}</th>
-                      <th style={thStyle}>{es.audit.entity}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.auditLogs.slice(0, 15).map((log) => (
-                      <tr key={log.id}>
-                        <td style={tdStyle}>{formatDate(log.createdAt)}</td>
-                        <td style={tdStyle}>{log.user.fullName}</td>
-                        <td style={tdStyle}>{log.action}</td>
-                        <td style={tdStyle}>
-                          {log.entity}
-                          {log.entityId ? ` #${log.entityId}` : ''}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </ReportSection>
-          </>
-        ) : null}
+      <section className="tc-section">
+        <div className="tc-grid-form">
+          <label className="tc-field">
+            <span className="tc-label">{es.reports.startDate}</span>
+            <input
+              type="date"
+              className="tc-input"
+              value={range.startDate}
+              onChange={(event) => setRange((current) => ({ ...current, startDate: event.target.value }))}
+            />
+          </label>
+          <label className="tc-field">
+            <span className="tc-label">{es.reports.endDate}</span>
+            <input
+              type="date"
+              className="tc-input"
+              value={range.endDate}
+              onChange={(event) => setRange((current) => ({ ...current, endDate: event.target.value }))}
+            />
+          </label>
+        </div>
+        {message ? <div className="tc-notice tc-notice--info">{message}</div> : null}
       </section>
-    </main>
+
+      {loading ? (
+        <section className="tc-section">
+          <p style={{ color: 'var(--gray-500)' }}>{es.common.loading}</p>
+        </section>
+      ) : null}
+
+      {!loading && data ? (
+        <>
+          <div className="tc-grid-4" style={{ marginBottom: 'var(--space-4)' }}>
+            {summaryCards.map((card) => (
+              <article key={card.label} className="tc-metric-card">
+                <div className="tc-metric-content">
+                  <p className="tc-metric-label">{card.label}</p>
+                  <p className="tc-metric-value">{card.value}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <ReportSection
+            title={es.reports.salesSection}
+            subtitle={`${es.reports.totalSales}: ${data.salesSummary.totalSales} · ${es.reports.paymentMix}: ${renderMetricList(data.salesSummary.paymentsByMethod)}`}
+            exporting={exporting}
+            reportType="sales"
+            onExport={handleExport}
+          >
+            <SalesTable rows={data.sales.slice(0, 12)} />
+          </ReportSection>
+
+          <ReportSection
+            title={es.reports.cashSection}
+            subtitle={`${es.reports.sessions}: ${data.cashSessions.length}`}
+            exporting={exporting}
+            reportType="cashSessions"
+            onExport={handleExport}
+          >
+            <CashSessionsTable rows={data.cashSessions.slice(0, 12)} />
+          </ReportSection>
+
+          <ReportSection
+            title={es.reports.inventorySection}
+            subtitle={`${es.reports.products}: ${data.inventorySummary.totalProducts} · ${es.reports.lowStock}: ${data.inventorySummary.lowStockCount} · ${es.reports.criticalStock}: ${data.inventorySummary.criticalStockCount}`}
+            exporting={exporting}
+            reportType="inventory"
+            onExport={handleExport}
+          >
+            <InventoryTable rows={data.inventory.slice(0, 12)} />
+          </ReportSection>
+
+          <ReportSection
+            title={es.reports.expiringSection}
+            subtitle={`${es.reports.expiringCount}: ${data.inventorySummary.expiringCount} · ${es.reports.expiredCount}: ${data.inventorySummary.expiredCount}`}
+            exporting={exporting}
+            reportType="expiring"
+            onExport={handleExport}
+          >
+            <InventoryTable rows={data.expiringProducts.slice(0, 12)} />
+          </ReportSection>
+
+          <ReportSection
+            title={es.reports.auditSection}
+            subtitle={`${es.reports.auditRecords}: ${data.auditSummary.totalLogs} · ${es.reports.topActions}: ${renderMetricList(data.auditSummary.topActions)}`}
+            exporting={exporting}
+            reportType="audit"
+            onExport={handleExport}
+          >
+            <div className="tc-table-wrap">
+              <table className="tc-table">
+                <thead>
+                  <tr>
+                    <th>{es.audit.date}</th>
+                    <th>{es.audit.user}</th>
+                    <th>{es.audit.action}</th>
+                    <th>{es.audit.entity}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.auditLogs.slice(0, 15).map((log) => (
+                    <tr key={log.id}>
+                      <td>{formatDate(log.createdAt)}</td>
+                      <td>{log.user.fullName}</td>
+                      <td>{log.action}</td>
+                      <td>
+                        {log.entity}
+                        {log.entityId ? ` #${log.entityId}` : ''}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </ReportSection>
+        </>
+      ) : null}
+    </>
   );
 }
 
@@ -280,25 +279,25 @@ function ReportSection({
   title: string;
 }): JSX.Element {
   return (
-    <section style={panelStyle}>
-      <div style={sectionHeaderStyle}>
+    <section className="tc-section">
+      <div className="tc-section-header">
         <div>
-          <h2 style={sectionTitleStyle}>{title}</h2>
-          <p style={subtleStyle}>{subtitle}</p>
+          <h2 className="tc-section-title">{title}</h2>
+          <p className="tc-section-subtitle">{subtitle}</p>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button
             type="button"
+            className="tc-btn tc-btn--secondary"
             onClick={() => void onExport(reportType, 'csv')}
-            style={secondaryButtonStyle}
             disabled={exporting.length > 0}
           >
             {exporting === `${reportType}:csv` ? es.reports.exporting : es.reports.exportCsv}
           </button>
           <button
             type="button"
+            className="tc-btn tc-btn--primary"
             onClick={() => void onExport(reportType, 'xlsx')}
-            style={primaryButtonStyle}
             disabled={exporting.length > 0}
           >
             {exporting === `${reportType}:xlsx` ? es.reports.exporting : es.reports.exportXlsx}
@@ -312,31 +311,31 @@ function ReportSection({
 
 function SalesTable({ rows }: { rows: SalesReportRow[] }): JSX.Element {
   if (rows.length === 0) {
-    return <p style={subtleStyle}>{es.reports.noData}</p>;
+    return <p style={{ color: 'var(--gray-500)' }}>{es.reports.noData}</p>;
   }
 
   return (
-    <div style={tableWrapStyle}>
-      <table style={tableStyle}>
+    <div className="tc-table-wrap">
+      <table className="tc-table">
         <thead>
           <tr>
-            <th style={thStyle}>{es.sales.saleNumber}</th>
-            <th style={thStyle}>{es.audit.date}</th>
-            <th style={thStyle}>{es.audit.user}</th>
-            <th style={thStyle}>{es.reports.items}</th>
-            <th style={thStyle}>{es.sales.totalLabel}</th>
-            <th style={thStyle}>{es.reports.paymentMix}</th>
+            <th>{es.sales.saleNumber}</th>
+            <th>{es.audit.date}</th>
+            <th>{es.audit.user}</th>
+            <th>{es.reports.items}</th>
+            <th>{es.sales.totalLabel}</th>
+            <th>{es.reports.paymentMix}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((sale) => (
             <tr key={sale.id}>
-              <td style={tdStyle}>{sale.saleNumber}</td>
-              <td style={tdStyle}>{formatDate(sale.createdAt)}</td>
-              <td style={tdStyle}>{sale.cashierName}</td>
-              <td style={tdStyle}>{sale.itemsCount}</td>
-              <td style={tdStyle}>{formatCurrency(sale.total)}</td>
-              <td style={tdStyle}>{renderMetricList(sale.payments)}</td>
+              <td>{sale.saleNumber}</td>
+              <td>{formatDate(sale.createdAt)}</td>
+              <td>{sale.cashierName}</td>
+              <td>{sale.itemsCount}</td>
+              <td>{formatCurrency(sale.total)}</td>
+              <td>{renderMetricList(sale.payments)}</td>
             </tr>
           ))}
         </tbody>
@@ -347,31 +346,31 @@ function SalesTable({ rows }: { rows: SalesReportRow[] }): JSX.Element {
 
 function CashSessionsTable({ rows }: { rows: CashSessionReportRow[] }): JSX.Element {
   if (rows.length === 0) {
-    return <p style={subtleStyle}>{es.reports.noData}</p>;
+    return <p style={{ color: 'var(--gray-500)' }}>{es.reports.noData}</p>;
   }
 
   return (
-    <div style={tableWrapStyle}>
-      <table style={tableStyle}>
+    <div className="tc-table-wrap">
+      <table className="tc-table">
         <thead>
           <tr>
-            <th style={thStyle}>ID</th>
-            <th style={thStyle}>{es.audit.user}</th>
-            <th style={thStyle}>{es.reports.openedAt}</th>
-            <th style={thStyle}>{es.reports.closedAt}</th>
-            <th style={thStyle}>{es.reports.sessions}</th>
-            <th style={thStyle}>{es.sales.totalLabel}</th>
+            <th>ID</th>
+            <th>{es.audit.user}</th>
+            <th>{es.reports.openedAt}</th>
+            <th>{es.reports.closedAt}</th>
+            <th>{es.reports.sessions}</th>
+            <th>{es.sales.totalLabel}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((session) => (
             <tr key={session.id}>
-              <td style={tdStyle}>#{session.id}</td>
-              <td style={tdStyle}>{session.cashierName}</td>
-              <td style={tdStyle}>{formatDate(session.openedAt)}</td>
-              <td style={tdStyle}>{formatDate(session.closedAt)}</td>
-              <td style={tdStyle}>{session.salesCount}</td>
-              <td style={tdStyle}>{formatCurrency(session.salesTotal)}</td>
+              <td>#{session.id}</td>
+              <td>{session.cashierName}</td>
+              <td>{formatDate(session.openedAt)}</td>
+              <td>{formatDate(session.closedAt)}</td>
+              <td>{session.salesCount}</td>
+              <td>{formatCurrency(session.salesTotal)}</td>
             </tr>
           ))}
         </tbody>
@@ -382,33 +381,33 @@ function CashSessionsTable({ rows }: { rows: CashSessionReportRow[] }): JSX.Elem
 
 function InventoryTable({ rows }: { rows: InventoryReportRow[] }): JSX.Element {
   if (rows.length === 0) {
-    return <p style={subtleStyle}>{es.reports.noData}</p>;
+    return <p style={{ color: 'var(--gray-500)' }}>{es.reports.noData}</p>;
   }
 
   return (
-    <div style={tableWrapStyle}>
-      <table style={tableStyle}>
+    <div className="tc-table-wrap">
+      <table className="tc-table">
         <thead>
           <tr>
-            <th style={thStyle}>{es.inventory.code}</th>
-            <th style={thStyle}>{es.inventory.name}</th>
-            <th style={thStyle}>{es.inventory.category}</th>
-            <th style={thStyle}>{es.inventory.stock}</th>
-            <th style={thStyle}>{es.inventory.price}</th>
-            <th style={thStyle}>{es.inventory.expiryDate}</th>
-            <th style={thStyle}>{es.inventory.status}</th>
+            <th>{es.inventory.code}</th>
+            <th>{es.inventory.name}</th>
+            <th>{es.inventory.category}</th>
+            <th>{es.inventory.stock}</th>
+            <th>{es.inventory.price}</th>
+            <th>{es.inventory.expiryDate}</th>
+            <th>{es.inventory.status}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((item) => (
             <tr key={item.id}>
-              <td style={tdStyle}>{item.code}</td>
-              <td style={tdStyle}>{item.name}</td>
-              <td style={tdStyle}>{item.categoryName}</td>
-              <td style={tdStyle}>{item.stock}</td>
-              <td style={tdStyle}>{formatCurrency(item.price)}</td>
-              <td style={tdStyle}>{formatDate(item.expiryDate)}</td>
-              <td style={tdStyle}>{item.status}</td>
+              <td>{item.code}</td>
+              <td>{item.name}</td>
+              <td>{item.categoryName}</td>
+              <td>{item.stock}</td>
+              <td>{formatCurrency(item.price)}</td>
+              <td>{formatDate(item.expiryDate)}</td>
+              <td>{item.status}</td>
             </tr>
           ))}
         </tbody>
@@ -416,33 +415,3 @@ function InventoryTable({ rows }: { rows: InventoryReportRow[] }): JSX.Element {
     </div>
   );
 }
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  padding: tokens.spacing[6],
-  background:
-    'radial-gradient(circle at top left, rgba(22, 163, 74, 0.08), transparent 24%), linear-gradient(180deg, #FAFAF9 0%, #F3F4F6 52%, #E5E7EB 100%)',
-};
-const shellStyle: CSSProperties = { maxWidth: 1360, margin: '0 auto', display: 'grid', gap: tokens.spacing[5] };
-const headerStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', padding: '24px', borderRadius: '18px', background: '#FFFFFF', boxShadow: tokens.shadows.md };
-const eyebrowStyle: CSSProperties = { margin: 0, color: '#0F766E', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: '12px', fontWeight: 700 };
-const titleStyle: CSSProperties = { margin: '6px 0 0', fontSize: '32px', color: '#111827' };
-const subtleStyle: CSSProperties = { margin: '8px 0 0', color: '#6B7280' };
-const panelStyle: CSSProperties = { padding: '24px', borderRadius: '18px', background: '#FFFFFF', boxShadow: tokens.shadows.sm, display: 'grid', gap: '16px' };
-const filtersGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 280px))', gap: '16px' };
-const fieldStyle: CSSProperties = { display: 'grid', gap: '8px' };
-const fieldLabelStyle: CSSProperties = { fontWeight: 700, color: '#111827' };
-const inputStyle: CSSProperties = { minHeight: '46px', borderRadius: '12px', border: '1px solid #D1D5DB', padding: '0 14px', fontSize: '15px' };
-const summaryGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' };
-const cardStyle: CSSProperties = { padding: '20px', borderRadius: '18px', background: '#FFFFFF', boxShadow: tokens.shadows.sm, border: '1px solid #E5E7EB' };
-const cardValueStyle: CSSProperties = { margin: '8px 0 0', fontSize: '28px', fontWeight: 700, color: '#111827' };
-const tableWrapStyle: CSSProperties = { overflowX: 'auto', borderRadius: '16px', border: '1px solid #E5E7EB' };
-const tableStyle: CSSProperties = { width: '100%', borderCollapse: 'collapse' };
-const thStyle: CSSProperties = { textAlign: 'left', padding: '14px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6B7280', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' };
-const tdStyle: CSSProperties = { padding: '14px', borderBottom: '1px solid #F3F4F6', verticalAlign: 'top', color: '#111827' };
-const noticeStyle: CSSProperties = { padding: '12px 16px', borderRadius: '12px', background: '#F0FDFA', border: '1px solid #99F6E4', color: '#0F766E' };
-const sectionHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' };
-const sectionTitleStyle: CSSProperties = { margin: 0, fontSize: '24px', color: '#111827' };
-const primaryButtonStyle: CSSProperties = { minHeight: '44px', padding: '0 16px', borderRadius: '12px', border: 'none', background: '#0F766E', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer' };
-const secondaryButtonStyle: CSSProperties = { minHeight: '44px', padding: '0 16px', borderRadius: '12px', border: '1px solid #CBD5E1', background: '#FFFFFF', color: '#111827', fontWeight: 700, cursor: 'pointer' };
-const secondaryLinkStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '46px', padding: '0 16px', borderRadius: '12px', border: '1px solid #D1D5DB', background: '#FFFFFF', color: '#111827', textDecoration: 'none', fontWeight: 700 };

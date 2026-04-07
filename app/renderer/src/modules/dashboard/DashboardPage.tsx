@@ -1,249 +1,191 @@
-import { Link, useNavigate } from 'react-router-dom';
-import type { CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 
 import { InventoryAlerts } from '../inventory/InventoryAlerts';
 import { buildInventoryAlertBuckets } from '../inventory/inventory.utils';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useRBAC } from '../../shared/hooks/useRBAC';
 import { es } from '../../shared/i18n';
-import { tokens } from '../../shared/theme';
 import { useInventoryStore } from '../../shared/store/inventory.store';
 
 export function DashboardPage(): JSX.Element {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { can } = useRBAC();
-  const navigate = useNavigate();
   const products = useInventoryStore((state) => state.products);
   const alertBuckets = buildInventoryAlertBuckets(products);
 
-  const handleLogout = async (): Promise<void> => {
-    await logout();
-    navigate('/login');
-  };
-
   const activeAlerts =
-    alertBuckets.critical.length + alertBuckets.warning.length + (alertBuckets.expired?.length ?? 0);
+    alertBuckets.critical.length +
+    alertBuckets.warning.length +
+    (alertBuckets.expired?.length ?? 0);
+
+  const initials = user
+    ? user.fullName
+        .split(' ')
+        .map((w) => w[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : '?';
 
   return (
-    <main
-      style={{
-        minHeight: '100vh',
-        padding: tokens.spacing[6],
-        background:
-          'radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 26%), linear-gradient(180deg, #F8FAFC 0%, #F3F4F6 48%, #E5E7EB 100%)',
-      }}
-    >
-      <section
-        style={{
-          maxWidth: 1280,
-          margin: '0 auto',
-          display: 'grid',
-          gap: tokens.spacing[5],
-        }}
-      >
-        <header
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: tokens.spacing[4],
-            flexWrap: 'wrap',
-            padding: tokens.spacing[5],
-            borderRadius: tokens.borderRadius.xl,
-            background: tokens.colors.white,
-            boxShadow: tokens.shadows.md,
-          }}
-        >
-          <div>
-            <p style={eyebrowStyle}>{es.app.name}</p>
-            <h1 style={titleStyle}>
-              {es.dashboard.welcome} · {es.dashboard.title}
-            </h1>
-            <p style={subtleStyle}>
-              {user ? `${user.fullName} · ${user.role}` : es.common.loading}
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: tokens.spacing[3], flexWrap: 'wrap' }}>
-            <Link to="/cash" style={linkButtonStyle}>
-              {es.cashSession.open}
-            </Link>
-            <Link to="/sales" style={linkButtonStyle}>
-              {es.sales.posTitle}
-            </Link>
-            <Link to="/inventory" style={linkButtonStyle}>
-              {es.inventory.title}
-            </Link>
-            <button type="button" onClick={handleLogout} style={secondaryButtonStyle}>
-              {es.auth.logout}
-            </button>
-          </div>
-        </header>
-
-        <section
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: tokens.spacing[4],
-          }}
-        >
-          {[
-            { label: es.dashboard.todaySales, value: '0' },
-            { label: es.dashboard.activeAlerts, value: String(activeAlerts) },
-            {
-              label: es.cashSession.status,
-              value: user ? es.dashboard.sessionActive : es.dashboard.noSession,
-            },
-            { label: es.inventory.title, value: String(products.length) },
-          ].map((card) => (
-            <article
-              key={card.label}
-              style={{
-                padding: tokens.spacing[5],
-                borderRadius: tokens.borderRadius.xl,
-                background: tokens.colors.white,
-                boxShadow: tokens.shadows.sm,
-                border: `1px solid ${tokens.colors.neutral[200]}`,
-              }}
-            >
-              <p style={eyebrowStyle}>{card.label}</p>
-              <p style={{ margin: 0, fontSize: tokens.typography.sizes['2xl'], fontWeight: 700 }}>
-                {card.value}
-              </p>
-            </article>
-          ))}
-        </section>
-
-        <section
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr) minmax(320px, 0.9fr)',
-            gap: tokens.spacing[5],
-            alignItems: 'start',
-          }}
-        >
-          <article
+    <div>
+      {/* Welcome banner */}
+      <div className="tc-section" style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+          <div
             style={{
-              padding: tokens.spacing[6],
-              borderRadius: tokens.borderRadius.xl,
-              background: tokens.colors.white,
-              boxShadow: tokens.shadows.sm,
-              display: 'grid',
-              gap: tokens.spacing[4],
-              border: `1px solid ${tokens.colors.neutral[200]}`,
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #465fff, #3641f5)',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+              fontWeight: 700,
+              flexShrink: 0,
             }}
           >
-            <h2 style={titleStyle}>{es.dashboard.cashControl}</h2>
-            <p style={subtleStyle}>{es.dashboard.fromHere}</p>
-            <div style={{ display: 'flex', gap: tokens.spacing[3], flexWrap: 'wrap' }}>
-              <Link to="/cash" style={linkButtonStyle}>
-                {es.cashSession.open}
-              </Link>
-              <Link to="/inventory" style={linkButtonStyle}>
-                {es.inventory.title}
-              </Link>
-              <Link to="/sales" style={linkButtonStyle}>
-                {es.sales.posTitle}
-              </Link>
-              <Link to="/sales/history" style={secondaryLinkButtonStyle}>
-                {es.sales.historyTitle}
-              </Link>
-              {can('audit:view') && (
-                <Link to="/audit" style={secondaryLinkButtonStyle}>
-                  {es.audit.title}
-                </Link>
-              )}
-              {can('users:all') && (
-                <Link to="/users" style={secondaryLinkButtonStyle}>
-                  {es.users.title}
-                </Link>
-              )}
-              {can('reports:all') && (
-                <Link to="/reports" style={secondaryLinkButtonStyle}>
-                  {es.reports.title}
-                </Link>
-              )}
-              {can('backup:all') && (
-                <Link to="/backup" style={secondaryLinkButtonStyle}>
-                  {es.backup.title}
-                </Link>
-              )}
-              {can('backup:all') && (
-                <Link to="/license" style={secondaryLinkButtonStyle}>
-                  {es.license.title}
-                </Link>
-              )}
-              {can('backup:all') && (
-                <Link to="/printer" style={secondaryLinkButtonStyle}>
-                  {es.settings.printer.title}
-                </Link>
-              )}
-              <Link to="/inventory/import" style={secondaryLinkButtonStyle}>
-                {es.inventory.importCSV}
-              </Link>
-              <Link to="/alerts" style={secondaryLinkButtonStyle}>
-                {es.alerts.title}
-              </Link>
-              <Link to="/demo" style={secondaryLinkButtonStyle}>
-                {es.demo.button}
-              </Link>
-            </div>
-          </article>
+            {initials}
+          </div>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <p style={{ margin: 0, fontSize: '14px', color: '#667085' }}>{es.dashboard.welcome}</p>
+            <h2 style={{ margin: '4px 0 0', fontSize: '24px', fontWeight: 800, color: '#101828' }}>
+              {user?.fullName ?? ''}
+            </h2>
+            <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#98a2b3' }}>
+              {user ? `${user.role === 'ADMIN' ? 'Administrador' : 'Cajero'} · ${new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}` : es.common.loading}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <Link to="/sales" className="tc-btn tc-btn--primary">
+              {es.sales.posTitle}
+            </Link>
+            <Link to="/inventory" className="tc-btn tc-btn--secondary">
+              {es.inventory.title}
+            </Link>
+          </div>
+        </div>
+      </div>
 
-          <InventoryAlerts products={products} compact showActions={false} />
-        </section>
-      </section>
-    </main>
+      {/* Metric Cards */}
+      <div className="tc-grid-4" style={{ marginBottom: '24px' }}>
+        <div className="tc-metric-card">
+          <div className="tc-metric-icon tc-metric-icon--brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /></svg>
+          </div>
+          <div className="tc-metric-content">
+            <p className="tc-metric-label">{es.dashboard.todaySales}</p>
+            <p className="tc-metric-value">$0</p>
+            <p className="tc-metric-sub">0 transacciones hoy</p>
+          </div>
+        </div>
+
+        <div className="tc-metric-card">
+          <div className="tc-metric-icon tc-metric-icon--danger">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /></svg>
+          </div>
+          <div className="tc-metric-content">
+            <p className="tc-metric-label">{es.dashboard.activeAlerts}</p>
+            <p className="tc-metric-value">{activeAlerts}</p>
+            <p className="tc-metric-sub">
+              {alertBuckets.critical.length > 0 ? `${alertBuckets.critical.length} críticos` : 'Sin críticos'}
+            </p>
+          </div>
+        </div>
+
+        <div className="tc-metric-card">
+          <div className="tc-metric-icon tc-metric-icon--success">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="3" /></svg>
+          </div>
+          <div className="tc-metric-content">
+            <p className="tc-metric-label">{es.cashSession.status}</p>
+            <p className="tc-metric-value" style={{ fontSize: '20px' }}>
+              {user ? es.dashboard.sessionActive : es.dashboard.noSession}
+            </p>
+            <p className="tc-metric-sub">{es.cashSession.isOpen}</p>
+          </div>
+        </div>
+
+        <div className="tc-metric-card">
+          <div className="tc-metric-icon tc-metric-icon--warning">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" /></svg>
+          </div>
+          <div className="tc-metric-content">
+            <p className="tc-metric-label">{es.inventory.title}</p>
+            <p className="tc-metric-value">{products.length}</p>
+            <p className="tc-metric-sub">{es.inventory.overview}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions + Alerts */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(320px, 0.9fr)', gap: '24px', alignItems: 'start' }}>
+        <div className="tc-section">
+          <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#101828', marginBottom: '8px' }}>
+            {es.dashboard.cashControl}
+          </h3>
+          <p style={{ fontSize: '14px', color: '#667085', marginBottom: '20px' }}>
+            {es.dashboard.fromHere}
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            <Link to="/cash" className="tc-btn tc-btn--primary">
+              {es.cashSession.open}
+            </Link>
+            <Link to="/inventory" className="tc-btn tc-btn--secondary">
+              {es.inventory.title}
+            </Link>
+            <Link to="/sales" className="tc-btn tc-btn--secondary">
+              {es.sales.posTitle}
+            </Link>
+            <Link to="/sales/history" className="tc-btn tc-btn--secondary">
+              {es.sales.historyTitle}
+            </Link>
+            {can('audit:view') && (
+              <Link to="/audit" className="tc-btn tc-btn--secondary">
+                {es.audit.title}
+              </Link>
+            )}
+            {can('users:all') && (
+              <Link to="/users" className="tc-btn tc-btn--secondary">
+                {es.users.title}
+              </Link>
+            )}
+            {can('reports:all') && (
+              <Link to="/reports" className="tc-btn tc-btn--secondary">
+                {es.reports.title}
+              </Link>
+            )}
+            {can('backup:all') && (
+              <Link to="/backup" className="tc-btn tc-btn--secondary">
+                {es.backup.title}
+              </Link>
+            )}
+            {can('backup:all') && (
+              <Link to="/license" className="tc-btn tc-btn--secondary">
+                {es.license.title}
+              </Link>
+            )}
+            {can('backup:all') && (
+              <Link to="/printer" className="tc-btn tc-btn--secondary">
+                {es.settings.printer.title}
+              </Link>
+            )}
+            <Link to="/inventory/import" className="tc-btn tc-btn--secondary">
+              {es.inventory.importCSV}
+            </Link>
+            <Link to="/alerts" className="tc-btn tc-btn--secondary">
+              {es.alerts.title}
+            </Link>
+            <Link to="/demo" className="tc-btn tc-btn--secondary">
+              {es.demo.button}
+            </Link>
+          </div>
+        </div>
+
+        <InventoryAlerts products={products} compact showActions={false} />
+      </div>
+    </div>
   );
 }
-
-const eyebrowStyle: CSSProperties = {
-  margin: 0,
-  color: '#2563EB',
-  textTransform: 'uppercase',
-  letterSpacing: '0.14em',
-  fontSize: '12px',
-  fontWeight: 700,
-};
-
-const titleStyle: CSSProperties = {
-  margin: '6px 0 0',
-  fontSize: '32px',
-  lineHeight: 1.1,
-  color: '#111827',
-};
-
-const subtleStyle: CSSProperties = {
-  margin: '8px 0 0',
-  color: '#6B7280',
-};
-
-const linkButtonStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '52px',
-  padding: '0 18px',
-  borderRadius: '8px',
-  background: '#2563EB',
-  color: '#FFFFFF',
-  textDecoration: 'none',
-  fontWeight: 700,
-};
-
-const secondaryButtonStyle: CSSProperties = {
-  minHeight: '52px',
-  padding: '0 18px',
-  borderRadius: '8px',
-  border: '1px solid #D1D5DB',
-  background: '#FFFFFF',
-  color: '#111827',
-  fontWeight: 700,
-  cursor: 'pointer',
-};
-
-const secondaryLinkButtonStyle: CSSProperties = {
-  ...linkButtonStyle,
-  background: '#FFFFFF',
-  color: '#111827',
-  border: '1px solid #D1D5DB',
-};

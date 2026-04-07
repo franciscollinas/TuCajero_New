@@ -1,10 +1,9 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { closeCashRegister, getActiveCashRegister, openCashRegister } from '../../shared/api/cash.api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { es } from '../../shared/i18n';
-import { tokens } from '../../shared/theme';
 import type { CashRegister } from '../../shared/types/cash.types';
 
 export function CashRegisterPage(): JSX.Element {
@@ -90,211 +89,98 @@ export function CashRegisterPage(): JSX.Element {
   };
 
   return (
-    <main
-      style={{
-        minHeight: '100vh',
-        padding: tokens.spacing[6],
-        background:
-          'radial-gradient(circle at top right, rgba(124, 58, 237, 0.12), transparent 26%), linear-gradient(180deg, #FFFFFF 0%, #F3F4F6 52%, #E5E7EB 100%)',
-      }}
-    >
-      <section
-        style={{
-          maxWidth: 960,
-          margin: '0 auto',
-          display: 'grid',
-          gap: tokens.spacing[5],
-        }}
-      >
-        <header style={headerStyle}>
-          <div>
-            <p style={eyebrowStyle}>{es.cashSession.status}</p>
-            <h1 style={titleStyle}>{es.cashSession.open}</h1>
-            <p style={subtleStyle}>{es.cash.overview}</p>
-          </div>
-          <button type="button" onClick={() => navigate('/dashboard')} style={secondaryButtonStyle}>
-            {es.dashboard.title}
-          </button>
-        </header>
+    <div className="tc-section" style={{ maxWidth: 960, margin: '0 auto' }}>
+      <header className="tc-section-header">
+        <div>
+          <p className="tc-section-title">{es.cashSession.open}</p>
+          <p className="tc-section-subtitle">{es.cash.overview}</p>
+        </div>
+        <button type="button" onClick={() => navigate('/dashboard')} className="tc-btn tc-btn--secondary">
+          {es.dashboard.title}
+        </button>
+      </header>
 
-        {message && <div style={noticeStyle}>{message}</div>}
+      {message && <div className="tc-notice tc-notice--success">{message}</div>}
 
-        {!activeCash ? (
-          <article style={panelStyle}>
-            <h2 style={sectionTitleStyle}>{es.cashSession.open}</h2>
-            <p style={subtleStyle}>{es.cash.openingHint}</p>
-            <div style={fieldGridStyle}>
+      {!activeCash ? (
+        <div>
+          <h2 className="tc-section-title">{es.cashSession.open}</h2>
+          <p className="tc-section-subtitle">{es.cash.openingHint}</p>
+          <div className="tc-grid-form">
+            <div className="tc-field">
+              <label className="tc-label" htmlFor="initialCash">{es.cashSession.openAmount}</label>
               <input
+                id="initialCash"
                 type="number"
                 value={initialCash}
                 onChange={(event) => setInitialCash(event.target.value)}
                 placeholder={es.cashSession.openAmount}
-                style={inputStyle}
+                className="tc-input"
               />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
               <button
                 type="button"
                 onClick={() => void handleOpen()}
                 disabled={loading}
-                style={buttonStyle}
+                className="tc-btn tc-btn--primary"
               >
                 {loading ? es.common.loading : es.cashSession.open}
               </button>
             </div>
-          </article>
-        ) : (
-          <article style={panelStyle}>
-            <h2 style={sectionTitleStyle}>{es.cash.title}</h2>
-            <div style={summaryGridStyle}>
-              <div>
-                <p style={eyebrowStyle}>ID</p>
-                <p style={metricStyle}>{activeCash.id}</p>
-              </div>
-              <div>
-                <p style={eyebrowStyle}>{es.cashSession.openAmount}</p>
-                <p style={metricStyle}>{Number(activeCash.initialCash).toFixed(2)}</p>
-              </div>
-              <div>
-                <p style={eyebrowStyle}>{es.cashSession.status}</p>
-                <p style={metricStyle}>{activeCash.status}</p>
-              </div>
-              <div>
-                <p style={eyebrowStyle}>{es.cash.opened}</p>
-                <p style={metricStyle}>{new Date(activeCash.openedAt).toLocaleString()}</p>
-              </div>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <h2 className="tc-section-title">{es.cash.title}</h2>
+          <div className="tc-grid-4">
+            <div>
+              <p className="tc-metric-label">ID</p>
+              <p className="tc-metric-value">{activeCash.id}</p>
             </div>
+            <div>
+              <p className="tc-metric-label">{es.cashSession.openAmount}</p>
+              <p className="tc-metric-value">{Number(activeCash.initialCash).toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="tc-metric-label">{es.cashSession.status}</p>
+              <p className="tc-metric-value">{activeCash.status}</p>
+            </div>
+            <div>
+              <p className="tc-metric-label">{es.cash.opened}</p>
+              <p className="tc-metric-value">{new Date(activeCash.openedAt).toLocaleString()}</p>
+            </div>
+          </div>
 
-            <div style={{ display: 'grid', gap: tokens.spacing[3], marginTop: tokens.spacing[5] }}>
-              <h3 style={sectionTitleStyle}>{es.cashSession.close}</h3>
-              <p style={subtleStyle}>{es.cash.closingHint}</p>
-              <input
-                type="number"
-                value={finalCash}
-                onChange={(event) => setFinalCash(event.target.value)}
-                placeholder={es.cash.finalCash}
-                style={inputStyle}
-              />
-              <button
-                type="button"
-                onClick={() => void handleClose()}
-                disabled={loading}
-                style={dangerButtonStyle}
-              >
-                {loading ? es.common.loading : es.cashSession.close}
-              </button>
+          <div style={{ marginTop: 'var(--space-6)' }}>
+            <h3 className="tc-section-title">{es.cashSession.close}</h3>
+            <p className="tc-section-subtitle">{es.cash.closingHint}</p>
+            <div className="tc-grid-form">
+              <div className="tc-field">
+                <label className="tc-label" htmlFor="finalCash">{es.cash.finalCash}</label>
+                <input
+                  id="finalCash"
+                  type="number"
+                  value={finalCash}
+                  onChange={(event) => setFinalCash(event.target.value)}
+                  placeholder={es.cash.finalCash}
+                  className="tc-input"
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => void handleClose()}
+                  disabled={loading}
+                  className="tc-btn tc-btn--danger"
+                >
+                  {loading ? es.common.loading : es.cashSession.close}
+                </button>
+              </div>
             </div>
-          </article>
-        )}
-      </section>
-    </main>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
-
-const headerStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: '16px',
-  padding: '20px',
-  borderRadius: '16px',
-  background: '#FFFFFF',
-  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.06)',
-};
-
-const panelStyle: CSSProperties = {
-  padding: '24px',
-  borderRadius: '16px',
-  background: '#FFFFFF',
-  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.06)',
-  display: 'grid',
-  gap: '16px',
-};
-
-const sectionTitleStyle: CSSProperties = {
-  margin: 0,
-  fontSize: '24px',
-  color: '#111827',
-};
-
-const fieldGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
-  gap: '12px',
-};
-
-const summaryGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-  gap: '16px',
-};
-
-const eyebrowStyle: CSSProperties = {
-  margin: 0,
-  color: '#2563EB',
-  textTransform: 'uppercase',
-  letterSpacing: '0.14em',
-  fontSize: '12px',
-  fontWeight: 700,
-};
-
-const titleStyle: CSSProperties = {
-  margin: '6px 0 0',
-  fontSize: '32px',
-  lineHeight: 1.1,
-  color: '#111827',
-};
-
-const subtleStyle: CSSProperties = {
-  margin: '8px 0 0',
-  color: '#6B7280',
-};
-
-const noticeStyle: CSSProperties = {
-  padding: '12px 16px',
-  borderRadius: '8px',
-  background: '#ECFDF5',
-  color: '#166534',
-  border: '1px solid #BBF7D0',
-};
-
-const inputStyle: CSSProperties = {
-  width: '100%',
-  minHeight: '48px',
-  boxSizing: 'border-box',
-  borderRadius: '8px',
-  border: '1px solid #D1D5DB',
-  padding: '0 14px',
-  fontSize: '16px',
-};
-
-const buttonStyle: CSSProperties = {
-  minHeight: '48px',
-  borderRadius: '8px',
-  border: 'none',
-  background: '#2563EB',
-  color: '#FFFFFF',
-  fontWeight: 700,
-  padding: '0 18px',
-  cursor: 'pointer',
-};
-
-const dangerButtonStyle: CSSProperties = {
-  ...buttonStyle,
-  background: '#DC2626',
-};
-
-const secondaryButtonStyle: CSSProperties = {
-  minHeight: '52px',
-  padding: '0 18px',
-  borderRadius: '8px',
-  border: '1px solid #D1D5DB',
-  background: '#FFFFFF',
-  color: '#111827',
-  fontWeight: 700,
-  cursor: 'pointer',
-};
-
-const metricStyle: CSSProperties = {
-  margin: '8px 0 0',
-  fontSize: '18px',
-  color: '#111827',
-};

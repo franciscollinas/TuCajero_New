@@ -1,9 +1,8 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { getPrinterConfig, testPrinter, updatePrinterConfig } from '../../shared/api/printer.api';
 import { es } from '../../shared/i18n';
-import { tokens } from '../../shared/theme';
 import type { PrinterConfig, PrinterType } from '../../shared/types/printer.types';
 
 const PRINTER_TYPESS: { value: PrinterType; label: string }[] = [
@@ -61,125 +60,102 @@ export function PrinterSettingsPage(): JSX.Element {
   };
 
   if (loading) {
-    return <div style={{ padding: '48px', textAlign: 'center' }}>{es.common.loading}</div>;
+    return <div style={{ padding: 'var(--space-12)', textAlign: 'center' }}>{es.common.loading}</div>;
   }
 
   if (!config) {
-    return <div style={{ padding: '48px', textAlign: 'center' }}>No se pudo cargar la configuración.</div>;
+    return <div style={{ padding: 'var(--space-12)', textAlign: 'center' }}>No se pudo cargar la configuraci&#243;n.</div>;
   }
 
+  const noticeClass = message
+    ? `tc-notice tc-notice--${messageType === 'error' ? 'error' : messageType === 'success' ? 'success' : 'info'}`
+    : '';
+
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
-        <header style={headerStyle}>
-          <div>
-            <p style={eyebrowStyle}>{es.settings.printer.title}</p>
-            <h1 style={titleStyle}>{es.settings.printer.title}</h1>
-            <p style={subtleStyle}>{es.settings.printer.subtitle}</p>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <Link to="/dashboard" style={secondaryLinkStyle}>
-              {es.dashboard.title}
-            </Link>
-          </div>
-        </header>
+    <>
+      <div className="tc-section-header" style={{ marginBottom: 'var(--space-6)' }}>
+        <div>
+          <p style={{ margin: 0, color: 'var(--brand-600)', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: '12px', fontWeight: 700 }}>{es.settings.printer.title}</p>
+          <h1 className="tc-section-title">{es.settings.printer.title}</h1>
+          <p className="tc-section-subtitle">{es.settings.printer.subtitle}</p>
+        </div>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <Link to="/dashboard" className="tc-btn tc-btn--secondary">
+            {es.dashboard.title}
+          </Link>
+        </div>
+      </div>
 
-        {message ? (
-          <section style={{
-            ...noticeStyle,
-            ...(messageType === 'error' ? noticeErrorStyle : {}),
-            ...(messageType === 'success' ? noticeSuccessStyle : {}),
-          }}>
-            {message}
-          </section>
-        ) : null}
+      {message ? (
+        <section className={noticeClass}>{message}</section>
+      ) : null}
 
-        <section style={panelStyle}>
-          <h2 style={sectionTitleStyle}>{es.settings.printer.connection}</h2>
+      <section className="tc-section">
+        <h2 className="tc-section-title">{es.settings.printer.connection}</h2>
 
-          <div style={formGridStyle}>
-            <label style={fieldStyle}>
-              <span style={fieldLabelStyle}>{es.settings.printer.type}</span>
-              <select
-                value={config.type}
-                onChange={(e) => setConfig({ ...config, type: e.target.value as PrinterType })}
-                style={inputStyle}
-              >
-                {PRINTER_TYPESS.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-            </label>
+        <div className="tc-grid-form">
+          <label className="tc-field">
+            <span className="tc-label">{es.settings.printer.type}</span>
+            <select
+              className="tc-select"
+              value={config.type}
+              onChange={(e) => setConfig({ ...config, type: e.target.value as PrinterType })}
+            >
+              {PRINTER_TYPESS.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </label>
 
-            <label style={fieldStyle}>
-              <span style={fieldLabelStyle}>{es.settings.printer.paperWidth}</span>
-              <select
-                value={config.paperWidth}
-                onChange={(e) => setConfig({ ...config, paperWidth: Number(e.target.value) as 80 | 58 })}
-                style={inputStyle}
-              >
-                <option value={80}>80mm</option>
-                <option value={58}>58mm</option>
-              </select>
-            </label>
+          <label className="tc-field">
+            <span className="tc-label">{es.settings.printer.paperWidth}</span>
+            <select
+              className="tc-select"
+              value={config.paperWidth}
+              onChange={(e) => setConfig({ ...config, paperWidth: Number(e.target.value) as 80 | 58 })}
+            >
+              <option value={80}>80mm</option>
+              <option value={58}>58mm</option>
+            </select>
+          </label>
 
-            <label style={{ ...fieldStyle, gridColumn: '1 / -1' }}>
-              <span style={fieldLabelStyle}>{es.settings.printer.connectionString}</span>
-              <input
-                value={config.connection}
-                onChange={(e) => setConfig({ ...config, connection: e.target.value })}
-                placeholder={es.settings.printer.connectionPlaceholder}
-                style={inputStyle}
-              />
-              <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#6B7280' }}>
-                {es.settings.printer.connectionHelp}
-              </p>
-            </label>
+          <label className="tc-field" style={{ gridColumn: '1 / -1' }}>
+            <span className="tc-label">{es.settings.printer.connectionString}</span>
+            <input
+              className="tc-input"
+              value={config.connection}
+              onChange={(e) => setConfig({ ...config, connection: e.target.value })}
+              placeholder={es.settings.printer.connectionPlaceholder}
+            />
+            <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--text-xs)', color: 'var(--gray-500)' }}>
+              {es.settings.printer.connectionHelp}
+            </p>
+          </label>
 
-            <label style={fieldStyle}>
-              <span style={fieldLabelStyle}>{es.settings.printer.characterSet}</span>
-              <input
-                value={config.characterSet ?? 'PC860_LATIN1'}
-                onChange={(e) => setConfig({ ...config, characterSet: e.target.value })}
-                style={inputStyle}
-              />
-            </label>
-          </div>
+          <label className="tc-field">
+            <span className="tc-label">{es.settings.printer.characterSet}</span>
+            <input
+              className="tc-input"
+              value={config.characterSet ?? 'PC860_LATIN1'}
+              onChange={(e) => setConfig({ ...config, characterSet: e.target.value })}
+            />
+          </label>
+        </div>
 
-          <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
-            <button type="button" onClick={handleSave} style={primaryButtonStyle}>
-              {es.settings.printer.save}
-            </button>
-            <button type="button" onClick={handleTest} disabled={testing || !config.connection} style={secondaryButtonStyle}>
-              {testing ? es.common.loading : es.settings.printer.test}
-            </button>
-          </div>
-        </section>
+        <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-4)', flexWrap: 'wrap' }}>
+          <button type="button" className="tc-btn tc-btn--primary" onClick={handleSave}>
+            {es.settings.printer.save}
+          </button>
+          <button
+            type="button"
+            className="tc-btn tc-btn--secondary"
+            onClick={handleTest}
+            disabled={testing || !config.connection}
+          >
+            {testing ? es.common.loading : es.settings.printer.test}
+          </button>
+        </div>
       </section>
-    </main>
+    </>
   );
 }
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  padding: tokens.spacing[6],
-  background:
-    'radial-gradient(circle at top left, rgba(22, 163, 74, 0.08), transparent 24%), linear-gradient(180deg, #FAFAF9 0%, #F3F4F6 52%, #E5E7EB 100%)',
-};
-const shellStyle: CSSProperties = { maxWidth: 700, margin: '0 auto', display: 'grid', gap: tokens.spacing[5] };
-const headerStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', padding: '24px', borderRadius: '18px', background: '#FFFFFF', boxShadow: tokens.shadows.md };
-const eyebrowStyle: CSSProperties = { margin: 0, color: '#0F766E', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: '12px', fontWeight: 700 };
-const titleStyle: CSSProperties = { margin: '6px 0 0', fontSize: '32px', color: '#111827' };
-const subtleStyle: CSSProperties = { margin: '8px 0 0', color: '#6B7280' };
-const panelStyle: CSSProperties = { padding: '24px', borderRadius: '18px', background: '#FFFFFF', boxShadow: tokens.shadows.sm, display: 'grid', gap: '16px' };
-const sectionTitleStyle: CSSProperties = { margin: 0, fontSize: '24px', color: '#111827' };
-const formGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' };
-const fieldStyle: CSSProperties = { display: 'grid', gap: '8px' };
-const fieldLabelStyle: CSSProperties = { fontWeight: 700, color: '#111827' };
-const inputStyle: CSSProperties = { minHeight: '46px', borderRadius: '12px', border: '1px solid #D1D5DB', padding: '0 14px', fontSize: '15px' };
-const noticeStyle: CSSProperties = { padding: '12px 16px', borderRadius: '12px', border: '1px solid' };
-const noticeSuccessStyle: CSSProperties = { background: '#F0FDFA', borderColor: '#99F6E4', color: '#0F766E' };
-const noticeErrorStyle: CSSProperties = { background: '#FEF2F2', borderColor: '#FECACA', color: '#DC2626' };
-const primaryButtonStyle: CSSProperties = { minHeight: '44px', padding: '0 16px', borderRadius: '12px', border: 'none', background: '#0F766E', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer' };
-const secondaryButtonStyle: CSSProperties = { minHeight: '44px', padding: '0 16px', borderRadius: '12px', border: '1px solid #CBD5E1', background: '#FFFFFF', color: '#111827', fontWeight: 700, cursor: 'pointer' };
-const secondaryLinkStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '46px', padding: '0 16px', borderRadius: '12px', border: '1px solid #D1D5DB', background: '#FFFFFF', color: '#111827', textDecoration: 'none', fontWeight: 700 };

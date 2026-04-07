@@ -1,10 +1,9 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { getAlertSummary, getProductAlerts } from '../../shared/api/alert.api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { es } from '../../shared/i18n';
-import { tokens } from '../../shared/theme';
 import type { AlertSummary, ProductAlert } from '../../shared/types/alert.types';
 
 function formatDate(value: string | null): string {
@@ -12,22 +11,13 @@ function formatDate(value: string | null): string {
   return new Date(value).toLocaleDateString('es-CO');
 }
 
-function severityBadge(severity: ProductAlert['severity']): CSSProperties {
+function severityBadgeClass(severity: ProductAlert['severity']): string {
   const map = {
-    RED: { background: '#FEE2E2', color: '#991B1B' },
-    ORANGE: { background: '#FFF7ED', color: '#C2410C' },
-    YELLOW: { background: '#FEFCE8', color: '#854D0E' },
+    RED: 'tc-badge tc-badge--danger',
+    ORANGE: 'tc-badge tc-badge--warning',
+    YELLOW: 'tc-badge tc-badge--neutral',
   };
-  const style = map[severity];
-  return {
-    display: 'inline-block',
-    padding: '4px 10px',
-    borderRadius: '999px',
-    fontSize: '12px',
-    fontWeight: 700,
-    background: style.background,
-    color: style.color,
-  };
+  return map[severity];
 }
 
 function alertTypeLabel(type: ProductAlert['alertType']): string {
@@ -72,129 +62,141 @@ export function AlertsPage(): JSX.Element {
   }, [user]);
 
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
-        <header style={headerStyle}>
-          <div>
-            <p style={eyebrowStyle}>{es.alerts.title}</p>
-            <h1 style={titleStyle}>{es.alerts.title}</h1>
-            <p style={subtleStyle}>{es.alerts.subtitle}</p>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <Link to="/dashboard" style={secondaryLinkStyle}>
-              {es.dashboard.title}
-            </Link>
-            <Link to="/inventory" style={secondaryLinkStyle}>
-              {es.inventory.title}
-            </Link>
-          </div>
-        </header>
+    <div className="tc-page-container">
+      <header className="tc-section-header">
+        <div>
+          <p className="tc-metric-sub" style={{ textTransform: 'uppercase', letterSpacing: '0.14em', fontWeight: 700 }}>
+            {es.alerts.title}
+          </p>
+          <h1 className="tc-section-title">{es.alerts.title}</h1>
+          <p className="tc-section-subtitle">{es.alerts.subtitle}</p>
+        </div>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <Link to="/dashboard" className="tc-btn tc-btn--secondary">
+            {es.dashboard.title}
+          </Link>
+          <Link to="/inventory" className="tc-btn tc-btn--secondary">
+            {es.inventory.title}
+          </Link>
+        </div>
+      </header>
 
-        {loading ? (
-          <section style={panelStyle}>
-            <p style={subtleStyle}>{es.common.loading}</p>
-          </section>
-        ) : (
-          <>
-            {/* Summary cards */}
-            {summary && (
-              <section style={summaryGridStyle}>
-                {[
-                  { label: es.alerts.totalAlerts, value: summary.totalAlerts, color: '#2563EB' },
-                  { label: es.alerts.stockCritical, value: summary.stockCritical, color: '#DC2626' },
-                  { label: es.alerts.stockLow, value: summary.stockLow, color: '#D97706' },
-                  { label: es.alerts.expired, value: summary.expired, color: '#7C2D12' },
-                  { label: es.alerts.expiringCritical, value: summary.expiringCritical, color: '#EA580C' },
-                  { label: es.alerts.expiringWarning, value: summary.expiringWarning, color: '#0F766E' },
-                ].map((card) => (
-                  <article key={card.label} style={summaryCardStyle(card.color)}>
-                    <p style={summaryCardLabelStyle}>{card.label}</p>
-                    <p style={summaryCardValueStyle}>{card.value}</p>
-                  </article>
-                ))}
-              </section>
-            )}
-
-            {/* Alerts table */}
-            <section style={panelStyle}>
-              <h2 style={sectionTitleStyle}>{es.alerts.title}</h2>
-              {alerts.length === 0 ? (
-                <p style={subtleStyle}>{es.alerts.noAlerts}</p>
-              ) : (
-                <div style={tableWrapStyle}>
-                  <table style={tableStyle}>
-                    <thead>
-                      <tr>
-                        <th style={thStyle}>{es.alerts.severity}</th>
-                        <th style={thStyle}>{es.alerts.type}</th>
-                        <th style={thStyle}>{es.alerts.product}</th>
-                        <th style={thStyle}>{es.alerts.code}</th>
-                        <th style={thStyle}>{es.alerts.stock}</th>
-                        <th style={thStyle}>{es.alerts.minStock}</th>
-                        <th style={thStyle}>{es.alerts.expiryDate}</th>
-                        <th style={thStyle}>{es.alerts.daysUntil}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {alerts.map((alert) => (
-                        <tr key={`${alert.productId}-${alert.alertType}`}>
-                          <td style={tdStyle}>
-                            <span style={severityBadge(alert.severity)}>
-                              {alert.severity}
-                            </span>
-                          </td>
-                          <td style={tdStyle}>{alertTypeLabel(alert.alertType)}</td>
-                          <td style={tdStyle}>{alert.productName}</td>
-                          <td style={tdStyle}>{alert.code}</td>
-                          <td style={tdStyle}>{alert.stock}</td>
-                          <td style={tdStyle}>{alert.minStock}</td>
-                          <td style={tdStyle}>{formatDate(alert.expiryDate)}</td>
-                          <td style={tdStyle}>
-                            {alert.daysUntilExpiry !== null
-                              ? alert.daysUntilExpiry < 0
-                                ? `Vencido hace ${Math.abs(alert.daysUntilExpiry)} días`
-                                : `${alert.daysUntilExpiry} días`
-                              : 'N/A'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+      {loading ? (
+        <section className="tc-section">
+          <p className="tc-metric-sub">{es.common.loading}</p>
+        </section>
+      ) : (
+        <>
+          {/* Summary cards */}
+          {summary && (
+            <section className="tc-grid-4">
+              <article className="tc-metric-card">
+                <div className="tc-metric-icon tc-metric-icon--brand">
+                  <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
                 </div>
-              )}
+                <div className="tc-metric-content">
+                  <p className="tc-metric-label">{es.alerts.totalAlerts}</p>
+                  <p className="tc-metric-value">{summary.totalAlerts}</p>
+                </div>
+              </article>
+              <article className="tc-metric-card">
+                <div className="tc-metric-icon tc-metric-icon--danger">
+                  <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+                <div className="tc-metric-content">
+                  <p className="tc-metric-label">{es.alerts.stockCritical}</p>
+                  <p className="tc-metric-value">{summary.stockCritical}</p>
+                </div>
+              </article>
+              <article className="tc-metric-card">
+                <div className="tc-metric-icon tc-metric-icon--warning">
+                  <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M20.62 19L12.36 4a1 1 0 00-1.72 0L2.38 19a1 1 0 00.86 1.5h15.52a1 1 0 00.86-1.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+                <div className="tc-metric-content">
+                  <p className="tc-metric-label">{es.alerts.stockLow}</p>
+                  <p className="tc-metric-value">{summary.stockLow}</p>
+                </div>
+              </article>
+              <article className="tc-metric-card">
+                <div className="tc-metric-icon tc-metric-icon--danger">
+                  <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M12 8v4m0 4h.01M4.93 4.93l14.14 14.14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                </div>
+                <div className="tc-metric-content">
+                  <p className="tc-metric-label">{es.alerts.expired}</p>
+                  <p className="tc-metric-value">{summary.expired}</p>
+                </div>
+              </article>
+              <article className="tc-metric-card">
+                <div className="tc-metric-icon tc-metric-icon--warning">
+                  <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/><path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                </div>
+                <div className="tc-metric-content">
+                  <p className="tc-metric-label">{es.alerts.expiringCritical}</p>
+                  <p className="tc-metric-value">{summary.expiringCritical}</p>
+                </div>
+              </article>
+              <article className="tc-metric-card">
+                <div className="tc-metric-icon tc-metric-icon--success">
+                  <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/><path d="M12 7v5l2 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                </div>
+                <div className="tc-metric-content">
+                  <p className="tc-metric-label">{es.alerts.expiringWarning}</p>
+                  <p className="tc-metric-value">{summary.expiringWarning}</p>
+                </div>
+              </article>
             </section>
-          </>
-        )}
-      </section>
-    </main>
+          )}
+
+          {/* Alerts table */}
+          <section className="tc-section">
+            <h2 className="tc-section-title">{es.alerts.title}</h2>
+            {alerts.length === 0 ? (
+              <p className="tc-section-subtitle">{es.alerts.noAlerts}</p>
+            ) : (
+              <div className="tc-table-wrap">
+                <table className="tc-table">
+                  <thead>
+                    <tr>
+                      <th>{es.alerts.severity}</th>
+                      <th>{es.alerts.type}</th>
+                      <th>{es.alerts.product}</th>
+                      <th>{es.alerts.code}</th>
+                      <th>{es.alerts.stock}</th>
+                      <th>{es.alerts.minStock}</th>
+                      <th>{es.alerts.expiryDate}</th>
+                      <th>{es.alerts.daysUntil}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {alerts.map((alert) => (
+                      <tr key={`${alert.productId}-${alert.alertType}`}>
+                        <td>
+                          <span className={severityBadgeClass(alert.severity)}>
+                            {alert.severity}
+                          </span>
+                        </td>
+                        <td>{alertTypeLabel(alert.alertType)}</td>
+                        <td>{alert.productName}</td>
+                        <td>{alert.code}</td>
+                        <td>{alert.stock}</td>
+                        <td>{alert.minStock}</td>
+                        <td>{formatDate(alert.expiryDate)}</td>
+                        <td>
+                          {alert.daysUntilExpiry !== null
+                            ? alert.daysUntilExpiry < 0
+                              ? `Vencido hace ${Math.abs(alert.daysUntilExpiry)} días`
+                              : `${alert.daysUntilExpiry} días`
+                            : 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+    </div>
   );
 }
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  padding: tokens.spacing[6],
-  background:
-    'radial-gradient(circle at top left, rgba(22, 163, 74, 0.08), transparent 24%), linear-gradient(180deg, #FAFAF9 0%, #F3F4F6 52%, #E5E7EB 100%)',
-};
-const shellStyle: CSSProperties = { maxWidth: 1200, margin: '0 auto', display: 'grid', gap: tokens.spacing[5] };
-const headerStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', padding: '24px', borderRadius: '18px', background: '#FFFFFF', boxShadow: tokens.shadows.md };
-const eyebrowStyle: CSSProperties = { margin: 0, color: '#0F766E', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: '12px', fontWeight: 700 };
-const titleStyle: CSSProperties = { margin: '6px 0 0', fontSize: '32px', color: '#111827' };
-const subtleStyle: CSSProperties = { margin: '8px 0 0', color: '#6B7280' };
-const panelStyle: CSSProperties = { padding: '24px', borderRadius: '18px', background: '#FFFFFF', boxShadow: tokens.shadows.sm, display: 'grid', gap: '16px' };
-const sectionTitleStyle: CSSProperties = { margin: 0, fontSize: '24px', color: '#111827' };
-const summaryGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' };
-const summaryCardStyle = (color: string): CSSProperties => ({
-  padding: '16px',
-  borderRadius: '14px',
-  background: '#FFFFFF',
-  border: `1px solid ${color}30`,
-  boxShadow: tokens.shadows.sm,
-});
-const summaryCardLabelStyle: CSSProperties = { margin: 0, fontSize: '13px', color: '#6B7280', fontWeight: 600 };
-const summaryCardValueStyle: CSSProperties = { margin: '6px 0 0', fontSize: '28px', fontWeight: 800, color: '#111827' };
-const tableWrapStyle: CSSProperties = { overflowX: 'auto', borderRadius: '16px', border: '1px solid #E5E7EB' };
-const tableStyle: CSSProperties = { width: '100%', borderCollapse: 'collapse' };
-const thStyle: CSSProperties = { textAlign: 'left', padding: '14px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6B7280', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' };
-const tdStyle: CSSProperties = { padding: '14px', borderBottom: '1px solid #F3F4F6', verticalAlign: 'top', color: '#111827' };
-const secondaryLinkStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '46px', padding: '0 16px', borderRadius: '12px', border: '1px solid #D1D5DB', background: '#FFFFFF', color: '#111827', textDecoration: 'none', fontWeight: 700 };

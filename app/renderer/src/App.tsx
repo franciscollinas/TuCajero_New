@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
+import { Layout } from './shared/components/Layout';
 import { LoginPage } from './modules/auth/LoginPage';
 import { AlertsPage } from './modules/alerts/AlertsPage';
 import { AuditPage } from './modules/audit/AuditPage';
@@ -43,6 +44,15 @@ function PublicRoute({ children }: { children: JSX.Element }): JSX.Element {
   return children;
 }
 
+/** Envuelve cualquier página dentro del Layout con sidebar */
+function LayoutRoute({ children }: { children: JSX.Element }): JSX.Element {
+  return (
+    <Layout>
+      {children}
+    </Layout>
+  );
+}
+
 export default function App(): JSX.Element {
   return (
     <AuthProvider>
@@ -56,11 +66,13 @@ export default function App(): JSX.Element {
               </PublicRoute>
             }
           />
+
+          {/* Rutas con Sidebar Layout */}
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <DashboardPage />
+                <LayoutRoute><DashboardPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
@@ -68,7 +80,7 @@ export default function App(): JSX.Element {
             path="/alerts"
             element={
               <ProtectedRoute>
-                <AlertsPage />
+                <LayoutRoute><AlertsPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
@@ -76,7 +88,7 @@ export default function App(): JSX.Element {
             path="/cash"
             element={
               <ProtectedRoute roles={['ADMIN', 'CASHIER']}>
-                <CashRegisterPage />
+                <LayoutRoute><CashRegisterPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
@@ -84,7 +96,7 @@ export default function App(): JSX.Element {
             path="/audit"
             element={
               <ProtectedRoute roles={['ADMIN']}>
-                <AuditPage />
+                <LayoutRoute><AuditPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
@@ -92,7 +104,7 @@ export default function App(): JSX.Element {
             path="/inventory"
             element={
               <ProtectedRoute>
-                <InventoryPage />
+                <LayoutRoute><InventoryPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
@@ -100,7 +112,7 @@ export default function App(): JSX.Element {
             path="/users"
             element={
               <ProtectedRoute roles={['ADMIN']}>
-                <UsersPage />
+                <LayoutRoute><UsersPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
@@ -108,7 +120,7 @@ export default function App(): JSX.Element {
             path="/inventory/import"
             element={
               <ProtectedRoute roles={['ADMIN', 'SUPERVISOR']}>
-                <InventoryBulkImportPage />
+                <LayoutRoute><InventoryBulkImportPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
@@ -116,7 +128,7 @@ export default function App(): JSX.Element {
             path="/reports"
             element={
               <ProtectedRoute roles={['ADMIN', 'SUPERVISOR']}>
-                <ReportsPage />
+                <LayoutRoute><ReportsPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
@@ -124,7 +136,7 @@ export default function App(): JSX.Element {
             path="/backup"
             element={
               <ProtectedRoute roles={['ADMIN']}>
-                <BackupPage />
+                <LayoutRoute><BackupPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
@@ -132,7 +144,7 @@ export default function App(): JSX.Element {
             path="/license"
             element={
               <ProtectedRoute roles={['ADMIN']}>
-                <LicensePage />
+                <LayoutRoute><LicensePage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
@@ -140,7 +152,7 @@ export default function App(): JSX.Element {
             path="/printer"
             element={
               <ProtectedRoute roles={['ADMIN']}>
-                <PrinterSettingsPage />
+                <LayoutRoute><PrinterSettingsPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
@@ -148,7 +160,7 @@ export default function App(): JSX.Element {
             path="/sales"
             element={
               <ProtectedRoute roles={['ADMIN', 'CASHIER', 'SUPERVISOR']}>
-                <POSPage />
+                <LayoutRoute><POSPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
@@ -156,7 +168,7 @@ export default function App(): JSX.Element {
             path="/sales/history"
             element={
               <ProtectedRoute roles={['ADMIN', 'CASHIER', 'SUPERVISOR']}>
-                <SalesHistoryPage />
+                <LayoutRoute><SalesHistoryPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
@@ -164,10 +176,11 @@ export default function App(): JSX.Element {
             path="/demo"
             element={
               <ProtectedRoute>
-                <DemoPage />
+                <LayoutRoute><DemoPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />
+
           <Route path="/" element={<StartRoute />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -1,9 +1,8 @@
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../shared/context/AuthContext';
 import { es } from '../../shared/i18n';
-import { tokens } from '../../shared/theme';
 
 export function LoginPage(): JSX.Element {
   const { login } = useAuth();
@@ -34,170 +33,107 @@ export function LoginPage(): JSX.Element {
         minHeight: '100vh',
         display: 'grid',
         placeItems: 'center',
-        padding: tokens.spacing[6],
+        padding: '24px',
         background:
-          'radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 28%), linear-gradient(180deg, #EFF6FF 0%, #F3F4F6 45%, #E5E7EB 100%)',
+          'radial-gradient(circle at 20% 50%, rgba(70, 95, 255, 0.08), transparent 50%), linear-gradient(180deg, #f9fafb 0%, #f1f5f9 100%)',
       }}
     >
-      <section
+      <div
         style={{
-          width: 'min(960px, 100%)',
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.2fr) minmax(320px, 420px)',
-          gap: tokens.spacing[6],
-          alignItems: 'stretch',
+          width: 'min(440px, 100%)',
+          borderRadius: '20px',
+          background: '#ffffff',
+          border: '1px solid #e4e7ec',
+          boxShadow: '0 1px 3px rgba(16,24,40,0.06), 0 8px 24px rgba(16,24,40,0.08)',
+          padding: '40px',
         }}
       >
-        <article
-          style={{
-            padding: tokens.spacing[8],
-            borderRadius: tokens.borderRadius.xl,
-            background: 'rgba(255,255,255,0.8)',
-            boxShadow: tokens.shadows.xl,
-            backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255,255,255,0.6)',
-          }}
-        >
-          <p
-            style={{
-              margin: 0,
-              color: tokens.colors.primary,
-              textTransform: 'uppercase',
-              letterSpacing: '0.14em',
-              fontSize: tokens.typography.sizes.sm,
-              fontWeight: tokens.typography.weights.bold,
-            }}
-          >
-            {es.app.name}
-          </p>
-          <h1
-            style={{
-              margin: `${tokens.spacing[3]} 0 ${tokens.spacing[4]}`,
-              fontSize: tokens.typography.sizes['3xl'],
-              color: tokens.colors.neutral[900],
-              lineHeight: tokens.typography.lineHeight.tight,
-            }}
-          >
-            {es.auth.title}
-          </h1>
-          <p
-            style={{
-              margin: 0,
-              maxWidth: 560,
-              color: tokens.colors.neutral[700],
-              fontSize: tokens.typography.sizes.lg,
-              lineHeight: tokens.typography.lineHeight.relaxed,
-            }}
-          >
-            {es.auth.subtitle}
-          </p>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div
             style={{
-              marginTop: tokens.spacing[6],
-              display: 'grid',
-              gap: tokens.spacing[3],
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              width: '56px',
+              height: '56px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #465fff, #3641f5)',
+              color: '#fff',
+              display: 'inline-grid',
+              placeItems: 'center',
+              fontSize: '24px',
+              fontWeight: 800,
+              marginBottom: '16px',
             }}
           >
-            {Object.values(es.auth.highlights).map((item) => (
-              <div
-                key={item}
-                style={{
-                  padding: tokens.spacing[4],
-                  borderRadius: tokens.borderRadius.lg,
-                  background: tokens.colors.neutral[50],
-                  border: `1px solid ${tokens.colors.neutral[200]}`,
-                  color: tokens.colors.neutral[700],
-                }}
-              >
-                {item}
-              </div>
-            ))}
+            TC
           </div>
-        </article>
+          <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 800, color: '#101828' }}>
+            {es.app.name}
+          </h1>
+          <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#667085' }}>
+            {es.app.tagline}
+          </p>
+        </div>
 
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            padding: tokens.spacing[8],
-            borderRadius: tokens.borderRadius.xl,
-            background: tokens.colors.white,
-            boxShadow: tokens.shadows.lg,
-            border: `1px solid ${tokens.colors.neutral[200]}`,
-            display: 'grid',
-            gap: tokens.spacing[4],
-            alignContent: 'start',
-          }}
-        >
-          <div>
-            <label style={fieldLabelStyle}>{es.auth.username}</label>
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="tc-field">
+            <label className="tc-label">{es.auth.username}</label>
             <input
+              className="tc-input"
               value={username}
-              onChange={(event) => setUsername(event.target.value)}
+              onChange={(e) => setUsername(e.target.value)}
               placeholder={es.auth.username}
-              style={inputStyle}
               autoComplete="username"
             />
           </div>
-          <div>
-            <label style={fieldLabelStyle}>{es.auth.password}</label>
+
+          <div className="tc-field">
+            <label className="tc-label">{es.auth.password}</label>
             <input
+              className="tc-input"
               type="password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder={es.auth.password}
-              style={inputStyle}
               autoComplete="current-password"
             />
           </div>
+
           {error && (
-            <div
-              style={{
-                padding: tokens.spacing[3],
-                borderRadius: tokens.borderRadius.md,
-                background: '#FEF2F2',
-                color: tokens.colors.danger,
-                border: '1px solid #FECACA',
-              }}
-            >
-              {error}
-            </div>
+            <div className="tc-notice tc-notice--error">{error}</div>
           )}
-          <button type="submit" disabled={loading} style={buttonStyle}>
+
+          <button type="submit" className="tc-btn tc-btn--primary" style={{ minHeight: '48px', fontSize: '15px' }} disabled={loading}>
             {loading ? es.common.loading : es.auth.loginButton}
           </button>
         </form>
-      </section>
+
+        {/* Highlights */}
+        <div style={{ marginTop: '32px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {Object.values(es.auth.highlights).map((item) => (
+            <div
+              key={item}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                background: '#f9fafb',
+                border: '1px solid #e4e7ec',
+                fontSize: '13px',
+                color: '#475467',
+                fontWeight: 500,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#465fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M13.5 4.5L6 12 2.5 8.5" />
+              </svg>
+              {item}
+            </div>
+          ))}
+        </div>
+      </div>
     </main>
   );
 }
-
-const fieldLabelStyle: CSSProperties = {
-  display: 'block',
-  marginBottom: '8px',
-  color: '#374151',
-  fontSize: '14px',
-  fontWeight: 600,
-};
-
-const inputStyle: CSSProperties = {
-  width: '100%',
-  boxSizing: 'border-box',
-  minHeight: '48px',
-  borderRadius: '8px',
-  border: '1px solid #D1D5DB',
-  padding: '0 14px',
-  fontSize: '16px',
-  outline: 'none',
-};
-
-const buttonStyle: CSSProperties = {
-  minHeight: '52px',
-  borderRadius: '8px',
-  border: 'none',
-  background: '#2563EB',
-  color: '#FFFFFF',
-  fontSize: '16px',
-  fontWeight: 700,
-  cursor: 'pointer',
-};

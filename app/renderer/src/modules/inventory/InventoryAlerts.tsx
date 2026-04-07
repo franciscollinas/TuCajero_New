@@ -1,8 +1,6 @@
 import { Link } from 'react-router-dom';
-import type { CSSProperties } from 'react';
 
 import { es } from '../../shared/i18n';
-import { tokens } from '../../shared/theme';
 import type { InventoryProduct } from '../../shared/types/inventory.types';
 import { useInventoryStore } from '../../shared/store/inventory.store';
 import {
@@ -35,39 +33,44 @@ export function InventoryAlerts({
     (buckets.expiringSoon?.length ?? 0);
 
   return (
-    <section style={wrapperStyle}>
-      <header style={headerStyle}>
+    <section className="tc-section">
+      <header className="tc-section-header">
         <div>
-          <p style={eyebrowStyle}>{es.inventory.alertsTitle}</p>
-          <h2 style={titleStyle}>{compact ? es.inventory.dashboardTitle : es.inventory.alertsTitle}</h2>
-          <p style={subtleStyle}>
+          <p className="tc-section-title">{compact ? es.inventory.dashboardTitle : es.inventory.alertsTitle}</p>
+          <p style={{ margin: '4px 0 0', color: '#6B7280' }}>
             {totalAlerts > 0 ? `${totalAlerts} alertas activas en el inventario` : 'No hay alertas activas por ahora.'}
           </p>
         </div>
         {showActions && (
-          <div style={actionsStyle}>
-            <Link to="/inventory" style={secondaryLinkStyle}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <Link to="/inventory" className="tc-btn tc-btn--secondary">
               {es.inventory.openInventory}
             </Link>
-            <Link to="/inventory/import" style={primaryLinkStyle}>
+            <Link to="/inventory/import" className="tc-btn tc-btn--primary">
               {es.inventory.importInventory}
             </Link>
           </div>
         )}
       </header>
 
-      <div style={compact ? compactGridStyle : gridStyle}>
-        <AlertGroup title={es.inventory.critical} color="#DC2626" products={buckets.critical} emptyLabel="Sin productos críticos" />
-        <AlertGroup title={es.inventory.warning} color="#D97706" products={buckets.warning} emptyLabel="Sin productos en advertencia" />
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: compact ? 'repeat(auto-fit, minmax(180px, 1fr))' : 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: compact ? '12px' : '16px',
+      }}>
+        <AlertGroup title={es.inventory.critical} color="#DC2626" badgeVariant="danger" products={buckets.critical} emptyLabel="Sin productos críticos" />
+        <AlertGroup title={es.inventory.warning} color="#D97706" badgeVariant="warning" products={buckets.warning} emptyLabel="Sin productos en advertencia" />
         <AlertGroup
           title={es.inventory.expiredNow}
           color="#7C2D12"
+          badgeVariant="danger"
           products={buckets.expired ?? []}
           emptyLabel="Sin vencidos"
         />
         <AlertGroup
           title={es.inventory.expiredSoon}
           color="#0F766E"
+          badgeVariant="brand"
           products={buckets.expiringSoon ?? []}
           emptyLabel="Sin productos próximos a vencer"
         />
@@ -78,28 +81,36 @@ export function InventoryAlerts({
 
 function AlertGroup({
   title,
-  color,
+  badgeVariant,
   products,
   emptyLabel,
 }: {
   title: string;
-  color: string;
+  color?: string;
+  badgeVariant: 'success' | 'warning' | 'danger' | 'brand' | 'neutral';
   products: InventoryProduct[];
   emptyLabel: string;
 }): JSX.Element {
   return (
-    <article style={cardStyle}>
-      <div style={cardHeaderStyle}>
+    <article style={{
+      padding: '16px',
+      borderRadius: '12px',
+      background: '#F9FAFB',
+      border: '1px solid #E5E7EB',
+      display: 'grid',
+      gap: '12px',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'flex-start' }}>
         <div>
-          <p style={{ ...chipStyle, background: `${color}14`, color }}>{title}</p>
-          <p style={countStyle}>{products.length} productos</p>
+          <p className={`tc-badge tc-badge--${badgeVariant}`}>{title}</p>
+          <p style={{ margin: '8px 0 0', color: '#111827', fontSize: '18px', fontWeight: 700 }}>{products.length} productos</p>
         </div>
       </div>
 
       {products.length === 0 ? (
-        <p style={emptyStyle}>{emptyLabel}</p>
+        <p style={{ margin: 0, color: '#6B7280' }}>{emptyLabel}</p>
       ) : (
-        <ul style={listStyle}>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '12px' }}>
           {products.slice(0, 4).map((product) => {
             const days = getDaysUntil(product.expiryDate);
             const status: InventoryStatus =
@@ -113,184 +124,30 @@ function AlertGroup({
             const statusColor = getInventoryStatusColor(status);
 
             return (
-              <li key={product.id} style={itemStyle}>
-                <div style={itemTopStyle}>
-                  <strong style={itemTitleStyle}>{product.name}</strong>
-                  <span style={{ ...badgeStyle, borderColor: `${statusColor}40`, color: statusColor }}>
+              <li key={product.id} style={{
+                padding: '12px',
+                borderRadius: '12px',
+                background: '#FFFFFF',
+                border: '1px solid #E5E7EB',
+                display: 'grid',
+                gap: '4px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
+                  <strong style={{ color: '#111827' }}>{product.name}</strong>
+                  <span className="tc-badge" style={{ borderColor: `${statusColor}40`, color: statusColor }}>
                     {getInventoryStatusLabel(status)}
                   </span>
                 </div>
-                <p style={itemMetaStyle}>
+                <p style={{ margin: 0, color: '#6B7280', fontSize: '14px' }}>
                   Stock {product.stock} · Mínimo {product.minStock} · {formatCurrency(product.price)}
                 </p>
-                <p style={itemMetaStyle}>{formatDate(product.expiryDate)}</p>
+                <p style={{ margin: 0, color: '#6B7280', fontSize: '14px' }}>{formatDate(product.expiryDate)}</p>
               </li>
             );
           })}
-          {products.length > 4 && <li style={emptyStyle}>+ {products.length - 4} más</li>}
+          {products.length > 4 && <li style={{ margin: 0, color: '#6B7280' }}>+ {products.length - 4} más</li>}
         </ul>
       )}
     </article>
   );
 }
-
-const wrapperStyle: CSSProperties = {
-  display: 'grid',
-  gap: tokens.spacing[4],
-  padding: tokens.spacing[5],
-  borderRadius: tokens.borderRadius.xl,
-  background: tokens.colors.white,
-  boxShadow: tokens.shadows.sm,
-  border: `1px solid ${tokens.colors.neutral[200]}`,
-};
-
-const headerStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: tokens.spacing[4],
-  flexWrap: 'wrap',
-};
-
-const eyebrowStyle: CSSProperties = {
-  margin: 0,
-  color: '#2563EB',
-  textTransform: 'uppercase',
-  letterSpacing: '0.14em',
-  fontSize: '12px',
-  fontWeight: 700,
-};
-
-const titleStyle: CSSProperties = {
-  margin: '6px 0 0',
-  fontSize: '24px',
-  color: '#111827',
-};
-
-const subtleStyle: CSSProperties = {
-  margin: '8px 0 0',
-  color: '#6B7280',
-};
-
-const actionsStyle: CSSProperties = {
-  display: 'flex',
-  gap: tokens.spacing[3],
-  flexWrap: 'wrap',
-};
-
-const secondaryLinkStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '44px',
-  padding: '0 16px',
-  borderRadius: '10px',
-  border: '1px solid #D1D5DB',
-  background: '#FFFFFF',
-  color: '#111827',
-  textDecoration: 'none',
-  fontWeight: 700,
-};
-
-const primaryLinkStyle: CSSProperties = {
-  ...secondaryLinkStyle,
-  background: tokens.colors.primary[600],
-  color: '#FFFFFF',
-  border: 'none',
-};
-
-const gridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: tokens.spacing[4],
-};
-
-const compactGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: tokens.spacing[3],
-};
-
-const cardStyle: CSSProperties = {
-  padding: tokens.spacing[4],
-  borderRadius: tokens.borderRadius.lg,
-  background: '#F9FAFB',
-  border: '1px solid #E5E7EB',
-  display: 'grid',
-  gap: tokens.spacing[3],
-};
-
-const cardHeaderStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: tokens.spacing[2],
-  alignItems: 'flex-start',
-};
-
-const chipStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  margin: 0,
-  padding: '6px 10px',
-  borderRadius: '999px',
-  fontSize: '12px',
-  fontWeight: 700,
-};
-
-const countStyle: CSSProperties = {
-  margin: '8px 0 0',
-  color: '#111827',
-  fontSize: '18px',
-  fontWeight: 700,
-};
-
-const emptyStyle: CSSProperties = {
-  margin: 0,
-  color: '#6B7280',
-};
-
-const listStyle: CSSProperties = {
-  listStyle: 'none',
-  padding: 0,
-  margin: 0,
-  display: 'grid',
-  gap: '12px',
-};
-
-const itemStyle: CSSProperties = {
-  padding: '12px',
-  borderRadius: '12px',
-  background: '#FFFFFF',
-  border: '1px solid #E5E7EB',
-  display: 'grid',
-  gap: '4px',
-};
-
-const itemTopStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: '12px',
-  alignItems: 'flex-start',
-};
-
-const itemTitleStyle: CSSProperties = {
-  color: '#111827',
-};
-
-const itemMetaStyle: CSSProperties = {
-  margin: 0,
-  color: '#6B7280',
-  fontSize: '14px',
-};
-
-const badgeStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '4px 8px',
-  borderRadius: '999px',
-  border: '1px solid transparent',
-  fontSize: '12px',
-  fontWeight: 700,
-};

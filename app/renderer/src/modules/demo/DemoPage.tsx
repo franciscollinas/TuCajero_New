@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
+
 import { pingServer } from '../../shared/api/ping.api';
 import { es } from '../../shared/i18n';
-import { tokens } from '../../shared/theme';
 
 function formatMessage(template: string, value: string): string {
   return template.replace('{result}', value).replace('{message}', value);
@@ -40,53 +40,20 @@ export function DemoPage(): JSX.Element {
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        backgroundColor: tokens.colors.background,
-        gap: tokens.spacing[4],
-      }}
-    >
-      <h1
-        style={{
-          color: tokens.colors.primary,
-          fontFamily: tokens.typography.fontFamily,
-          margin: 0,
-        }}
-      >
+    <div className="tc-section" style={{ maxWidth: 480, margin: 'var(--space-8) auto', textAlign: 'center' }}>
+      <h1 className="tc-section-title" style={{ marginBottom: 'var(--space-4)', color: 'var(--brand-600)' }}>
         {es.demo.title}
       </h1>
       <button
         type="button"
         onClick={handlePing}
         disabled={loading}
-        style={{
-          backgroundColor: tokens.colors.primary,
-          color: tokens.colors.white,
-          height: tokens.touch.buttonHeight,
-          padding: '0 32px',
-          borderRadius: tokens.borderRadius.md,
-          border: 'none',
-          cursor: loading ? 'wait' : 'pointer',
-          opacity: loading ? 0.85 : 1,
-          fontSize: tokens.typography.sizes.base,
-          fontFamily: tokens.typography.fontFamily,
-        }}
+        className="tc-btn tc-btn--primary"
       >
         {es.demo.button}
       </button>
       {result && (
-        <p
-          style={{
-            fontFamily: tokens.typography.fontFamily,
-            fontSize: tokens.typography.sizes.lg,
-            margin: 0,
-          }}
-        >
+        <p className="tc-metric-sub" style={{ fontSize: 'var(--text-base)', marginTop: 'var(--space-3)' }}>
           {result}
         </p>
       )}
