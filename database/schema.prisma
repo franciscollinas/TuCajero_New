@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int             @id @default(autoincrement())
+  username       String          @unique
+  password       String
+  fullName       String
+  role           String          @default("CASHIER")
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  sessions       Session[]
+  cashSessions   CashSession[]
+  sales          Sale[]
+  auditLogs      AuditLog[]
+  stockMovements StockMovement[]
+}
+
+model Session {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  color     String?
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id              Int             @id @default(autoincrement())
+  code            String          @unique
+  barcode         String?         @unique
+  name            String
+  description     String?
+  categoryId      Int
+  category        Category        @relation(fields: [categoryId], references: [id])
+  price           Decimal
+  cost            Decimal
+  stock           Int             @default(0)
+  minStock        Int             @default(5)
+  criticalStock   Int             @default(2)
+  taxRate         Decimal         @default(0.19)
+  suggestedPurchaseQty Int?
+  expiryDate      DateTime?
+  location        String?
+  unitType        String          @default("UNIT")
+  conversionFactor Decimal        @default(1)
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  saleItems       SaleItem[]
+  stockMovements  StockMovement[]
+}
+
+model StockMovement {
+  id            Int      @id @default(autoincrement())
+  productId     Int
+  product       Product  @relation(fields: [productId], references: [id])
+  type          String
+  quantity      Int
+  previousStock Int
+  newStock      Int
+  reason        String?
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model Sale {
+  id            Int          @id @default(autoincrement())
+  saleNumber    String       @unique @map("receiptNumber")
+  userId        Int
+  user          User         @relation(fields: [userId], references: [id])
+  cashSessionId Int?
+  cashSession   CashSession? @relation(fields: [cashSessionId], references: [id])
+  subtotal      Decimal
+  tax           Decimal      @map("taxAmount")
+  discount      Decimal      @default(0)
+  total         Decimal
+  status        String       @default("COMPLETED")
+  createdAt     DateTime     @default(now())
+  items         SaleItem[]
+  payments      Payment[]
+}
+
+model SaleItem {
+  id        Int      @id @default(autoincrement())
+  saleId    Int
+  sale      Sale     @relation(fields: [saleId], references: [id])
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Decimal
+  unitPrice Decimal
+  taxRate   Decimal
+  subtotal  Decimal
+  discount  Decimal  @default(0)
+  total     Decimal  @default(0)
+  unitType  String
+}
+
+model Payment {
+  id        Int       @id @default(autoincrement())
+  saleId    Int
+  sale      Sale      @relation(fields: [saleId], references: [id])
+  method    String
+  amount    Decimal
+  reference String?
+  createdAt DateTime  @default(now())
+}
+
+model CashSession {
+  id           Int        @id @default(autoincrement())
+  userId       Int
+  user         User       @relation(fields: [userId], references: [id])
+  initialCash  Decimal
+  finalCash    Decimal?
+  expectedCash Decimal?
+  difference   Decimal?
+  openedAt     DateTime   @default(now())
+  closedAt     DateTime?
+  status       String     @default("OPEN")
+  sales        Sale[]
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  Int?
+  payload   String
+  createdAt DateTime @default(now())
+}
+
+model Config {
+  id        Int      @id @default(1)
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}

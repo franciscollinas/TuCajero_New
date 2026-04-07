@@ -1,0 +1,83 @@
+{
+  "name": "tucajero",
+  "version": "0.1.0",
+  "description": "POS local para farmacias",
+  "main": "dist/main/app/main/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:electron\" \"npm run dev:renderer\"",
+    "dev:renderer": "vite app/renderer",
+    "dev:electron": "tsc -p tsconfig.main.json && node scripts/dev-electron.cjs",
+    "build": "npm run build:renderer && npm run build:electron",
+    "build:renderer": "vite build app/renderer",
+    "build:electron": "tsc -p tsconfig.main.json",
+    "dist": "npm run build && electron-builder",
+    "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,json}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.14.0",
+    "@tanstack/react-query": "^5.40.0",
+    "bcryptjs": "^2.4.3",
+    "date-fns": "^3.6.0",
+    "electron-store": "^8.2.0",
+    "node-thermal-printer": "^4.3.4",
+    "papaparse": "^5.4.1",
+    "pdf-lib": "^1.17.1",
+    "pdfkit": "^0.18.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "react-router-dom": "^6.23.0",
+    "systeminformation": "^5.22.0",
+    "winston": "^3.13.0",
+    "xlsx": "^0.18.5",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "@testing-library/react": "^16.0.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.14.0",
+    "@types/papaparse": "^5.3.14",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^7.11.0",
+    "@typescript-eslint/parser": "^7.11.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.4.19",
+    "concurrently": "^8.2.0",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.2",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.5",
+    "postcss": "^8.4.38",
+    "prettier": "^3.2.5",
+    "prisma": "^5.14.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0",
+    "vitest": "^1.6.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix --max-warnings 0",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  },
+  "prisma": {
+    "schema": "database/schema.prisma"
+  }
+}

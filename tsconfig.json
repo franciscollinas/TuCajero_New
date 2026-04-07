@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["app/renderer/src/shared/*"],
+      "@modules/*": ["app/renderer/src/modules/*"],
+      "@config/*": ["config/*"],
+      "@db/*": ["database/*"]
+    }
+  },
+  "include": ["app/renderer/src/**/*", "config/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

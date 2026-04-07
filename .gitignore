@@ -1,0 +1,9 @@
+node_modules/
+dist/
+release/
+.env
+tucajero.db
+*.log
+tmp-invoices/
+.DS_Store
+Thumbs.db
