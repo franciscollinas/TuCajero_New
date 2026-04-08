@@ -1,267 +1,212 @@
-# TuCajero New - Guía de Continuidad
+# TuCajero POS — Documento de Continuidad
 
-## Estado actual
+> Última actualización: 8 de abril de 2026
 
-Proyecto desktop POS para farmacias construido con:
+---
 
-- Electron
-- React + TypeScript + Vite
-- Prisma + SQLite
-- IPC tipado con `ApiResponse<T>`
+## 1. Estado Actual del Proyecto
 
-La base funcional ya está bastante avanzada. El proyecto compila y arranca.
+### 1.1 Rama y Commit
+- **Rama activa:** `main`
+- **Último commit:** `7a27e76` — *"refactor: integrar diseño TailAdmin en toda la UI"*
+- **Commit estable anterior:** `cb11235` — *"primer push estable"*
 
-Checks validados en la última sesión:
+### 1.2 Problema Principal
+El commit `7a27e76` introdujo el sistema de diseño TailAdmin pero **rompió funcionalidades** en:
+- **Dashboard** — perdió datos dinámicos (ventas del día, gráficas, etc.)
+- **POS (Punto de Venta)** — perdió funcionalidad de escáner, factura, pagos mixtos, clientes
+- **Estado de Caja** — diseño cambiado, perdió referencias al original
 
-- `npx tsc --noEmit`
-- `npx tsc -p tsconfig.main.json --noEmit`
-- `npm run lint`
-- `npm run build`
+### 1.3 Qué Funciona Hoy
+- ✅ Base de datos sincronizada (Prisma `db push` ejecutado)
+- ✅ Cliente Prisma generado con campo `cashSessionId` en `Payment`
+- ✅ Backend: `payDebt` recibe y guarda `cashSessionId`
+- ✅ Backend: `getCashSessionSummary` suma ventas + abonos
+- ✅ Backend: `getDashboardSummary` usa `Promise.all` (rendimiento optimizado)
+- ✅ `CustomerDebtsModal` pasa `cashSessionId` al pagar deudas
+- ✅ Estilo premium aplicado a `CustomerFormModal` y `CustomerHistoryModal`
+- ✅ Filtro de fechas del dashboard corregido (zona horaria local)
+- ✅ Errores de importación corregidos (`AuthContext`, `Payment`, `openInvoice`, `generateInvoice`)
 
-## Lo que ya está implementado
+### 1.4 Qué Está Roto
+- ❌ **DashboardPage** — reemplazada por versión TailAdmin pero **perdió toda la lógica de datos** (no consume `getDashboardSummary`)
+- ❌ **POSPage** — reemplazada por versión TailAdmin pero **perdió**: escáner de códigos, clientes, pagos múltiples, entrega de factura, botón "pago mixto", selección de cliente
+- ❌ **CashRegisterPage** — reemplazada por versión TailAdmin, diseño cambiado
 
-### Fundación
+---
 
-- setup Electron/React/TypeScript/Vite
-- preload seguro con `window.api.invoke`
-- logger a archivo
-- i18n central en `config/i18n/es.ts`
-- errores centralizados
-- Prisma + migraciones
+## 2. Archivos Originales Restaurables
 
-### Autenticación y caja
+Los archivos originales funcionales están en el commit `cb11235`:
 
-- login/logout
-- validación de sesión
-- seed de admin por defecto
-- apertura/cierre de caja
-- persistencia de sesiones
-
-Credenciales actuales de admin:
-
-- usuario: `admin`
-- contraseña: `admin123`
-
-### Inventario
-
-- categorías
-- productos
-- búsqueda por barcode
-- ajuste de stock
-- alertas de stock
-- alertas de vencimiento
-- importación CSV/Excel
-- UI de inventario
-
-### Ventas
-
-- POS con carrito
-- pagos mixtos
-- validación de stock y vencimiento
-- descuento automático de inventario
-- actualización de `expectedCash`
-- historial de ventas
-- generación de factura HTML (abre automáticamente en navegador)
-- recibo térmico ESC/POS (contenido generado)
-
-### Escáner HID
-
-- `useBarcodeScanner.ts` hook — detecta escaneo por teclado HID
-- acumula keystrokes globales, ignora inputs manuales
-- dispara al detectar Enter tras ráfaga rápida (< 60ms entre teclas)
-- integrado en POSPage: escanear → agrega al carrito automáticamente
-
-### Alertas centralizadas
-
-- `alert.service.ts` (main) — stock crítico/bajo + vencimiento (expired/critical/warning)
-- `alerts.ipc.ts` + `alert.api.ts` + `alert.types.ts`
-- `useAlerts` hook + `useAlertStore` (Zustand)
-- `/alerts` — página con resumen por severidad y tabla detallada
-
-### Auditoría
-
-- logs persistentes de:
-  - login/logout
-  - apertura/cierre de caja
-  - creación/ajuste/importación de inventario
-  - creación/cancelación de ventas
-  - creación/edición de usuarios
-- pantalla admin de auditoría
-
-### Usuarios
-
-- listado admin
-- creación de usuarios
-- edición de nombre/rol/password
-- activar/desactivar usuario
-
-### Reportes y exportación
-
-- `reports.service.ts` — consolidación de ventas, cortes de caja, inventario, vencimientos, auditoría
-- exportación CSV/XLSX en `Descargas/TuCajero-reportes`
-- `reports.ipc.ts` + `reports.api.ts`
-- pantalla `/reports` con filtro por fechas, tablas resumen y botones de exportación
-
-### Backup / Restore
-
-- `backup.service.ts` — crea, lista, elimina y restaura copias de la BD SQLite
-- validación de integridad (header SQLite format 3)
-- pre-restore backup automático con reversión si falla
-- `backup.ipc.ts` + `backup.api.ts` + `backup.types.ts`
-- pantalla `/backup` con info de BD, crear backup, tabla de backups con restaurar/eliminar
-- acciones registradas en auditoría
-
-### Licencia por hardware
-
-- `fingerprint.ts` — SHA-256 de CPU + disco + MAC + hostname
-- `license.service.ts` — genera, activa y valida licencia con HMAC-SHA256
-- persistencia en `userData/license.dat`
-- `license.ipc.ts` + `license.api.ts` + `license.types.ts`
-- pantalla `/license` — estado, fingerprint, activar, generar nueva licencia
-- `LicenseLockScreen` exportado para pantalla de bloqueo
-- RBAC: solo ADMIN
-
-## Problemas ya resueltos
-
-### Arranque roto de Electron
-
-Se corrigió un problema con `ELECTRON_RUN_AS_NODE=1` y otro con `EPIPE`.
-
-Archivos clave:
-
-- `scripts/dev-electron.cjs`
-- `app/main/main.ts`
-
-Regla actual:
-
-- usar `npm run dev`
-- o `npm run dev:electron` + `npm run dev:renderer` si se quiere separar
-
-### Compatibilidad Prisma + SQLite
-
-Hubo que adaptar partes del esquema porque el material original mezclaba SQLite con restricciones no compatibles en Prisma.
-
-## Punto exacto donde retomar
-
-Se estaba siguiendo `MasterDoc.md` como guía principal, no solo `Fase1-4.md`.
-
-### Ya cubierto del MasterDoc
-
-- fundación
-- núcleo operativo principal
-- ventas (con factura HTML + recibo térmico ESC/POS)
-- escáner HID
-- alertas centralizadas
-- auditoría
-- usuarios admin
-- reportes y exportación
-- backup / restore
-- licencia por hardware
-- parte de RBAC en UI
-
-### Siguiente bloque recomendado
-
-1. Impresora térmica (hardware real — node-thermal-printer)
-2. Pulido UI/UX final
-3. Empaquetado instalador
-
-## Recomendación para mañana
-
-Retomar por **impresora térmica real** (conectar `node-thermal-printer` a una impresora física USB/red) y luego pasar al **pulido UI/UX final** + empaquetado instalador.
-
-## Archivos clave para entender rápido el proyecto
-
-### Backend
-
-- `app/main/main.ts`
-- `app/main/preload.ts`
-- `app/main/utils/errors.ts`
-- `app/main/utils/logger.ts`
-- `app/main/utils/fingerprint.ts`
-- `app/main/services/auth.service.ts`
-- `app/main/services/alert.service.ts`
-- `app/main/services/audit.service.ts`
-- `app/main/services/backup.service.ts`
-- `app/main/services/cash-session.service.ts`
-- `app/main/services/inventory.service.ts`
-- `app/main/services/license.service.ts`
-- `app/main/services/printer.service.ts`
-- `app/main/services/reports.service.ts`
-- `app/main/services/sales.service.ts`
-- `app/main/services/users.service.ts`
-
-### IPC
-
-- `app/main/ipc/alerts.ipc.ts`
-- `app/main/ipc/auth.ipc.ts`
-- `app/main/ipc/audit.ipc.ts`
-- `app/main/ipc/backup.ipc.ts`
-- `app/main/ipc/cash-session.ipc.ts`
-- `app/main/ipc/inventory.ipc.ts`
-- `app/main/ipc/license.ipc.ts`
-- `app/main/ipc/ping.ipc.ts`
-- `app/main/ipc/printer.ipc.ts`
-- `app/main/ipc/reports.ipc.ts`
-- `app/main/ipc/sales.ipc.ts`
-- `app/main/ipc/users.ipc.ts`
-
-### Frontend
-
-- `app/renderer/src/App.tsx`
-- `app/renderer/src/shared/context/AuthContext.tsx`
-- `app/renderer/src/shared/hooks/useAlerts.ts`
-- `app/renderer/src/shared/hooks/useBarcodeScanner.ts`
-- `app/renderer/src/shared/hooks/useRBAC.ts`
-- `app/renderer/src/shared/store/alert.store.ts`
-- `app/renderer/src/shared/api/alert.api.ts`
-- `app/renderer/src/shared/api/backup.api.ts`
-- `app/renderer/src/shared/api/license.api.ts`
-- `app/renderer/src/shared/api/printer.api.ts`
-- `app/renderer/src/shared/api/reports.api.ts`
-- `app/renderer/src/modules/alerts/AlertsPage.tsx`
-- `app/renderer/src/modules/audit/AuditPage.tsx`
-- `app/renderer/src/modules/backup/BackupPage.tsx`
-- `app/renderer/src/modules/dashboard/DashboardPage.tsx`
-- `app/renderer/src/modules/inventory/InventoryPage.tsx`
-- `app/renderer/src/modules/inventory/InventoryBulkImportPage.tsx`
-- `app/renderer/src/modules/license/LicensePage.tsx`
-- `app/renderer/src/modules/reports/ReportsPage.tsx`
-- `app/renderer/src/modules/sales/POSPage.tsx`
-- `app/renderer/src/modules/sales/SalesHistoryPage.tsx`
-- `app/renderer/src/modules/users/UsersPage.tsx`
-
-### Base de datos
-
-- `database/schema.prisma`
-- `database/migrations/`
-
-### Documentos guía
-
-- `MasterDoc.md`
-- `Fase1.md`
-- `Fase2.md`
-- `Fase3.md`
-- `Fase4.md`
-
-## Notas importantes
-
-- la UI está funcional, pero todavía no está pulida visualmente
-- primero conviene cerrar funcionalidad faltante
-- después hacer una pasada fuerte de UX/UI
-- `tmp-invoices/` contiene pruebas locales de factura y no debería publicarse
-
-## Comandos útiles
-
-```powershell
-npm install
-npm run dev
-npx tsc --noEmit
-npx tsc -p tsconfig.main.json --noEmit
-npm run lint
-npm run build
-npx prisma migrate status --schema database/schema.prisma
+```bash
+# Para ver cualquier archivo original:
+git show cb11235:app/renderer/src/modules/dashboard/DashboardPage.tsx
+git show cb11235:app/renderer/src/modules/sales/POSPage.tsx
+git show cb11235:app/renderer/src/modules/cash/CashRegisterPage.tsx
 ```
 
-## Objetivo al retomar
+**Archivos originales clave:**
+- `app/renderer/src/modules/dashboard/DashboardPage.tsx`
+- `app/renderer/src/modules/sales/POSPage.tsx`
+- `app/renderer/src/modules/cash/CashRegisterPage.tsx`
+- `app/renderer/src/modules/sales/SalesHistoryPage.tsx`
+- `app/renderer/src/shared/theme.ts` (tokens del tema original)
 
-Cerrar funcionalidad restante del `MasterDoc`, dejar administración completa y luego entrar a pulido visual final.
+---
+
+## 3. Diseño TailAdmin — Sistema Activo
+
+El sistema de diseño TailAdmin está en:
+- `app/renderer/src/styles/tailadmin.css` — **639 líneas** con todas las clases `tc-*`
+- Importa fuente **Outfit** de Google Fonts
+- Paleta de colores: `brand-500` (#465fff), semánticos, grises
+- Componentes reutilizables: `tc-btn`, `tc-card`, `tc-modal`, `tc-metric-card`, `tc-input`, `tc-table`, etc.
+- Animaciones: `animate-fadeIn`, `animate-slideUp`, `animate-scaleIn`
+
+**Clases más usadas:**
+| Clase | Uso |
+|---|---|
+| `tc-btn tc-btn--primary` | Botón principal azul gradiente |
+| `tc-btn tc-btn--secondary` | Botón secundario blanco con borde |
+| `tc-btn tc-btn--ghost` | Botón sin fondo, solo texto |
+| `tc-metric-card` | Tarjeta de métrica con icono |
+| `tc-section` | Card contenedor con sombra |
+| `tc-modal` | Modal con overlay |
+| `tc-input` | Input de formulario |
+| `tc-grid-4` | Grid responsive 4 columnas |
+
+---
+
+## 4. Funcionalidades que Deben Preservarse
+
+### 4.1 Dashboard (original en `cb11235`)
+- Header con saludo, avatar con iniciales, fecha, botones rápidos
+- 4 metric cards: Ventas de hoy, Alertas, Estado de caja, Productos
+- Panel de control de caja con accesos rápidos a todas las secciones
+- Panel lateral de alertas de inventario
+- **Debe consumir** `getDashboardSummary()` del backend para datos reales
+
+### 4.2 POS (original en `cb11235`)
+- **Escáner de códigos de barras** (hook `useBarcodeScanner`)
+- Búsqueda de producto por código manual
+- Catálogo de productos con grid de tarjetas
+- Carrito con +/- cantidad, eliminar items
+- Resumen: Subtotal, IVA, Total
+- **Pagos múltiples**: agregar pagos por método (efectivo, nequi, daviplata, tarjeta, transferencia)
+- **Pago mixto**: combinar métodos
+- **Crédito/Fiado**: seleccionar cliente y fiar saldo
+- **Generación de factura**: `generateInvoice` + `openInvoice` de `printer.api.ts`
+- **Impresión térmica**: `printToHardware` de `printer.api.ts`
+- Indicador de estado de caja activa
+
+### 4.3 Estado de Caja (original en `cb11235`)
+- Abrir caja con monto inicial
+- Ver resumen: ID, monto inicial, estado, fecha apertura
+- Cerrar caja con monto final y diferencia
+
+### 4.4 Clientes (actualizado, funciona)
+- `CustomersPage.tsx` — diseño premium con stats cards
+- `CustomerFormModal.tsx` — formulario estilo premium
+- `CustomerHistoryModal.tsx` — historial estilo premium
+- `CustomerDebtsModal.tsx` — abonos con `cashSessionId` ✅
+
+---
+
+## 5. Tareas Pendientes para Mañana
+
+### Prioridad 1: Restaurar POS
+1. Restaurar `POSPage.tsx` desde `cb11235` como base
+2. Aplicar clases TailAdmin progresivamente (no reemplazar todo de una vez)
+3. Verificar que escáner, clientes, pagos, factura y thermal print funcionen
+
+### Prioridad 2: Restaurar Dashboard con Datos
+1. Dashboard actual no consume `getDashboardSummary()` — agregarlo
+2. Mostrar: ventas de hoy, gráfica semanal, top categorías, ventas recientes
+3. Mantener diseño TailAdmin pero con datos reales
+
+### Prioridad 3: Restaurar Estado de Caja
+1. Restaurar `CashRegisterPage.tsx` desde `cb11235`
+2. Aplicar clases TailAdmin manteniendo funcionalidad
+
+### Prioridad 4: Verificar Todo
+1. Build sin errores: `npm run build`
+2. Testear flujo completo: Login → Dashboard → POS → Venta → Factura → Caja → Cierre
+
+---
+
+## 6. Comandos Útiles
+
+```bash
+# Sincronizar BD (si se cambia schema.prisma)
+npx prisma db push --schema=database/schema.prisma && npx prisma generate --schema=database/schema.prisma
+
+# Build
+npm run build
+
+# Dev
+npm run dev
+
+# Ver archivo original
+git show cb11235:app/renderer/src/modules/sales/POSPage.tsx
+
+# Ver diff entre versiones
+git diff cb11235..7a27e76 -- app/renderer/src/modules/sales/POSPage.tsx
+```
+
+---
+
+## 7. Referencias de API
+
+### Backend (IPC handlers)
+| Handler | Archivo | Descripción |
+|---|---|---|
+| `sales:getDashboardSummary` | `sales.ipc.ts` | Resumen del dashboard |
+| `sales:create` | `sales.ipc.ts` | Crear venta |
+| `cash:open` | `cash-session.ipc.ts` | Abrir caja |
+| `cash:close` | `cash-session.ipc.ts` | Cerrar caja |
+| `cash:getActive` | `cash-session.ipc.ts` | Caja activa |
+| `cash:getSummary` | `cash-session.ipc.ts` | Resumen de sesión |
+| `customers:search` | `customers.ipc.ts` | Buscar clientes |
+| `customers:payDebt` | `customers.ipc.ts` | Pagar deuda (acepta `cashSessionId`) |
+| `printer:generateInvoice` | `printer.ipc.ts` | Generar factura HTML |
+| `printer:openInvoice` | `printer.ipc.ts` | Abrir factura en navegador |
+| `printer:printHardware` | `printer.ipc.ts` | Imprimir en térmica |
+
+### Frontend API
+| Función | Archivo | Descripción |
+|---|---|---|
+| `getDashboardSummary()` | `sales.api.ts` | Llama a `sales:getDashboardSummary` |
+| `createSale(...)` | `sales.api.ts` | Crea venta |
+| `getActiveCashRegister(userId)` | `cash.api.ts` | Caja activa |
+| `getAllCustomers()` | `customers.api.ts` | Todos los clientes |
+| `getCustomerDebts(id)` | `customers.api.ts` | Deudas de cliente |
+| `payCustomerDebt(debtId, amount, method, cashSessionId?)` | `customers.api.ts` | Pagar deuda |
+| `generateInvoice(saleId)` | `sales.api.ts` | Generar factura |
+| `openInvoice(filePath)` | `printer.api.ts` | Abrir factura |
+| `printToHardware(invoice)` | `printer.api.ts` | Imprimir térmica |
+
+---
+
+## 8. Notas Importantes
+
+### Reglas de Estilo (Golden Rules)
+1. Usar variables de `tailadmin.css` — nunca colores planos (`red`, `blue`)
+2. Tonos brand: `brand-500`, `amber-500`, `success-500`
+3. Bordes redondeados: `rounded-2xl` / `rounded-xl`
+4. Sombras: `shadow-sm`, `shadow-md`
+5. Tipografía: **Outfit** (importada en CSS)
+6. Mantener cohesión visual con el resto de la app
+
+### Errores Comunes a Evitar
+- ❌ Importar tipos que no existen (ej. `Payment` → usar `SalePayment`)
+- ❌ Importar funciones que no existen (ej. `printInvoice` → usar `generateInvoice`)
+- ❌ Usar `customer.name` → el campo es `customer.fullName`
+- ❌ Usar `product.image` → no existe en `InventoryProduct`
+- ❌ Usar `"mixto"` como método de pago → no está en el tipo `PaymentMethod`
+- ❌ Ruta de AuthContext: `../../../shared/context/AuthContext` (no `../../../context/`)
+
+### Base de Datos
+- Motor: **SQLite** (`database/tucajero.db`)
+- ORM: **Prisma** v5.22.0
+- Campo clave agregado: `Payment.cashSessionId` (relación con `CashSession`)

@@ -1,5 +1,5 @@
 import type { ApiResponse } from '../types/api.types';
-import type { CartItemInput, DailySummary, PaymentInput, SaleRecord } from '../types/sales.types';
+import type { CartItemInput, DailySummary, DashboardSummary, PaymentInput, SaleRecord } from '../types/sales.types';
 
 export function createSale(
   cashSessionId: number,
@@ -7,8 +7,10 @@ export function createSale(
   items: CartItemInput[],
   payments: PaymentInput[],
   discount = 0,
+  deliveryFee = 0,
+  customerId?: number | null,
 ): Promise<ApiResponse<SaleRecord>> {
-  return window.api.invoke<SaleRecord>('sales:create', cashSessionId, userId, items, payments, discount);
+  return window.api.invoke<SaleRecord>('sales:create', cashSessionId, userId, items, payments, discount, deliveryFee, customerId);
 }
 
 export function getSaleById(id: number): Promise<ApiResponse<SaleRecord | null>> {
@@ -40,4 +42,8 @@ export function getDailySummary(cashSessionId: number): Promise<ApiResponse<Dail
 
 export function generateInvoice(saleId: number): Promise<ApiResponse<string>> {
   return window.api.invoke<string>('sales:generateInvoice', saleId);
+}
+
+export function getDashboardSummary(): Promise<ApiResponse<DashboardSummary>> {
+  return window.api.invoke<DashboardSummary>('sales:getDashboardSummary');
 }

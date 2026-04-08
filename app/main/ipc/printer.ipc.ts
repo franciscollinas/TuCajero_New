@@ -30,8 +30,21 @@ export function registerPrinterIpc(): void {
     'printer:openInvoice',
     async (_event, filePath: string): Promise<ApiResponse<{ success: boolean }>> => {
       try {
+        const pathMod = await import('path');
+        // Only allow files from the tmp-invoices directory
+        const invoiceDir = pathMod.join(process.cwd(), 'tmp-invoices');
+        const resolved = pathMod.resolve(filePath);
+        const resolvedDir = pathMod.resolve(invoiceDir);
+
+        if (!resolved.startsWith(resolvedDir)) {
+          return {
+            success: false,
+            error: { code: 'FORBIDDEN', message: 'Acceso denegado: archivo fuera del directorio permitido.' },
+          };
+        }
+
         const { shell } = await import('electron');
-        const result = await shell.openPath(filePath);
+        const result = await shell.openPath(resolved);
         if (result) {
           return { success: false, error: toApiError(new Error(result)) };
         }

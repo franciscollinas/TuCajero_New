@@ -1,7 +1,8 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../../shared/context/AuthContext';
+import { useConfig } from '../../shared/context/ConfigContext';
 import { useRBAC } from '../../shared/hooks/useRBAC';
 import type { Permission } from '../../shared/hooks/useRBAC';
 import { es } from '../../shared/i18n';
@@ -22,6 +23,7 @@ const ALERTS = '/alerts';
 const INVENTORY = '/inventory';
 const POS = '/sales';
 const SALES_HISTORY = '/sales/history';
+const CUSTOMERS = '/customers';
 const CASH = '/cash';
 const REPORTS = '/reports';
 const USERS = '/users';
@@ -29,12 +31,20 @@ const AUDIT = '/audit';
 const BACKUP = '/backup';
 const LICENSE = '/license';
 const PRINTER = '/printer';
+const SETTINGS = '/settings';
 const INVENTORY_IMPORT = '/inventory/import';
 
 export function Layout({ children }: LayoutProps): JSX.Element {
   const { user, logout } = useAuth();
+  const { config } = useConfig();
   const { can } = useRBAC();
   const location = useLocation();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleLogout = async (): Promise<void> => {
     await logout();
@@ -79,6 +89,11 @@ export function Layout({ children }: LayoutProps): JSX.Element {
       label: 'Gestión',
       items: [
         {
+          icon: usersIcon,
+          label: 'Clientes',
+          path: CUSTOMERS,
+        },
+        {
           icon: inventoryIcon,
           label: es.inventory.title,
           path: INVENTORY,
@@ -106,11 +121,13 @@ export function Layout({ children }: LayoutProps): JSX.Element {
             { icon: backupIcon, label: es.backup.title, path: BACKUP },
             { icon: licenseIcon, label: es.license.title, path: LICENSE },
             { icon: printerIcon, label: es.settings.printer.title, path: PRINTER },
+            { icon: settingsIcon, label: 'Configuración', path: SETTINGS },
           ]
         : [
             { icon: backupIcon, label: es.backup.title, path: BACKUP },
             { icon: licenseIcon, label: es.license.title, path: LICENSE },
             { icon: printerIcon, label: es.settings.printer.title, path: PRINTER },
+            { icon: settingsIcon, label: 'Configuración', path: SETTINGS },
           ],
     },
   ];
@@ -163,14 +180,83 @@ export function Layout({ children }: LayoutProps): JSX.Element {
 
       {/* Content */}
       <div className="tc-content">
-        <header className="tc-header">
-          <div className="tc-header-left">
-            <span className="tc-header-breadcrumb">{currentBreadcrumb(location.pathname)}</span>
-            <h1 className="tc-header-title">{pageTitle(location.pathname)}</h1>
+        <header className="tc-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 var(--space-6)', gap: 'var(--space-4)' }}>
+          {/* Left: Logo + Name + Breadcrumb + Company Info */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flex: 1, minWidth: 0 }}>
+            {/* Logo + Name */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flex: '0 0 auto' }}>
+              {config?.logo ? (
+                <img
+                  src={config.logo}
+                  alt="Logo"
+                  style={{ height: '44px', width: '44px', borderRadius: 'var(--radius-lg)', objectFit: 'cover', border: '2px solid var(--gray-100)' }}
+                />
+              ) : (
+                <div style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 'var(--radius-lg)',
+                  background: 'var(--gradient-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  fontSize: '20px',
+                  fontWeight: 800,
+                  flexShrink: 0,
+                }}>
+                  {config?.businessName?.[0] ?? 'T'}
+                </div>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <h1 className="tc-header-title" style={{ fontSize: 'var(--text-lg)', margin: 0, lineHeight: 1.2 }}>
+                  {config?.businessName || 'TuCajero'}
+                </h1>
+                <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--gray-400)', fontWeight: 500 }}>
+                  {pageTitle(location.pathname)}
+                </p>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div style={{ width: 1, height: 32, background: 'var(--gray-200)', flexShrink: 0 }} />
+
+            {/* Company Info */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flexWrap: 'wrap', minWidth: 0 }}>
+              {config?.nit && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2.5"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
+                  <span>NIT: <strong style={{ color: 'var(--gray-700)' }}>{config.nit}</strong></span>
+                </div>
+              )}
+              {config?.phone && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></svg>
+                  <span>{config.phone}</span>
+                </div>
+              )}
+              {config?.email && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
+                  <span>{config.email}</span>
+                </div>
+              )}
+              {config?.address && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--gray-500)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                  <span>{config.address}</span>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="tc-header-right">
-            <span style={{ fontSize: '13px', color: '#6B7280' }}>
-              {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+
+          {/* Right: Date/Time */}
+          <div style={{ flex: '0 0 auto', textAlign: 'right' }}>
+            <span style={{ fontSize: '12px', color: 'var(--gray-500)', display: 'block' }}>
+              {currentTime.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+            <span style={{ fontWeight: 700, color: 'var(--gray-700)', fontSize: '15px' }}>
+              {currentTime.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           </div>
         </header>
@@ -182,25 +268,6 @@ export function Layout({ children }: LayoutProps): JSX.Element {
 
 /* ─── Helpers ─── */
 
-function currentBreadcrumb(path: string): string {
-  const map: Record<string, string> = {
-    [DASHBOARD]: 'Inicio',
-    [ALERTS]: 'Gestión',
-    [INVENTORY]: 'Gestión',
-    [POS]: 'Ventas',
-    [SALES_HISTORY]: 'Ventas',
-    [CASH]: 'Caja',
-    [REPORTS]: 'Administración',
-    [USERS]: 'Administración',
-    [AUDIT]: 'Administración',
-    [BACKUP]: 'Administración',
-    [LICENSE]: 'Administración',
-    [PRINTER]: 'Administración',
-    [INVENTORY_IMPORT]: 'Gestión',
-  };
-  return map[path] ?? 'TuCajero';
-}
-
 function pageTitle(path: string): string {
   const map: Record<string, string> = {
     [DASHBOARD]: es.dashboard.title,
@@ -209,12 +276,14 @@ function pageTitle(path: string): string {
     [POS]: es.sales.posTitle,
     [SALES_HISTORY]: es.sales.historyTitle,
     [CASH]: es.cashSession.status,
+    [CUSTOMERS]: 'Clientes',
     [REPORTS]: es.reports.title,
     [USERS]: es.users.title,
     [AUDIT]: es.audit.title,
     [BACKUP]: es.backup.title,
     [LICENSE]: es.license.title,
     [PRINTER]: es.settings.printer.title,
+    [SETTINGS]: 'Configuración',
     [INVENTORY_IMPORT]: es.inventory.bulkImport,
   };
   return map[path] ?? es.dashboard.title;
@@ -324,6 +393,13 @@ const printerIcon = (
     <polyline points="6 9 6 2 18 2 18 9" />
     <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
     <rect x="6" y="14" width="12" height="8" />
+  </svg>
+);
+
+const settingsIcon = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
   </svg>
 );
 

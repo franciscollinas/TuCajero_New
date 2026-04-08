@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import type {
   CartItemInput,
   DailySummary,
+  DashboardSummary,
   PaymentInput,
   PaymentMethod,
   SaleRecord,
@@ -12,6 +13,14 @@ import { AppError, ErrorCode } from '../utils/errors';
 import { AuditService } from './audit.service';
 
 const auditService = new AuditService();
+
+const SALE_INCLUDE = {
+  items: { include: { product: { include: { category: true } } } },
+  payments: true,
+  user: { select: { id: true, fullName: true, username: true } },
+  cashSession: true,
+  customer: true,
+} as const;
 
 type SaleWithRelations = Prisma.SaleGetPayload<{
   include: {
@@ -33,6 +42,7 @@ type SaleWithRelations = Prisma.SaleGetPayload<{
       };
     };
     cashSession: true;
+    customer: true;
   };
 }>;
 
@@ -41,7 +51,7 @@ function toNumber(value: Prisma.Decimal | null): number | null {
 }
 
 function mapPaymentMethod(method: string): PaymentMethod {
-  const allowed: PaymentMethod[] = ['efectivo', 'nequi', 'daviplata', 'tarjeta', 'transferencia'];
+  const allowed: PaymentMethod[] = ['efectivo', 'nequi', 'daviplata', 'tarjeta', 'transferencia', 'credito'];
   return allowed.includes(method as PaymentMethod) ? (method as PaymentMethod) : 'transferencia';
 }
 
@@ -54,7 +64,14 @@ function mapSale(sale: SaleWithRelations): SaleRecord {
     subtotal: Number(sale.subtotal),
     tax: Number(sale.tax),
     discount: Number(sale.discount),
+    deliveryFee: Number(sale.deliveryFee),
     total: Number(sale.total),
+    customerId: sale.customerId,
+    customer: sale.customer ? {
+      id: sale.customer.id,
+      name: sale.customer.name,
+      phone: sale.customer.phone
+    } : null,
     status: sale.status,
     createdAt: sale.createdAt.toISOString(),
     items: sale.items.map((item) => ({
@@ -125,6 +142,8 @@ export class SalesService {
     items: CartItemInput[],
     payments: PaymentInput[],
     discount = 0,
+    deliveryFee = 0,
+    customerId?: number,
   ): Promise<SaleRecord> {
     if (items.length === 0) {
       throw new AppError(ErrorCode.EMPTY_CART, 'El carrito está vacío.');
@@ -142,47 +161,30 @@ export class SalesService {
       throw new AppError(ErrorCode.NO_OPEN_SESSION, 'Debes abrir una caja antes de vender.');
     }
 
+    let subtotal = 0;
+    let tax = 0;
+
+    // Fetch products to calculate totals (read-only, validation happens inside transaction)
     const products = await prisma.product.findMany({
-      where: {
-        id: {
-          in: items.map((item) => item.productId),
-        },
-      },
-      include: {
-        category: true,
-      },
+      where: { id: { in: items.map((item) => item.productId) } },
+      include: { category: true },
     });
 
     const productMap = new Map(products.map((product) => [product.id, product]));
 
-    let subtotal = 0;
-    let tax = 0;
-
     for (const item of items) {
       const product = productMap.get(item.productId);
-
-      if (!product || !product.isActive) {
+      if (!product) {
+        // Will be caught inside transaction; fail early for calculation purposes
         throw new AppError(ErrorCode.PRODUCT_NOT_FOUND, `Producto ${item.productId} no encontrado.`);
       }
-
-      if (product.expiryDate && product.expiryDate.getTime() < Date.now()) {
-        throw new AppError(ErrorCode.PRODUCT_EXPIRED, `"${product.name}" está vencido y no puede venderse.`);
-      }
-
-      if (product.stock < item.quantity) {
-        throw new AppError(
-          ErrorCode.INSUFFICIENT_STOCK,
-          `Stock insuficiente para ${product.name}. Disponible: ${product.stock}.`,
-        );
-      }
-
       const lineSubtotal = item.quantity * item.unitPrice;
       const lineNet = lineSubtotal - item.discount;
       subtotal += lineNet;
       tax += lineNet * Number(product.taxRate);
     }
 
-    const total = subtotal + tax - discount;
+    const total = subtotal + tax - discount + deliveryFee;
     const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
 
     if (Math.abs(totalPaid - total) > 0.01) {
@@ -195,6 +197,39 @@ export class SalesService {
     const saleNumber = await buildSaleNumber();
 
     const sale = await prisma.$transaction(async (tx) => {
+      // Re-fetch products INSIDE the transaction to prevent race conditions
+      const txProducts = await tx.product.findMany({
+        where: { id: { in: items.map((item) => item.productId) } },
+        include: { category: true },
+      });
+
+      const txProductMap = new Map(txProducts.map((product) => [product.id, product]));
+
+      // Validate stock INSIDE transaction
+      for (const item of items) {
+        const product = txProductMap.get(item.productId);
+
+        if (!product || !product.isActive) {
+          throw new AppError(ErrorCode.PRODUCT_NOT_FOUND, `Producto ${item.productId} no encontrado.`);
+        }
+
+        if (product.expiryDate && product.expiryDate.getTime() < Date.now()) {
+          throw new AppError(ErrorCode.PRODUCT_EXPIRED, `"${product.name}" está vencido y no puede venderse.`);
+        }
+
+        if (product.stock < item.quantity) {
+          throw new AppError(
+            ErrorCode.INSUFFICIENT_STOCK,
+            `Stock insuficiente para ${product.name}. Disponible: ${product.stock}.`,
+          );
+        }
+      }
+
+      const creditPayment = payments.find(p => p.method === 'credito');
+      if (creditPayment && !customerId) {
+        throw new AppError(ErrorCode.VALIDATION, 'Se requiere seleccionar un cliente para ventas a crédito (fiado).');
+      }
+
       const createdSale = await tx.sale.create({
         data: {
           saleNumber,
@@ -203,11 +238,13 @@ export class SalesService {
           subtotal,
           tax,
           discount,
+          deliveryFee,
           total,
           status: 'COMPLETED',
+          customerId: customerId || null,
           items: {
             create: items.map((item) => {
-              const product = productMap.get(item.productId);
+              const product = txProductMap.get(item.productId);
               const lineSubtotal = item.quantity * item.unitPrice;
               return {
                 productId: item.productId,
@@ -226,33 +263,27 @@ export class SalesService {
               method: payment.method,
               amount: payment.amount,
               reference: payment.reference ?? null,
+              cashSessionId,
             })),
           },
         },
-        include: {
-          items: {
-            include: {
-              product: {
-                include: {
-                  category: true,
-                },
-              },
-            },
-          },
-          payments: true,
-          user: {
-            select: {
-              id: true,
-              username: true,
-              fullName: true,
-            },
-          },
-          cashSession: true,
-        },
+        include: SALE_INCLUDE,
       });
 
+      if (creditPayment && customerId) {
+        await tx.debt.create({
+          data: {
+            customerId,
+            saleId: createdSale.id,
+            amount: creditPayment.amount,
+            balance: creditPayment.amount,
+            status: 'PENDING',
+          }
+        });
+      }
+
       for (const item of items) {
-        const product = productMap.get(item.productId);
+        const product = txProductMap.get(item.productId);
         if (!product) {
           continue;
         }
@@ -309,94 +340,37 @@ export class SalesService {
       },
     });
 
-    return mapSale(sale);
+    return mapSale(sale as any);
   }
 
   async getSaleById(id: number): Promise<SaleRecord | null> {
     const sale = await prisma.sale.findUnique({
       where: { id },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: {
-                category: true,
-              },
-            },
-          },
-        },
-        payments: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-            fullName: true,
-          },
-        },
-        cashSession: true,
-      },
+      include: SALE_INCLUDE,
     });
 
-    return sale ? mapSale(sale) : null;
+    return sale ? mapSale(sale as any) : null;
   }
 
   async getSaleByNumber(saleNumber: string): Promise<SaleRecord | null> {
     const sale = await prisma.sale.findUnique({
       where: { saleNumber },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: {
-                category: true,
-              },
-            },
-          },
-        },
-        payments: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-            fullName: true,
-          },
-        },
-        cashSession: true,
-      },
+      include: SALE_INCLUDE,
     });
 
-    return sale ? mapSale(sale) : null;
+    return sale ? mapSale(sale as any) : null;
   }
 
   async getSalesByCashRegister(cashSessionId: number): Promise<SaleRecord[]> {
     const sales = await prisma.sale.findMany({
       where: { cashSessionId },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: {
-                category: true,
-              },
-            },
-          },
-        },
-        payments: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-            fullName: true,
-          },
-        },
-        cashSession: true,
-      },
+      include: SALE_INCLUDE,
       orderBy: {
         createdAt: 'desc',
       },
     });
 
-    return sales.map(mapSale);
+    return sales.map((s: any) => mapSale(s));
   }
 
   async getSalesByDateRange(startDate: Date, endDate: Date): Promise<SaleRecord[]> {
@@ -407,26 +381,7 @@ export class SalesService {
           lte: endDate,
         },
       },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: {
-                category: true,
-              },
-            },
-          },
-        },
-        payments: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-            fullName: true,
-          },
-        },
-        cashSession: true,
-      },
+      include: SALE_INCLUDE,
       orderBy: {
         createdAt: 'desc',
       },
@@ -458,10 +413,15 @@ export class SalesService {
         data: { status: 'CANCELLED' },
       });
 
+      // Batch fetch all products to prevent N+1
+      const productIds = sale.items.map((i) => i.productId);
+      const products = await tx.product.findMany({
+        where: { id: { in: productIds } },
+      });
+      const productMap = new Map(products.map((p) => [p.id, p]));
+
       for (const item of sale.items) {
-        const product = await tx.product.findUnique({
-          where: { id: item.productId },
-        });
+        const product = productMap.get(item.productId);
 
         if (!product) {
           continue;
@@ -521,6 +481,107 @@ export class SalesService {
     });
 
     return { success: true };
+  }
+
+  async getDashboardSummary(): Promise<DashboardSummary> {
+    const now = new Date();
+    
+    // Build "today" range using local timezone components to avoid UTC drift
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const day = now.getDate();
+    const today = new Date(year, month, day, 0, 0, 0, 0);
+    const endOfToday = new Date(year, month, day, 23, 59, 59, 999);
+
+    const startOf7Days = new Date(year, month, day - 6, 0, 0, 0, 0);
+
+    // Run basic metrics in parallel to eliminate sequential bottlenecks
+    const [todaySales, allRecentSales, categoryGroups, recent] = await Promise.all([
+      prisma.sale.aggregate({
+        where: {
+          createdAt: { gte: today, lte: endOfToday },
+          status: 'COMPLETED'
+        },
+        _sum: { total: true },
+        _count: { id: true }
+      }),
+      prisma.sale.findMany({
+        where: {
+          createdAt: { gte: startOf7Days },
+          status: 'COMPLETED'
+        },
+        select: {
+          total: true,
+          createdAt: true
+        }
+      }),
+      prisma.saleItem.groupBy({
+        by: ['productId'],
+        where: {
+          sale: {
+            status: 'COMPLETED',
+            createdAt: { gte: startOf7Days }
+          }
+        },
+        _sum: { total: true }
+      }),
+      prisma.sale.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        include: SALE_INCLUDE
+      })
+    ]);
+
+    // 1. Weekly Chart Processing
+    const weeklyBuckets: Record<string, { ventas: number; ingresos: number }> = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(year, month, day - i);
+      const name = d.toLocaleDateString('es-CO', { weekday: 'short' });
+      weeklyBuckets[name] = { ventas: 0, ingresos: 0 };
+    }
+
+    allRecentSales.forEach(s => {
+      const name = s.createdAt.toLocaleDateString('es-CO', { weekday: 'short' });
+      if (weeklyBuckets[name]) {
+        weeklyBuckets[name].ventas++;
+        weeklyBuckets[name].ingresos += Number(s.total);
+      }
+    });
+
+    const weeklyChart = Object.keys(weeklyBuckets).map(name => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      ...weeklyBuckets[name]
+    }));
+
+    // 2. Top Categories Mapping - Minified Fetch
+    const productIds = categoryGroups.map(g => g.productId);
+    const productsInSales = productIds.length > 0 ? await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, category: { select: { name: true } } }
+    }) : [];
+
+    const categoryPerformance: Record<string, number> = {};
+    categoryGroups.forEach(g => {
+      const p = productsInSales.find(item => item.id === g.productId);
+      if (p && p.category) {
+        categoryPerformance[p.category.name] = (categoryPerformance[p.category.name] || 0) + Number(g._sum.total || 0);
+      }
+    });
+
+    const topCategories = Object.entries(categoryPerformance)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6);
+
+    return {
+      today: {
+        totalVendidos: todaySales._count.id,
+        totalMonto: Number(todaySales._sum.total ?? 0)
+      },
+      weeklyChart,
+      topCategories,
+      recentSales: recent.map(mapSale)
+    };
   }
 
   async getDailySummary(cashSessionId: number): Promise<DailySummary> {

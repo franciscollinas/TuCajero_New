@@ -291,6 +291,11 @@ export const es = {
     printHardwareError: 'Error al imprimir en la impresora térmica.',
   },
   settings: {
+    title: 'Configuración',
+    business: {
+      title: 'Datos del Negocio',
+      subtitle: 'Información que aparece en facturas y recibos.',
+    },
     printer: {
       title: 'Impresora térmica',
       subtitle: 'Configura la conexión de la impresora térmica para imprimir recibos directamente.',

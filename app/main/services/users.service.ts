@@ -5,8 +5,24 @@ import type { CreateUserInput, UpdateUserInput, UserRecord } from '../../rendere
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
 import { AuditService } from './audit.service';
+import { BCRYPT_ROUNDS } from './auth.service';
 
 const auditService = new AuditService();
+
+function validatePassword(password: string): void {
+  if (password.length < 8) {
+    throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe tener al menos 8 caracteres.');
+  }
+  if (!/[A-Z]/.test(password)) {
+    throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe contener al menos una letra mayúscula.');
+  }
+  if (!/[a-z]/.test(password)) {
+    throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe contener al menos una letra minúscula.');
+  }
+  if (!/[0-9]/.test(password)) {
+    throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe contener al menos un número.');
+  }
+}
 
 function mapUser(user: {
   id: number;
@@ -65,7 +81,9 @@ export class UsersService {
       throw new AppError(ErrorCode.VALIDATION, 'Ese nombre de usuario ya existe.');
     }
 
-    const password = await bcrypt.hash(data.password, 10);
+    validatePassword(data.password);
+
+    const password = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
 
     const user = await prisma.user.create({
       data: {
@@ -74,6 +92,7 @@ export class UsersService {
         fullName: data.fullName.trim(),
         role: data.role,
         active: true,
+        mustChangePassword: true,
       },
     });
 
@@ -103,7 +122,11 @@ export class UsersService {
       throw new AppError(ErrorCode.NOT_FOUND, 'Usuario no encontrado.');
     }
 
-    const nextPassword = data.password ? await bcrypt.hash(data.password, 10) : undefined;
+    let nextPassword: string | undefined;
+    if (data.password) {
+      validatePassword(data.password);
+      nextPassword = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
+    }
 
     const user = await prisma.user.update({
       where: { id },
@@ -144,6 +167,13 @@ export class UsersService {
       where: { id },
       data: { active },
     });
+
+    // Revoke ALL sessions when deactivating a user
+    if (!active) {
+      await prisma.session.deleteMany({
+        where: { userId: id },
+      });
+    }
 
     await auditService.log({
       userId: actorUserId,

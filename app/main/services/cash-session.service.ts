@@ -127,4 +127,32 @@ export class CashSessionService {
 
     return session ? mapCashSession(session) : null;
   }
+
+  async getCashSessionSummary(sessionId: number): Promise<any> {
+    const payments = await prisma.payment.findMany({
+      where: {
+        OR: [
+          { cashSessionId: sessionId },
+          { sale: { cashSessionId: sessionId } }
+        ],
+        AND: [
+          {
+            OR: [
+              { saleId: null },
+              { sale: { status: 'COMPLETED' } }
+            ]
+          }
+        ]
+      }
+    });
+
+    const summary = payments.reduce((acc: any, p) => {
+      const method = p.method.toLowerCase();
+      acc[method] = (acc[method] || 0) + Number(p.amount);
+      acc.total = (acc.total || 0) + Number(p.amount);
+      return acc;
+    }, { total: 0 });
+
+    return summary;
+  }
 }

@@ -56,4 +56,16 @@ export function registerCashSessionIpc(): void {
       }
     },
   );
+
+  ipcMain.handle(
+    'cash:getSummary',
+    async (_event, sessionId: number): Promise<ApiResponse<any>> => {
+      try {
+        const result = await cashSessionService.getCashSessionSummary(sessionId);
+        return { success: true, data: result };
+      } catch (err) {
+        return { success: false, error: toApiError(err) };
+      }
+    },
+  );
 }

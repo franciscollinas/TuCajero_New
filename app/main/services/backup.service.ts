@@ -37,8 +37,12 @@ function toFileDate(value: Date): string {
 }
 
 function getFileSize(filePath: string): number {
-  const stats = fs.statSync(filePath);
-  return stats.size;
+  try {
+    const stats = fs.statSync(filePath);
+    return stats.size;
+  } catch {
+    return 0;
+  }
 }
 
 function formatFileSize(bytes: number): string {
@@ -75,6 +79,15 @@ export class BackupService {
     if (actor.role !== 'ADMIN') {
       throw new AppError(ErrorCode.FORBIDDEN, 'Solo los administradores pueden gestionar copias de seguridad.');
     }
+  }
+
+  private validateBackupFileName(fileName: string): string {
+    if (!fileName.startsWith('tucajero-backup-') || !fileName.endsWith('.db')) {
+      throw new AppError(ErrorCode.VALIDATION, 'Archivo de backup no válido.');
+    }
+    // Strip any path components to prevent traversal
+    const safeName = path.basename(fileName);
+    return safeName;
   }
 
   async createBackup(actorUserId: number, description?: string): Promise<BackupInfo> {
@@ -140,15 +153,23 @@ export class BackupService {
     void actorUserId;
     const backupDir = getBackupDir();
 
-    if (!fs.existsSync(backupDir)) {
+    let dirFiles: string[];
+    try {
+      dirFiles = fs.readdirSync(backupDir);
+    } catch {
       return { backups: [], totalSize: 0, totalSizeFormatted: '0 B' };
     }
 
-    const files = fs.readdirSync(backupDir)
+    const files = dirFiles
       .filter((file) => file.endsWith('.db'))
       .map((file) => {
         const filePath = path.join(backupDir, file);
-        const stats = fs.statSync(filePath);
+        let stats: fs.Stats;
+        try {
+          stats = fs.statSync(filePath);
+        } catch {
+          return null;
+        }
         const isValid = isValidBackupFile(filePath);
 
         return {
@@ -164,6 +185,7 @@ export class BackupService {
           databasePath: getDatabasePath(),
         } satisfies BackupMetadata;
       })
+      .filter((f): f is BackupMetadata => f !== null)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     const totalSize = files.reduce((sum, file) => sum + file.fileSize, 0);
@@ -178,15 +200,20 @@ export class BackupService {
   async deleteBackup(actorUserId: number, fileName: string): Promise<{ success: boolean; message: string }> {
     await this.assertBackupAccess(actorUserId);
 
-    const backupDir = getBackupDir();
-    const filePath = path.join(backupDir, fileName);
+    const safeFileName = this.validateBackupFileName(fileName);
 
-    if (!fs.existsSync(filePath)) {
-      throw new AppError(ErrorCode.NOT_FOUND, `No se encontró la copia de seguridad: ${fileName}`);
+    const backupDir = getBackupDir();
+    const filePath = path.join(backupDir, safeFileName);
+
+    let files: string[];
+    try {
+      files = fs.readdirSync(backupDir);
+    } catch {
+      throw new AppError(ErrorCode.DATABASE_ERROR, 'No se pudo leer el directorio de backups.');
     }
 
-    if (!fileName.startsWith('tucajero-backup-') || !fileName.endsWith('.db')) {
-      throw new AppError(ErrorCode.VALIDATION, 'Archivo de backup no válido.');
+    if (!files.includes(safeFileName)) {
+      throw new AppError(ErrorCode.NOT_FOUND, `No se encontró la copia de seguridad: ${safeFileName}`);
     }
 
     try {
@@ -209,12 +236,32 @@ export class BackupService {
   async restoreBackup(actorUserId: number, fileName: string): Promise<{ success: boolean; message: string }> {
     await this.assertBackupAccess(actorUserId);
 
+    const safeFileName = this.validateBackupFileName(fileName);
+
     const backupDir = getBackupDir();
-    const backupPath = path.join(backupDir, fileName);
+    const backupPath = path.join(backupDir, safeFileName);
     const dbPath = getDatabasePath();
 
-    if (!fs.existsSync(backupPath)) {
-      throw new AppError(ErrorCode.NOT_FOUND, `No se encontró la copia de seguridad: ${fileName}`);
+    let dbExists: boolean;
+    try {
+      dbExists = fs.existsSync(dbPath);
+    } catch {
+      throw new AppError(ErrorCode.DATABASE_ERROR, 'No se pudo verificar la base de datos actual.');
+    }
+
+    if (!dbExists) {
+      throw new AppError(ErrorCode.NOT_FOUND, 'No se encontró la base de datos actual.');
+    }
+
+    let backupExists: boolean;
+    try {
+      backupExists = fs.existsSync(backupPath);
+    } catch {
+      throw new AppError(ErrorCode.DATABASE_ERROR, 'No se pudo verificar el archivo de backup.');
+    }
+
+    if (!backupExists) {
+      throw new AppError(ErrorCode.NOT_FOUND, `No se encontró la copia de seguridad: ${safeFileName}`);
     }
 
     if (!isValidBackupFile(backupPath)) {
@@ -224,10 +271,13 @@ export class BackupService {
     try {
       await prisma.$disconnect();
 
-      const backupTarget = path.join(backupDir, `${fileName}.pre-restore-${toFileDate(new Date())}.db`);
+      const backupTarget = path.join(backupDir, `${safeFileName}.pre-restore-${toFileDate(new Date())}.db`);
       fs.copyFileSync(dbPath, backupTarget);
 
       fs.copyFileSync(backupPath, dbPath);
+
+      // After file copy, reconnect Prisma
+      await prisma.$connect();
 
       if (!isValidBackupFile(dbPath)) {
         fs.copyFileSync(backupTarget, dbPath);
@@ -268,32 +318,45 @@ export class BackupService {
     await this.assertBackupAccess(actorUserId);
 
     const dbPath = getDatabasePath();
-    const dbSize = fs.existsSync(dbPath) ? getFileSize(dbPath) : 0;
+    let dbSize = 0;
+    try {
+      dbSize = fs.existsSync(dbPath) ? getFileSize(dbPath) : 0;
+    } catch {
+      dbSize = 0;
+    }
 
     const backupDir = getBackupDir();
-    const backups = fs.existsSync(backupDir)
-      ? fs.readdirSync(backupDir).filter((f) => f.endsWith('.db'))
-      : [];
+    let backups: string[] = [];
+    try {
+      backups = fs.existsSync(backupDir)
+        ? fs.readdirSync(backupDir).filter((f) => f.endsWith('.db'))
+        : [];
+    } catch {
+      backups = [];
+    }
 
     const lastBackupFile = backups[0];
-    const lastBackup: BackupMetadata | null = lastBackupFile
-      ? ((): BackupMetadata => {
-          const filePath = path.join(backupDir, lastBackupFile);
-          const stats = fs.statSync(filePath);
-          return {
-            fileName: lastBackupFile,
-            filePath,
-            createdAt: stats.birthtime.toISOString(),
-            modifiedAt: stats.mtime.toISOString(),
-            fileSize: stats.size,
-            fileSizeFormatted: formatFileSize(stats.size),
-            isValid: isValidBackupFile(filePath),
-            description: '',
-            createdBy: 0,
-            databasePath: dbPath,
-          };
-        })()
-      : null;
+    let lastBackup: BackupMetadata | null = null;
+    if (lastBackupFile) {
+      try {
+        const filePath = path.join(backupDir, lastBackupFile);
+        const stats = fs.statSync(filePath);
+        lastBackup = {
+          fileName: lastBackupFile,
+          filePath,
+          createdAt: stats.birthtime.toISOString(),
+          modifiedAt: stats.mtime.toISOString(),
+          fileSize: stats.size,
+          fileSizeFormatted: formatFileSize(stats.size),
+          isValid: isValidBackupFile(filePath),
+          description: '',
+          createdBy: 0,
+          databasePath: dbPath,
+        };
+      } catch {
+        lastBackup = null;
+      }
+    }
 
     const totalBackupSize = backups.reduce((sum, file) => {
       try {

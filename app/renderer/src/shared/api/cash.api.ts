@@ -26,3 +26,7 @@ export async function closeCashRegister(
     expectedCash,
   );
 }
+
+export async function getCashSessionSummary(sessionId: number): Promise<ApiResponse<any>> {
+  return window.api.invoke<any>('cash:getSummary', sessionId);
+}

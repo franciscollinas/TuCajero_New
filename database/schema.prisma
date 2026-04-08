@@ -9,15 +9,16 @@ datasource db {
 }
 
 model User {
-  id             Int             @id @default(autoincrement())
-  username       String          @unique
-  password       String
-  fullName       String
-  role           String          @default("CASHIER")
-  active         Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  sessions       Session[]
+  id                 Int             @id @default(autoincrement())
+  username           String          @unique
+  password           String
+  fullName           String
+  role               String          @default("CASHIER")
+  active             Boolean         @default(true)
+  mustChangePassword Boolean         @default(false)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  sessions           Session[]
   cashSessions   CashSession[]
   sales          Sale[]
   auditLogs      AuditLog[]
@@ -92,11 +93,19 @@ model Sale {
   subtotal      Decimal
   tax           Decimal      @map("taxAmount")
   discount      Decimal      @default(0)
+  deliveryFee   Decimal      @default(0)
   total         Decimal
   status        String       @default("COMPLETED")
   createdAt     DateTime     @default(now())
+  
+  customerId    Int?
+  customer      Customer?    @relation(fields: [customerId], references: [id])
+  
   items         SaleItem[]
   payments      Payment[]
+  debt          Debt?
+
+  @@index([createdAt])
 }
 
 model SaleItem {
@@ -115,13 +124,17 @@ model SaleItem {
 }
 
 model Payment {
-  id        Int       @id @default(autoincrement())
-  saleId    Int
-  sale      Sale      @relation(fields: [saleId], references: [id])
-  method    String
-  amount    Decimal
-  reference String?
-  createdAt DateTime  @default(now())
+  id            Int          @id @default(autoincrement())
+  saleId        Int?
+  sale          Sale?        @relation(fields: [saleId], references: [id])
+  debtId        Int?
+  debt          Debt?        @relation(fields: [debtId], references: [id])
+  cashSessionId Int?
+  cashSession   CashSession? @relation(fields: [cashSessionId], references: [id])
+  method        String
+  amount        Decimal
+  reference     String?
+  createdAt     DateTime     @default(now())
 }
 
 model CashSession {
@@ -136,6 +149,9 @@ model CashSession {
   closedAt     DateTime?
   status       String     @default("OPEN")
   sales        Sale[]
+  payments     Payment[]
+
+  @@index([openedAt])
 }
 
 model AuditLog {
@@ -147,11 +163,41 @@ model AuditLog {
   entityId  Int?
   payload   String
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model Config {
-  id        Int      @id @default(1)
+  id        Int      @id @default(autoincrement())
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  document  String?  @unique
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sales     Sale[]
+  debts     Debt[]
+}
+
+model Debt {
+  id          Int      @id @default(autoincrement())
+  customerId  Int
+  customer    Customer @relation(fields: [customerId], references: [id])
+  saleId      Int?      @unique
+  sale        Sale?     @relation(fields: [saleId], references: [id])
+  amount      Decimal
+  balance     Decimal
+  status      String    @default("PENDING") // PENDING, PARTIAL, PAID
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  payments    Payment[]
 }

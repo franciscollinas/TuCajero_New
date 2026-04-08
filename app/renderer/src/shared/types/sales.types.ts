@@ -3,7 +3,8 @@ export type PaymentMethod =
   | 'nequi'
   | 'daviplata'
   | 'tarjeta'
-  | 'transferencia';
+  | 'transferencia'
+  | 'credito';
 
 export interface CartItemInput {
   productId: number;
@@ -70,7 +71,10 @@ export interface SaleRecord {
   subtotal: number;
   tax: number;
   discount: number;
+  deliveryFee: number;
   total: number;
+  customerId: number | null;
+  customer?: { id: number; name: string; phone: string | null } | null;
   status: string;
   createdAt: string;
   items: SaleItem[];
@@ -84,4 +88,22 @@ export interface DailySummary {
   totalAmount: number;
   paymentsByMethod: Record<string, number>;
   sales: SaleRecord[];
+}
+
+export interface DashboardSummary {
+  today: {
+    totalVendidos: number;
+    totalMonto: number;
+  };
+  weeklyChart: {
+    name: string;
+    ventas: number;
+    ingresos: number;
+  }[];
+  topCategories: {
+    name: string;
+    value: number;
+    color?: string;
+  }[];
+  recentSales: SaleRecord[];
 }

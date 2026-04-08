@@ -8,17 +8,22 @@ import { AuditService } from './audit.service';
 
 const auditService = new AuditService();
 
+const SESSION_EXPIRY_MS = 8 * 60 * 60 * 1000;
+export const BCRYPT_ROUNDS = 12;
+
 function mapUser(user: {
   id: number;
   username: string;
   role: string;
   fullName: string;
+  mustChangePassword?: boolean;
 }): AuthUser {
   return {
     id: user.id,
     username: user.username,
     role: user.role as UserRole,
     fullName: user.fullName,
+    mustChangePassword: user.mustChangePassword ?? false,
   };
 }
 
@@ -39,7 +44,7 @@ export class AuthService {
     }
 
     const token = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + SESSION_EXPIRY_MS);
 
     await prisma.session.create({
       data: {
@@ -104,6 +109,52 @@ export class AuthService {
           username: session.user.username,
         },
       });
+    }
+  }
+
+  async changePassword(userId: number, currentPassword: string, newPassword: string): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new AppError(ErrorCode.NOT_FOUND, 'Usuario no encontrado.');
+    }
+
+    const validCurrent = await bcrypt.compare(currentPassword, user.password);
+    if (!validCurrent) {
+      throw new AppError(ErrorCode.INVALID_CREDENTIALS, 'La contraseña actual es incorrecta.');
+    }
+
+    this.validatePasswordStrength(newPassword);
+
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        mustChangePassword: false,
+      },
+    });
+
+    await auditService.log({
+      userId,
+      action: 'auth:password-changed',
+      entity: 'User',
+      entityId: userId,
+      payload: { changedAt: new Date().toISOString() },
+    });
+  }
+
+  private validatePasswordStrength(password: string): void {
+    if (password.length < 8) {
+      throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe tener al menos 8 caracteres.');
+    }
+    if (!/[A-Z]/.test(password)) {
+      throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe contener al menos una letra mayúscula.');
+    }
+    if (!/[a-z]/.test(password)) {
+      throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe contener al menos una letra minúscula.');
+    }
+    if (!/[0-9]/.test(password)) {
+      throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe contener al menos un número.');
     }
   }
 }

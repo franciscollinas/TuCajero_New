@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron';
 
 import type { ApiResponse } from '../../renderer/src/shared/types/api.types';
-import type { CartItemInput, DailySummary, PaymentInput, SaleRecord } from '../../renderer/src/shared/types/sales.types';
+import type { CartItemInput, DailySummary, DashboardSummary, PaymentInput, SaleRecord } from '../../renderer/src/shared/types/sales.types';
 import { generateInvoicePDF } from '../services/invoice.service';
 import { SalesService } from '../services/sales.service';
 import { logger } from '../utils/logger';
@@ -19,9 +19,19 @@ export function registerSalesIpc(): void {
       items: CartItemInput[],
       payments: PaymentInput[],
       discount = 0,
+      deliveryFee = 0,
+      customerId?: number,
     ): Promise<ApiResponse<SaleRecord>> => {
       try {
-        const result = await salesService.createSale(cashSessionId, userId, items, payments, discount);
+        const result = await salesService.createSale(
+          cashSessionId,
+          userId,
+          items,
+          payments,
+          discount,
+          deliveryFee,
+          customerId,
+        );
         logger.info('sales:create-success', { saleId: result.id, saleNumber: result.saleNumber, userId });
         return { success: true, data: result };
       } catch (err) {
@@ -112,6 +122,16 @@ export function registerSalesIpc(): void {
       logger.info('sales:invoice-generated', { saleId, filePath });
       return { success: true, data: filePath };
     } catch (err) {
+      return { success: false, error: toApiError(err) };
+    }
+  });
+
+  ipcMain.handle('sales:getDashboardSummary', async (): Promise<ApiResponse<DashboardSummary>> => {
+    try {
+      const result = await salesService.getDashboardSummary();
+      return { success: true, data: result };
+    } catch (err) {
+      logger.error('sales:getDashboardSummary-error', { err });
       return { success: false, error: toApiError(err) };
     }
   });

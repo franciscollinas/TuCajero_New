@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx *)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push)",
+      "Bash(git remote *)",
+      "Bash(git pull *)",
+      "Bash(git checkout *)",
+      "Bash(git rebase *)",
+      "Bash(git merge *)",
+      "Bash(git config *)",
+      "Bash(taskkill *)",
+      "Bash(timeout *)",
+      "Bash(curl *)",
+      "Bash(npm install *)",
+      "Bash(tasklist)",
+      "Bash(findstr *)",
+      "Bash(node *)",
+      "Bash(type *)",
+      "Bash(dir *)",
+      "Bash(set *)",
+      "Bash(cmd *)",
+      "Bash(node_modules\\electron\\dist\\electron.exe *)",
+      "Bash(start-dev.bat)",
+      "Bash(start *)",
+      "Bash(powershell *)",
+      "Bash(select-object *)"
+    ]
+  },
+  "$version": 3
+}

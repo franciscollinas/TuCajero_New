@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { Layout } from './shared/components/Layout';
@@ -13,12 +14,28 @@ import { InventoryPage } from './modules/inventory/InventoryPage';
 import { LicensePage } from './modules/license/LicensePage';
 import { PrinterSettingsPage } from './modules/printer/PrinterSettingsPage';
 import { ReportsPage } from './modules/reports/ReportsPage';
+import { SettingsPage } from './modules/settings/SettingsPage';
 import { ProtectedRoute } from './modules/routing/ProtectedRoute';
 import { POSPage } from './modules/sales/POSPage';
 import { SalesHistoryPage } from './modules/sales/SalesHistoryPage';
 import { UsersPage } from './modules/users/UsersPage';
+import CustomersPage from './modules/customers/CustomersPage';
 import { AuthProvider, useAuth } from './shared/context/AuthContext';
+import { ConfigProvider } from './shared/context/ConfigContext';
 import { es } from './shared/i18n';
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: any, errorInfo: any) { console.error("React Error:", error, errorInfo); }
+  render() {
+    if (this.state.hasError) return <div style={{ padding: 20, color: 'red' }}><h1>Browser Error</h1><p>Check console for details.</p></div>;
+    return this.props.children;
+  }
+}
 
 function StartRoute(): JSX.Element {
   const { isReady, user } = useAuth();
@@ -55,10 +72,12 @@ function LayoutRoute({ children }: { children: JSX.Element }): JSX.Element {
 
 export default function App(): JSX.Element {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route
+    <ErrorBoundary>
+      <AuthProvider>
+        <ConfigProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route
             path="/login"
             element={
               <PublicRoute>
@@ -157,6 +176,14 @@ export default function App(): JSX.Element {
             }
           />
           <Route
+            path="/settings"
+            element={
+              <ProtectedRoute roles={['ADMIN']}>
+                <LayoutRoute><SettingsPage /></LayoutRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/sales"
             element={
               <ProtectedRoute roles={['ADMIN', 'CASHIER', 'SUPERVISOR']}>
@@ -173,6 +200,14 @@ export default function App(): JSX.Element {
             }
           />
           <Route
+            path="/customers"
+            element={
+              <ProtectedRoute roles={['ADMIN', 'CASHIER', 'SUPERVISOR']}>
+                <LayoutRoute><CustomersPage /></LayoutRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/demo"
             element={
               <ProtectedRoute>
@@ -185,6 +220,8 @@ export default function App(): JSX.Element {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-    </AuthProvider>
+      </ConfigProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
