@@ -60,6 +60,9 @@ export function POSPage(): JSX.Element {
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [payments, setPayments] = useState<SalePayment[]>([]);
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
+  const [cashReceived, setCashReceived] = useState<number>(0);
+  const [showCashInput, setShowCashInput] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -97,6 +100,9 @@ export function POSPage(): JSX.Element {
     setDeliveryFee(0);
     setGlobalDiscount(0);
     setSelectedCustomerId(null);
+    setCashReceived(0);
+    setShowCashInput(false);
+    setSelectedMethod(null);
   };
 
   // Barcode scanner integration
@@ -177,7 +183,37 @@ export function POSPage(): JSX.Element {
       setMessage('Seleccione un cliente para realizar una venta a credito.');
       return;
     }
+    
+    // For cash payments, ask how much the customer is paying with
+    if (method === 'efectivo' || method === 'mixto') {
+      setSelectedMethod(method);
+      setShowCashInput(true);
+      return;
+    }
+    
+    // For other methods, add payment directly
     setPayments(prev => [...prev, { method, amount: remaining }]);
+    setShowPaymentMethods(false);
+  };
+
+  const confirmCashPayment = () => {
+    if (!selectedMethod || cashReceived < remaining) {
+      setMessageType('error');
+      setMessage(`El monto recibido debe ser al menos ${formatCurrency(remaining)}`);
+      return;
+    }
+    
+    const change = cashReceived - remaining;
+    setPayments(prev => [...prev, { method: selectedMethod, amount: remaining }]);
+    setShowCashInput(false);
+    setShowPaymentMethods(false);
+    setCashReceived(0);
+    setSelectedMethod(null);
+    
+    if (change > 0) {
+      setMessageType('success');
+      setMessage(`Cambio a devolver: ${formatCurrency(change)}`);
+    }
   };
 
   const quickPay = async (method: PaymentMethod) => {
@@ -213,6 +249,11 @@ export function POSPage(): JSX.Element {
         discount: i.discount
       }));
 
+      // Calculate total cash received from cash payments
+      const cashPayment = finalPayments.find(p => p.method === 'efectivo' || p.method === 'mixto');
+      const actualCashReceived = cashPayment ? (cashReceived > 0 ? cashReceived : cashPayment.amount) : 0;
+      const change = actualCashReceived > total ? actualCashReceived - total : 0;
+
       const response = await createSale(activeCash.id, user.id, items, finalPayments, globalDiscount, deliveryFee, selectedCustomerId);
       if (response.success) {
         const invoiceData = {
@@ -240,7 +281,8 @@ export function POSPage(): JSX.Element {
           discount: globalDiscount,
           total,
           payments: finalPayments.map(p => ({ method: p.method, amount: p.amount })),
-          change: totalPaid > total ? totalPaid - total : 0
+          cashReceived: actualCashReceived,
+          change: change
         };
 
         const invoiceResp = await generateInvoice(response.data.id);
@@ -249,12 +291,15 @@ export function POSPage(): JSX.Element {
         }
 
         setMessageType('success');
-        setMessage(`Venta #${response.data.saleNumber} completada.`);
+        const changeMsg = change > 0 ? ` (Cambio: ${formatCurrency(change)})` : '';
+        setMessage(`Venta #${response.data.saleNumber} completada${changeMsg}`);
         setCart([]);
         setPayments([]);
         setDeliveryFee(0);
         setGlobalDiscount(0);
         setSelectedCustomerId(null);
+        setCashReceived(0);
+        setShowCashInput(false);
       } else {
         setMessageType('error');
         setMessage(response.error.message);
@@ -576,6 +621,94 @@ export function POSPage(): JSX.Element {
                       MIXTO
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Cash Input Section */}
+              {showCashInput && (
+                <div style={{ padding: 'var(--space-4)', background: 'linear-gradient(135deg, var(--success-50) 0%, #d1fae5 100%)', borderRadius: 'var(--radius-lg)', border: '2px solid var(--success-200)', marginBottom: 'var(--space-3)', animation: 'slideDown 0.2s ease' }}>
+                  <p style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--success-700)', marginBottom: 'var(--space-3)', textAlign: 'center' }}>
+                    ¿Con cuanto paga el cliente?
+                  </p>
+                  
+                  {/* Total to pay */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)', padding: 'var(--space-2)', background: '#fff', borderRadius: 'var(--radius-md)' }}>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-600)' }}>Total a pagar:</span>
+                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--gray-800)' }}>{formatCurrency(remaining)}</span>
+                  </div>
+
+                  {/* Cash received input */}
+                  <div style={{ position: 'relative', marginBottom: 'var(--space-3)' }}>
+                    <Banknote style={{ position: 'absolute', left: 'var(--space-3)', top: '50%', transform: 'translateY(-50%)', color: 'var(--success-600)' }} size={20} />
+                    <input
+                      type="number"
+                      placeholder="Monto recibido..."
+                      value={cashReceived || ''}
+                      onChange={(e) => setCashReceived(Number(e.target.value))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') confirmCashPayment(); }}
+                      className="tc-input"
+                      style={{ paddingLeft: '44px', minHeight: '52px', fontSize: 'var(--text-lg)', fontWeight: 700, background: '#fff', border: '2px solid var(--success-300)', textAlign: 'right' }}
+                      autoFocus
+                    />
+                  </div>
+
+                  {/* Change display */}
+                  {cashReceived > 0 && (
+                    <div style={{ padding: 'var(--space-3)', background: cashReceived >= remaining ? 'var(--success-100)' : 'var(--warning-100)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-3)', textAlign: 'center' }}>
+                      {cashReceived >= remaining ? (
+                        <div>
+                          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--success-600)', fontWeight: 600, marginBottom: '2px' }}>Cambio a devolver:</p>
+                          <p style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, color: 'var(--success-700)' }}>{formatCurrency(cashReceived - remaining)}</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--warning-600)', fontWeight: 600, marginBottom: '2px' }}>Falta:</p>
+                          <p style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, color: 'var(--warning-700)' }}>{formatCurrency(remaining - cashReceived)}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Confirm button */}
+                  <button
+                    onClick={confirmCashPayment}
+                    disabled={cashReceived < remaining}
+                    style={{
+                      width: '100%',
+                      padding: 'var(--space-3)',
+                      borderRadius: 'var(--radius-md)',
+                      background: cashReceived >= remaining ? 'var(--gradient-success)' : 'var(--gray-300)',
+                      border: 'none',
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: 'var(--text-sm)',
+                      cursor: cashReceived >= remaining ? 'pointer' : 'not-allowed',
+                      opacity: cashReceived >= remaining ? 1 : 0.6,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em'
+                    }}
+                  >
+                    {cashReceived >= remaining ? 'Confirmar Pago' : 'Monto insuficiente'}
+                  </button>
+
+                  {/* Cancel button */}
+                  <button
+                    onClick={() => { setShowCashInput(false); setCashReceived(0); setSelectedMethod(null); }}
+                    style={{
+                      width: '100%',
+                      padding: 'var(--space-2)',
+                      marginTop: 'var(--space-2)',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'transparent',
+                      border: '1px solid var(--gray-200)',
+                      color: 'var(--gray-600)',
+                      fontWeight: 600,
+                      fontSize: 'var(--text-xs)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancelar
+                  </button>
                 </div>
               )}
 
