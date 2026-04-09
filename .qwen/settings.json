@@ -27,7 +27,10 @@
       "Bash(start-dev.bat)",
       "Bash(start *)",
       "Bash(powershell *)",
-      "Bash(select-object *)"
+      "Bash(select-object *)",
+      "Bash(git restore *)",
+      "Bash(date *)",
+      "Bash(time *)"
     ]
   },
   "$version": 3

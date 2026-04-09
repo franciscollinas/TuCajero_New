@@ -616,9 +616,13 @@ export function POSPage(): JSX.Element {
                       <Navigation size={18} style={{ marginBottom: '2px' }} />
                       TRANSF.
                     </button>
-                    <button onClick={() => { addPayment('tarjeta'); setShowPaymentMethods(false); }} disabled={cart.length === 0} style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)', padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', background: '#fff', border: '2px solid var(--warning-200)', color: 'var(--warning-600)', fontWeight: 700, fontSize: 'var(--text-xs)', cursor: cart.length === 0 ? 'not-allowed' : 'pointer', opacity: cart.length === 0 ? 0.5 : 1, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <button onClick={() => { addPayment('tarjeta'); setShowPaymentMethods(false); }} disabled={cart.length === 0} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)', padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', background: '#fff', border: '2px solid var(--warning-200)', color: 'var(--warning-600)', fontWeight: 700, fontSize: 'var(--text-xs)', cursor: cart.length === 0 ? 'not-allowed' : 'pointer', opacity: cart.length === 0 ? 0.5 : 1, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                       <CreditCard size={16} />
                       MIXTO
+                    </button>
+                    <button onClick={() => { addPayment('credito'); setShowPaymentMethods(false); }} disabled={cart.length === 0 || !selectedCustomerId} style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)', padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', background: selectedCustomerId ? '#fff' : '#f9fafb', border: `2px solid ${selectedCustomerId ? '#f59e0b' : '#e5e7eb'}`, color: selectedCustomerId ? '#d97706' : '#9ca3af', fontWeight: 700, fontSize: 'var(--text-xs)', cursor: cart.length === 0 || !selectedCustomerId ? 'not-allowed' : 'pointer', opacity: cart.length === 0 || !selectedCustomerId ? 0.5 : 1, boxShadow: selectedCustomerId ? '0 2px 4px rgba(0,0,0,0.05)' : 'none' }}>
+                      <Tag size={16} />
+                      CREDITO / FIAR {selectedCustomerId ? '' : '(Seleccione cliente)'}
                     </button>
                   </div>
                 </div>
