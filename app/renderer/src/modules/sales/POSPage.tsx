@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -20,6 +20,9 @@ import {
   Percent,
   Calculator,
   ArrowRight,
+  ScanLine,
+  X,
+  Package,
 } from 'lucide-react';
 
 import { getAllProducts } from '../../shared/api/inventory.api';
@@ -27,6 +30,7 @@ import { getAllCustomers } from '../../shared/api/customers.api';
 import { getActiveCashRegister } from '../../shared/api/cash.api';
 import { createSale, generateInvoice } from '../../shared/api/sales.api';
 import { useAuth } from '../../shared/context/AuthContext';
+import { useBarcodeScanner } from '../../shared/hooks/useBarcodeScanner';
 import { formatCurrency } from '../../shared/utils/formatters';
 import type { Product } from '../../shared/types/inventory.types';
 import type { Customer } from '../../shared/types/customers.types';
@@ -43,6 +47,7 @@ interface CartItem {
 export function POSPage(): JSX.Element {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -54,10 +59,65 @@ export function POSPage(): JSX.Element {
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [payments, setPayments] = useState<SalePayment[]>([]);
+  const [showPaymentMethods, setShowPaymentMethods] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error' | 'info'>('info');
+
+  const addToCart = (product: Product) => {
+    setCart(prev => {
+      const idx = prev.findIndex(item => item.product.id === product.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
+        return next;
+      }
+      return [...prev, { product, quantity: 1, unitPrice: product.price, discount: 0 }];
+    });
+  };
+
+  const updateQty = (id: number, delta: number) => {
+    setCart(prev => prev.map(item => {
+      if (item.product.id === id) {
+        const newQty = Math.max(0, item.quantity + delta);
+        return { ...item, quantity: newQty };
+      }
+      return item;
+    }).filter(item => item.quantity > 0));
+  };
+
+  const removeFromCart = (id: number) => {
+    setCart(prev => prev.filter(item => item.product.id !== id));
+  };
+
+  const clearCart = () => {
+    setCart([]);
+    setPayments([]);
+    setDeliveryFee(0);
+    setGlobalDiscount(0);
+    setSelectedCustomerId(null);
+  };
+
+  // Barcode scanner integration
+  useBarcodeScanner({
+    onScan: useCallback((code: string) => {
+      const found = products.find(p => p.code === code || p.barcode === code);
+      if (found && found.isActive) {
+        addToCart(found);
+        setMessageType('success');
+        setMessage(`Producto "${found.name}" agregado al carrito.`);
+        setTimeout(() => setMessage(''), 2000);
+      } else {
+        setMessageType('error');
+        setMessage(`Producto con codigo "${code}" no encontrado.`);
+        setTimeout(() => setMessage(''), 3000);
+      }
+    }, [products]),
+    enabled: true,
+    minLength: 4,
+    maxKeyDelay: 60,
+  });
 
   useEffect(() => {
     if (!user) return;
@@ -110,33 +170,11 @@ export function POSPage(): JSX.Element {
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const remaining = total - totalPaid;
 
-  const addToCart = (product: Product) => {
-    setCart(prev => {
-      const idx = prev.findIndex(item => item.product.id === product.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
-        return next;
-      }
-      return [...prev, { product, quantity: 1, unitPrice: product.price, discount: 0 }];
-    });
-  };
-
-  const updateQty = (id: number, delta: number) => {
-    setCart(prev => prev.map(item => {
-      if (item.product.id === id) {
-        const newQty = Math.max(0, item.quantity + delta);
-        return { ...item, quantity: newQty };
-      }
-      return item;
-    }).filter(item => item.quantity > 0));
-  };
-
   const addPayment = (method: PaymentMethod) => {
     if (remaining <= 0.1) return;
     if (method === 'credito' && !selectedCustomerId) {
       setMessageType('error');
-      setMessage('Seleccione un cliente para realizar una venta a crédito.');
+      setMessage('Seleccione un cliente para realizar una venta a credito.');
       return;
     }
     setPayments(prev => [...prev, { method, amount: remaining }]);
@@ -183,8 +221,8 @@ export function POSPage(): JSX.Element {
           cashierName: user.fullName,
           businessName: 'TuCajero POS',
           items: cart.map(i => {
-            const itemTotal = (i.quantity * item.unitPrice) - i.discount;
-            const itemTax = itemTotal * (item.product.taxRate ?? 0.19);
+            const itemTotal = (i.quantity * i.unitPrice) - i.discount;
+            const itemTax = itemTotal * (i.product.taxRate ?? 0.19);
             return {
               name: i.product.name,
               quantity: i.quantity,
@@ -238,7 +276,7 @@ export function POSPage(): JSX.Element {
         <div style={{ textAlign: 'center', maxWidth: '400px' }}>
           <h2 className="tc-metric-value" style={{ marginBottom: 'var(--space-2)' }}>Caja Cerrada</h2>
           <p style={{ color: 'var(--gray-500)', fontWeight: 500, lineHeight: 1.6 }}>
-            Debe iniciar una sesión de caja para poder realizar ventas en este terminal.
+            Debe iniciar una sesion de caja para poder realizar ventas en este terminal.
           </p>
         </div>
         <button
@@ -255,277 +293,340 @@ export function POSPage(): JSX.Element {
 
   return (
     <div style={{ padding: 'var(--space-6)', maxWidth: '1700px', margin: '0 auto', overflow: 'hidden', animation: 'fadeIn 0.3s ease' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', height: 'calc(100vh - 140px)' }}>
-        {/* For larger screens, switch to row layout */}
-        <div className="flex flex-col lg:flex-row gap-6 h-full" style={{ height: '100%' }}>
+      {/* Message Notice */}
+      {message && (
+        <div className={`tc-notice tc-notice--${messageType === 'success' ? 'success' : messageType === 'error' ? 'error' : 'info'}`} style={{ marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', animation: 'slideDown 0.3s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            {messageType === 'success' ? <CheckCircle2 size={18} /> : messageType === 'error' ? <AlertCircle size={18} /> : <ScanLine size={18} />}
+            <span style={{ fontWeight: 600 }}>{message}</span>
+          </div>
+          <button onClick={() => setMessage('')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', opacity: 0.6, padding: '4px', display: 'flex' }}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
-          {/* Left: Inventory */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', minWidth: 0 }}>
-            {/* Search Header */}
-            <div className="tc-section" style={{ padding: 'var(--space-5)' }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-4)' }}>
-                <div style={{ position: 'relative', flex: '1 1 280px', minWidth: '280px' }}>
-                  <Search style={{ position: 'absolute', left: 'var(--space-4)', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)' }} size={20} />
-                  <input
-                    type="text"
-                    placeholder="Buscar producto por nombre o código..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="tc-input"
-                    style={{ paddingLeft: '48px', minHeight: '50px', fontSize: 'var(--text-base)', background: 'var(--gray-50)' }}
-                  />
-                </div>
-                <button onClick={() => navigate('/sales/history')} className="tc-btn tc-btn--secondary">
-                  <History size={18} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: 'var(--space-6)', height: 'calc(100vh - 140px)', minHeight: 0 }}>
+        {/* Left Column: Header + Products */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', minHeight: 0, overflow: 'hidden' }}>
+          {/* Page Header */}
+          <div style={{ animation: 'slideDown 0.4s ease', background: 'linear-gradient(135deg, var(--brand-600) 0%, var(--brand-500) 100%)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-4) var(--space-5)', boxShadow: '0 4px 12px rgba(54, 65, 245, 0.2)', flexShrink: 0 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-4)' }}>
+              <div>
+                <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 'var(--space-3)', color: '#fff', fontSize: 'var(--text-lg)', fontWeight: 800 }}>
+                  <Navigation size={24} />
+                  Punto de Venta
+                </h1>
+                <p style={{ margin: '2px 0 0', color: 'rgba(255,255,255,0.85)', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
+                  Caja #{activeCash.id} &middot; {activeCash.openedAt ? new Date(activeCash.openedAt).toLocaleDateString() : ''}
+                </p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                {true && (
+                  <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '4px 12px', borderRadius: 'var(--radius-full)', fontWeight: 700, fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)', animation: 'pulse 2s infinite' }}>
+                    <ScanLine size={12} />
+                    Escaner Activo
+                  </span>
+                )}
+                <button onClick={() => navigate('/sales/history')} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius-lg)', fontWeight: 600, fontSize: 'var(--text-xs)', cursor: 'pointer', transition: 'all var(--transition-fast)' }}>
+                  <History size={16} />
                   Historial
                 </button>
               </div>
             </div>
+          </div>
 
-            {/* Products Grid */}
-            <div style={{ flex: 1, overflowY: 'auto', paddingRight: 'var(--space-2)', paddingBottom: 'var(--space-2)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
-                {filteredProducts.map(product => (
-                  <div
-                    key={product.id}
-                    onClick={() => addToCart(product)}
-                    className="tc-card animate-slideUp group cursor-pointer"
-                    style={{ overflow: 'hidden', transition: 'all var(--transition-normal)' }}
-                  >
-                    <div style={{ aspectRatio: '1', background: 'var(--gray-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6)' }}>
-                      <Barcode size={48} style={{ color: 'var(--gray-200)', transition: 'color var(--transition-normal)' }} />
-                    </div>
-                    <div style={{ padding: 'var(--space-4)' }}>
-                      <p style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {product.category?.name || 'Varios'}
-                      </p>
-                      <h4 style={{ fontWeight: 700, color: 'var(--gray-800)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {product.name}
-                      </h4>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ color: 'var(--brand-600)', fontWeight: 800, fontSize: 'var(--text-base)' }}>
-                          {formatCurrency(product.price)}
-                        </span>
-                        <span className={`tc-badge ${product.stock > 10 ? 'tc-badge--success' : 'tc-badge--danger'}`}>
-                          {product.stock}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          {/* Search Header */}
+          <div style={{ padding: 'var(--space-4)', flexShrink: 0, background: 'linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%)', borderRadius: 'var(--radius-xl)', border: '2px solid var(--brand-100)', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <Search style={{ position: 'absolute', left: 'var(--space-4)', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)', pointerEvents: 'none' }} size={20} />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Buscar producto por nombre o codigo..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="tc-input"
+                  style={{ paddingLeft: '48px', minHeight: '50px', fontSize: 'var(--text-base)', background: 'var(--gray-50)' }}
+                />
               </div>
             </div>
           </div>
 
-          {/* Right: Cart & Checkout */}
-          <div style={{ width: '100%', minWidth: '400px', maxWidth: '450px', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', height: '100%' }}>
-            <div className="tc-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', border: '2px solid var(--brand-100)', boxShadow: 'var(--shadow-xl)', padding: 0 }}>
-
-              {/* Customer Picker */}
-              <div style={{ padding: 'var(--space-4)', background: 'var(--gray-50)', borderBottom: '1px solid var(--border-light)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <User style={{ position: 'absolute', left: 'var(--space-3)', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)' }} size={16} />
-                    <select
-                      value={selectedCustomerId || ''}
-                      onChange={(e) => setSelectedCustomerId(Number(e.target.value) || null)}
-                      className="tc-input"
-                      style={{ paddingLeft: '40px', minHeight: '44px', fontWeight: 700, fontSize: 'var(--text-sm)', appearance: 'auto' }}
-                    >
-                      <option value="">Consumidor Final</option>
-                      {customers.map(c => (
-                        <option key={c.id} value={c.id}>{c.fullName} ({c.phone || 'S/T'})</option>
-                      ))}
-                    </select>
+          {/* Products Grid */}
+          <div style={{ flex: 1, overflowY: 'auto', paddingRight: 'var(--space-2)', minHeight: 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+              {filteredProducts.map(product => (
+                <div
+                  key={product.id}
+                  onClick={() => addToCart(product)}
+                  className="tc-card animate-slideUp group cursor-pointer"
+                  style={{ overflow: 'hidden', transition: 'all var(--transition-normal)', cursor: 'pointer', border: '2px solid transparent' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--brand-300)'; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-card)'; }}
+                >
+                  <div style={{ padding: 'var(--space-4)' }}>
+                    <p style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {product.category?.name || 'Varios'}
+                    </p>
+                    <h4 style={{ fontWeight: 700, color: 'var(--gray-800)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {product.name}
+                    </h4>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--brand-600)', fontWeight: 800, fontSize: 'var(--text-base)' }}>
+                        {formatCurrency(product.price)}
+                      </span>
+                      <span className={`tc-badge ${product.stock > 10 ? 'tc-badge--success' : 'tc-badge--danger'}`}>
+                        Stock: {product.stock}
+                      </span>
+                    </div>
                   </div>
-                  <button onClick={() => navigate('/customers')} className="tc-btn tc-btn--secondary" style={{ padding: '0 var(--space-3)', minHeight: '44px' }}>
-                    <PlusCircle size={20} />
-                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Cart + Payment Panel */}
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+          <div className="tc-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', border: '2px solid var(--brand-100)', boxShadow: 'var(--shadow-xl)', padding: 0, animation: 'slideInRight 0.4s ease' }}>
+
+            {/* Cart Header */}
+            <div style={{ padding: 'var(--space-4)', background: 'linear-gradient(135deg, var(--brand-600) 0%, var(--brand-500) 100%)', borderBottom: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 8px rgba(54, 65, 245, 0.2)' }}>
+              <h3 style={{ margin: 0, fontWeight: 800, fontSize: 'var(--text-lg)', color: '#fff', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <ShoppingCart size={22} />
+                Carrito de Venta
+              </h3>
+              {cart.length > 0 && (
+                <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '4px 12px', borderRadius: 'var(--radius-full)', fontWeight: 700, fontSize: 'var(--text-xs)' }}>{cart.reduce((sum, item) => sum + item.quantity, 0)} items</span>
+              )}
+            </div>
+
+            {/* Customer Picker */}
+            <div style={{ padding: 'var(--space-3)', background: 'linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%)', borderBottom: '2px solid var(--brand-100)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <User style={{ position: 'absolute', left: 'var(--space-3)', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)', pointerEvents: 'none' }} size={16} />
+                  <select
+                    value={selectedCustomerId || ''}
+                    onChange={(e) => setSelectedCustomerId(Number(e.target.value) || null)}
+                    className="tc-input"
+                    style={{ paddingLeft: '40px', minHeight: '44px', fontWeight: 700, fontSize: 'var(--text-sm)', appearance: 'auto' }}
+                  >
+                    <option value="">Consumidor Final</option>
+                    {customers.map(c => (
+                      <option key={c.id} value={c.id}>{c.fullName} ({c.phone || 'S/T'})</option>
+                    ))}
+                  </select>
+                </div>
+                <button onClick={() => navigate('/customers')} className="tc-btn tc-btn--secondary" style={{ padding: '0 var(--space-3)', minHeight: '44px' }}>
+                  <PlusCircle size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Cart Items */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-4)', background: 'var(--gray-50)', minHeight: 0 }}>
+              {cart.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  {cart.map((item, idx) => (
+                    <div key={item.product.id} className="animate-slideUp" style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', background: '#fff', padding: 'var(--space-3)', borderRadius: 'var(--radius-xl)', borderLeft: '4px solid var(--brand-500)', borderRight: '1px solid var(--gray-200)', borderTop: '1px solid var(--gray-200)', borderBottom: '1px solid var(--gray-200)', boxShadow: 'var(--shadow-xs)', animationDelay: `${idx * 50}ms` }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <h5 style={{ fontWeight: 700, color: 'var(--gray-800)', fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '4px' }}>
+                          {item.product.name}
+                        </h5>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                          <span style={{ color: 'var(--brand-600)', fontWeight: 800, fontSize: 'var(--text-sm)' }}>
+                            {formatCurrency(item.unitPrice)}
+                          </span>
+                          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-400)', fontWeight: 500 }}>
+                            x{item.quantity}
+                          </span>
+                          {item.discount > 0 && (
+                            <span className="tc-badge tc-badge--warning" style={{ fontSize: 'var(--text-xs)', padding: '2px 6px' }}>
+                              -{formatCurrency(item.discount)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <span style={{ fontWeight: 800, color: 'var(--gray-900)', fontSize: 'var(--text-base)' }}>
+                          {formatCurrency(item.quantity * item.unitPrice - item.discount)}
+                        </span>
+                        <button onClick={() => removeFromCart(item.product.id)} style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger-400)', borderRadius: 'var(--radius-md)', background: 'transparent', border: 'none', cursor: 'pointer' }} title="Eliminar">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%)', gap: 'var(--space-3)', padding: 'var(--space-10)' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: 'var(--radius-2xl)', background: 'var(--brand-100)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ShoppingCart size={32} style={{ color: 'var(--brand-400)' }} />
+                  </div>
+                  <p style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--brand-700)' }}>Carrito Vacío</p>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--brand-500)', textAlign: 'center' }}>Haga clic en un producto para agregarlo</p>
+                </div>
+              )}
+            </div>
+
+            {/* Payment Panel */}
+            <div style={{ padding: 'var(--space-4)', background: 'linear-gradient(180deg, #fff 0%, #f8f9ff 100%)', borderTop: '2px solid var(--brand-200)' }}>
+              {/* Payment Summary */}
+              <div style={{ background: 'linear-gradient(135deg, var(--gray-50) 0%, #f0f4ff 100%)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-3)', marginBottom: 'var(--space-3)', border: '2px solid var(--brand-100)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-600)' }}>Subtotal</span>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--gray-800)' }}>{formatCurrency(subtotal)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-600)' }}>IVA (19%)</span>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--gray-800)' }}>{formatCurrency(tax)}</span>
+                  </div>
+                  {globalDiscount > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-600)' }}>Descuento</span>
+                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--success-600)' }}>-{formatCurrency(globalDiscount)}</span>
+                    </div>
+                  )}
+                  {deliveryFee > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-600)' }}>Delivery</span>
+                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--gray-800)' }}>{formatCurrency(deliveryFee)}</span>
+                    </div>
+                  )}
+                  <div style={{ borderTop: '2px solid var(--brand-200)', marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, var(--brand-50) 0%, #e8edff 100%)', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius-md)', margin: '0 calc(-1 * var(--space-3))' }}>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: 'var(--brand-700)', textTransform: 'uppercase' }}>Total a Pagar</span>
+                    <span style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--brand-600)' }}>{formatCurrency(total)}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Cart Items */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-4)' }}>
-                {cart.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    {cart.map((item, idx) => (
-                      <div key={idx} className="animate-slideUp" style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', background: '#fff', padding: 'var(--space-3)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--gray-100)', boxShadow: 'var(--shadow-xs)' }}>
-                        <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-xl)', background: 'var(--gray-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--gray-100)', flexShrink: 0 }}>
-                          <Barcode size={24} style={{ color: 'var(--gray-300)' }} />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <h5 style={{ fontWeight: 700, color: 'var(--gray-800)', fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {item.product.name}
-                          </h5>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: '4px' }}>
-                            <span style={{ color: 'var(--brand-600)', fontWeight: 800, fontSize: 'var(--text-sm)' }}>
-                              {formatCurrency(item.unitPrice)}
-                            </span>
-                            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-400)', fontWeight: 500 }}>
-                              IVA {(item.product.taxRate ?? 0) * 100}%
-                            </span>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--gray-50)', borderRadius: 'var(--radius-xl)', padding: '4px', border: '1px solid var(--gray-200)' }}>
-                          <button
-                            onClick={() => updateQty(item.product.id, -1)}
-                            style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gray-400)', borderRadius: 'var(--radius-md)', transition: 'color var(--transition-fast)' }}
-                          >
-                            <MinusCircle size={18} />
-                          </button>
-                          <span style={{ width: '40px', textAlign: 'center', fontWeight: 800, color: 'var(--gray-800)', fontSize: 'var(--text-base)' }}>
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() => updateQty(item.product.id, 1)}
-                            style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gray-400)', borderRadius: 'var(--radius-md)', transition: 'color var(--transition-fast)' }}
-                          >
-                            <PlusCircle size={18} />
-                          </button>
-                        </div>
-                      </div>
+              {/* Delivery & Discount Inputs */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                <div style={{ position: 'relative' }}>
+                  <Truck style={{ position: 'absolute', left: 'var(--space-2)', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)', pointerEvents: 'none' }} size={12} />
+                  <input type="number" placeholder="Delivery" value={deliveryFee || ''} onChange={(e) => setDeliveryFee(Number(e.target.value))} className="tc-input" style={{ paddingLeft: '28px', minHeight: '34px', fontSize: 'var(--text-xs)', background: '#fff' }} />
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <Percent style={{ position: 'absolute', left: 'var(--space-2)', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)', pointerEvents: 'none' }} size={12} />
+                  <input type="number" placeholder="Descuento" value={globalDiscount || ''} onChange={(e) => setGlobalDiscount(Number(e.target.value))} className="tc-input" style={{ paddingLeft: '28px', minHeight: '34px', fontSize: 'var(--text-xs)', background: '#fff' }} />
+                </div>
+              </div>
+
+              {/* Payment Method Toggle Button */}
+              <button
+                onClick={() => setShowPaymentMethods(!showPaymentMethods)}
+                disabled={cart.length === 0}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: 'var(--space-3)',
+                  borderRadius: 'var(--radius-lg)',
+                  background: showPaymentMethods ? 'var(--brand-50)' : 'linear-gradient(135deg, var(--brand-600) 0%, var(--brand-500) 100%)',
+                  border: 'none',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: 'var(--text-sm)',
+                  cursor: cart.length === 0 ? 'not-allowed' : 'pointer',
+                  opacity: cart.length === 0 ? 0.5 : 1,
+                  transition: 'all var(--transition-fast)',
+                  boxShadow: '0 2px 8px rgba(54, 65, 245, 0.3)',
+                  marginBottom: showPaymentMethods ? 'var(--space-3)' : 'var(--space-3)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                  <CreditCard size={18} />
+                  <span>Seleccionar Metodo de Pago</span>
+                </div>
+                <div style={{ fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                  {showPaymentMethods ? '▲' : '▼'}
+                </div>
+              </button>
+
+              {/* Payment Methods Card (Collapsible) */}
+              {showPaymentMethods && (
+                <div style={{ padding: 'var(--space-3)', background: 'linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%)', borderRadius: 'var(--radius-lg)', border: '2px solid var(--brand-200)', marginBottom: 'var(--space-3)', animation: 'slideDown 0.2s ease' }}>
+                  <p style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--brand-600)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-2)', textAlign: 'center' }}>
+                    Elija un metodo
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+                    <button onClick={() => { addPayment('efectivo'); setShowPaymentMethods(false); }} disabled={cart.length === 0} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', background: '#fff', border: '2px solid var(--success-200)', color: 'var(--success-600)', fontWeight: 700, fontSize: 'var(--text-xs)', cursor: cart.length === 0 ? 'not-allowed' : 'pointer', opacity: cart.length === 0 ? 0.5 : 1, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <Banknote size={18} style={{ marginBottom: '2px' }} />
+                      EFECTIVO
+                    </button>
+                    <button onClick={() => { addPayment('nequi'); setShowPaymentMethods(false); }} disabled={cart.length === 0} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', background: '#fff', border: '2px solid #e9d5ff', color: '#9333ea', fontWeight: 700, fontSize: 'var(--text-xs)', cursor: cart.length === 0 ? 'not-allowed' : 'pointer', opacity: cart.length === 0 ? 0.5 : 1, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <Smartphone size={18} style={{ marginBottom: '2px' }} />
+                      NEQUI
+                    </button>
+                    <button onClick={() => { addPayment('daviplata'); setShowPaymentMethods(false); }} disabled={cart.length === 0} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', background: '#fff', border: '2px solid #fecaca', color: '#dc2626', fontWeight: 700, fontSize: 'var(--text-xs)', cursor: cart.length === 0 ? 'not-allowed' : 'pointer', opacity: cart.length === 0 ? 0.5 : 1, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <CreditCard size={18} style={{ marginBottom: '2px' }} />
+                      DAVIPLATA
+                    </button>
+                    <button onClick={() => { addPayment('transferencia'); setShowPaymentMethods(false); }} disabled={cart.length === 0} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', background: '#fff', border: '2px solid var(--brand-200)', color: 'var(--brand-600)', fontWeight: 700, fontSize: 'var(--text-xs)', cursor: cart.length === 0 ? 'not-allowed' : 'pointer', opacity: cart.length === 0 ? 0.5 : 1, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <Navigation size={18} style={{ marginBottom: '2px' }} />
+                      TRANSF.
+                    </button>
+                    <button onClick={() => { addPayment('tarjeta'); setShowPaymentMethods(false); }} disabled={cart.length === 0} style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)', padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', background: '#fff', border: '2px solid var(--warning-200)', color: 'var(--warning-600)', fontWeight: 700, fontSize: 'var(--text-xs)', cursor: cart.length === 0 ? 'not-allowed' : 'pointer', opacity: cart.length === 0 ? 0.5 : 1, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <CreditCard size={16} />
+                      MIXTO
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Registered Payments Display */}
+              {payments.length > 0 && (
+                <div style={{ marginBottom: 'var(--space-3)', padding: 'var(--space-3)', background: 'linear-gradient(135deg, var(--success-50) 0%, #d1fae5 100%)', borderRadius: 'var(--radius-lg)', border: '2px solid var(--success-200)' }}>
+                  <p style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--success-700)', marginBottom: 'var(--space-2)' }}>
+                    ✓ Pagos registrados: {formatCurrency(totalPaid)} / {formatCurrency(total)}
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
+                    {payments.map((p, idx) => (
+                      <span key={idx} className="tc-badge tc-badge--success" style={{ fontSize: 'var(--text-xs)' }}>
+                        {p.method} {formatCurrency(p.amount)}
+                      </span>
                     ))}
                   </div>
-                )}
-                {cart.length === 0 && (
-                  <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--gray-300)', gap: 'var(--space-4)', opacity: 0.5, padding: 'var(--space-10)' }}>
-                    <ShoppingCart size={48} />
-                    <p style={{ fontWeight: 700, fontSize: 'var(--text-sm)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Carrito Vacío</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Bottom Panel */}
-              <div style={{ padding: 'var(--space-5)', background: 'var(--gray-50)', borderTop: '1px solid var(--border-light)' }}>
-                {/* Fees & Discounts Inputs */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
-                  <div style={{ position: 'relative' }}>
-                    <Truck style={{ position: 'absolute', left: 'var(--space-3)', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)' }} size={14} />
-                    <input
-                      type="number"
-                      placeholder="Delivery"
-                      value={deliveryFee || ''}
-                      onChange={(e) => setDeliveryFee(Number(e.target.value))}
-                      className="tc-input"
-                      style={{ paddingLeft: '36px', minHeight: '44px', fontWeight: 700, fontSize: 'var(--text-sm)' }}
-                    />
-                  </div>
-                  <div style={{ position: 'relative' }}>
-                    <Percent style={{ position: 'absolute', left: 'var(--space-3)', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)' }} size={14} />
-                    <input
-                      type="number"
-                      placeholder="Desc. Global"
-                      value={globalDiscount || ''}
-                      onChange={(e) => setGlobalDiscount(Number(e.target.value))}
-                      className="tc-input"
-                      style={{ paddingLeft: '36px', minHeight: '44px', fontWeight: 700, fontSize: 'var(--text-sm)' }}
-                    />
-                  </div>
+                  {remaining > 0.1 && (
+                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--warning-600)', fontWeight: 700, marginTop: 'var(--space-1)' }}>
+                      Falta: {formatCurrency(remaining)}
+                    </p>
+                  )}
                 </div>
+              )}
 
-                {/* Totals display */}
-                <div style={{ marginBottom: 'var(--space-4)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
-                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Subtotal + IVA
-                    </span>
-                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      {formatCurrency(subtotal + tax)}
-                    </span>
-                  </div>
-                  {deliveryFee > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)', color: 'var(--success-600)' }}>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Costo Envío
-                      </span>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }}>
-                        + {formatCurrency(deliveryFee)}
-                      </span>
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <button onClick={handleCompleteSale} disabled={loading || remaining > 0.1 || cart.length === 0} className="tc-btn tc-btn--success" style={{ width: '100%', minHeight: '52px', fontSize: 'var(--text-base)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', borderRadius: 'var(--radius-lg)', boxShadow: remaining > 0.1 ? 'none' : '0 4px 12px rgba(18, 183, 106, 0.4)', background: remaining > 0.1 ? 'var(--gray-300)' : 'linear-gradient(135deg, var(--success-600) 0%, var(--success-500) 100%)', opacity: (remaining > 0.1 || cart.length === 0) ? 0.6 : 1 }}>
+                  {loading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)' }}>
+                      <div style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                      <span>Procesando...</span>
+                    </div>
+                  ) : remaining > 0.1 ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)' }}>
+                      <span>Seleccione pago arriba</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)' }}>
+                      <CheckCircle2 size={20} />
+                      <span>Confirmar Venta</span>
                     </div>
                   )}
-                  {globalDiscount > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)', color: 'var(--danger-600)' }}>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Descuento Aplicado
-                      </span>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }}>
-                        - {formatCurrency(globalDiscount)}
-                      </span>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: 'var(--space-3)', borderTop: '2px solid var(--gray-200)' }}>
-                    <span style={{ color: 'var(--gray-400)', fontWeight: 800, fontSize: 'var(--text-xs)', paddingBottom: '4px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                      Total a Facturar
-                    </span>
-                    <span style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--gray-900)', lineHeight: 1, letterSpacing: '-0.02em' }}>
-                      {formatCurrency(total)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Quick Payments */}
-                <div style={{ marginBottom: 'var(--space-3)' }}>
-                  <p style={{ fontSize: 'var(--text-xs)', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-3)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                    <Calculator size={12} /> Pago Rápido
-                  </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-2)' }}>
-                    <button
-                      onClick={() => quickPay('efectivo')}
-                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-3)', borderRadius: 'var(--radius-xl)', background: '#fff', border: '1px solid var(--success-100)', color: 'var(--success-600)', transition: 'all var(--transition-normal)', fontWeight: 800, fontSize: 'var(--text-xs)', textTransform: 'uppercase', gap: 'var(--space-1)', cursor: 'pointer' }}
-                    >
-                      <Banknote size={18} />
-                      Efectivo
-                    </button>
-                    <button
-                      onClick={() => quickPay('nequi')}
-                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-3)', borderRadius: 'var(--radius-xl)', background: '#fff', border: '1px solid #e9d5ff', color: '#9333ea', transition: 'all var(--transition-normal)', fontWeight: 800, fontSize: 'var(--text-xs)', textTransform: 'uppercase', gap: 'var(--space-1)', cursor: 'pointer' }}
-                    >
-                      <Smartphone size={18} />
-                      Nequi
-                    </button>
-                    <button
-                      onClick={() => quickPay('tarjeta')}
-                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-3)', borderRadius: 'var(--radius-xl)', background: '#fff', border: '1px solid var(--brand-100)', color: 'var(--brand-600)', transition: 'all var(--transition-normal)', fontWeight: 800, fontSize: 'var(--text-xs)', textTransform: 'uppercase', gap: 'var(--space-1)', cursor: 'pointer' }}
-                    >
-                      <CreditCard size={18} />
-                      Tarjeta
-                    </button>
-                  </div>
-
-                  <div style={{ marginTop: 'var(--space-2)' }}>
-                    <button
-                      onClick={() => quickPay('credito')}
-                      disabled={!selectedCustomerId}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: 'var(--space-3)', borderRadius: 'var(--radius-xl)', transition: 'all var(--transition-normal)', fontWeight: 800, fontSize: 'var(--text-xs)', textTransform: 'uppercase', gap: 'var(--space-2)', background: selectedCustomerId ? 'var(--warning-100)' : 'var(--gray-100)', color: selectedCustomerId ? 'var(--warning-600)' : 'var(--gray-300)', cursor: selectedCustomerId ? 'pointer' : 'not-allowed' }}
-                    >
-                      <Tag size={14} /> Fiar Saldo
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <button
-                    onClick={handleCompleteSale}
-                    disabled={loading || remaining > 0.1 || cart.length === 0}
-                    className="tc-btn tc-btn--primary"
-                    style={{ width: '100%', minHeight: '56px', fontSize: 'var(--text-base)', fontWeight: 800, boxShadow: 'var(--shadow-xl)', letterSpacing: '0.1em', textTransform: 'uppercase' }}
-                  >
-                    {loading ? (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-3)' }}>
-                        <div style={{ width: '20px', height: '20px', border: '3px solid rgba(255,255,255,0.3)', borderTop: '3px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                        <span>Procesando</span>
-                      </div>
-                    ) : remaining > 0.1 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <span style={{ fontSize: 'var(--text-xs)', opacity: 0.7 }}>Pendiente {formatCurrency(remaining)}</span>
-                        <span style={{ fontSize: 'var(--text-sm)', textTransform: 'uppercase' }}>Configurar pagos arriba</span>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)' }}>
-                        <CheckCircle2 size={24} />
-                        <span>FINALIZAR VENTA</span>
-                      </div>
-                    )}
+                </button>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+                  <button onClick={clearCart} disabled={cart.length === 0} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)', padding: 'var(--space-2)', borderRadius: 'var(--radius-lg)', background: 'transparent', border: '1px solid var(--gray-200)', color: 'var(--gray-600)', fontWeight: 600, fontSize: 'var(--text-xs)', cursor: cart.length === 0 ? 'not-allowed' : 'pointer', opacity: cart.length === 0 ? 0.5 : 1 }}>
+                    <X size={14} />
+                    Cancelar
+                  </button>
+                  <button disabled={cart.length === 0} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)', padding: 'var(--space-2)', borderRadius: 'var(--radius-lg)', background: 'transparent', border: '1px solid var(--gray-200)', color: 'var(--gray-600)', fontWeight: 600, fontSize: 'var(--text-xs)', cursor: cart.length === 0 ? 'not-allowed' : 'pointer', opacity: cart.length === 0 ? 0.5 : 1 }}>
+                    <Tag size={14} />
+                    Cotizar
                   </button>
                 </div>
               </div>
@@ -536,3 +637,4 @@ export function POSPage(): JSX.Element {
     </div>
   );
 }
+
