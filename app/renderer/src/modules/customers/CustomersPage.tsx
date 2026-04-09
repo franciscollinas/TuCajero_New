@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, User, FileText, CreditCard, Edit2, Users, Activity } from 'lucide-react';
+import { Plus, Search, User, FileText, CreditCard, Edit2, Users, Activity, Phone, MapPin, Trash2, Mail } from 'lucide-react';
 import { searchCustomers } from '../../shared/api/customers.api';
 import type { Customer } from '../../shared/types/customers.types';
 import CustomerFormModal from './components/CustomerFormModal';
@@ -66,163 +66,167 @@ const CustomersPage: React.FC = () => {
     setIsDebtsOpen(true);
   };
 
-  const stats = [
-    { label: 'Total Clientes', value: customers.length, icon: User, color: 'brand' },
-    { 
-      label: 'Deudores Activos', 
-      value: customers.filter(c => true).length, // Mock filter or just count for now
-      icon: CreditCard, 
-      color: 'amber' 
-    },
-    { label: 'Nuevos (Mes)', value: 0, icon: Plus, color: 'emerald' }
-  ];
+  // Count active debtors
+  const activeDebtors = customers.filter(c => c.debts && c.debts.some(d => d.status === 'PENDING')).length;
 
   return (
-    <div className="tc-fade-in p-6">
-      {/* Header section with standardized breadcrumbs and primary actions */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm animate-slideUp">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-brand-500">
-            <span className="w-2 h-2 rounded-full bg-brand-500"></span>
-            Administración / Directorio
+    <div className="animate-fadeIn" style={{ padding: 'var(--space-6)', maxWidth: '1536px', margin: '0 auto' }}>
+      {/* Page Header */}
+      <div style={{ marginBottom: 'var(--space-6)', animation: 'slideDown 0.4s ease', background: 'linear-gradient(135deg, var(--brand-600) 0%, var(--brand-500) 100%)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-5) var(--space-6)', boxShadow: '0 4px 12px rgba(54, 65, 245, 0.2)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-4)' }}>
+          <div>
+            <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 'var(--space-3)', color: '#fff', fontSize: 'var(--text-xl)', fontWeight: 800 }}>
+              <Users size={28} />
+              Directorio de Clientes
+            </h1>
+            <p style={{ margin: '4px 0 0', color: 'rgba(255,255,255,0.85)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+              Gestiona tu base de datos y estados de cuenta
+            </p>
           </div>
-          <h1 className="text-3xl font-black text-gray-800 tracking-tight">Directorio de Clientes</h1>
-          <p className="text-sm text-gray-400 font-medium">Gestiona tu base de datos y estados de cuenta premium</p>
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative group">
-            <Search 
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-500 transition-colors" 
-              size={18} 
-            />
-            <input
-              type="text"
-              className="tc-input pl-10 w-full md:w-72 !bg-gray-50/50 border-gray-100 hover:border-brand-200 transition-all"
-              placeholder="Buscar por nombre o documento..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <div style={{ position: 'relative' }}>
+              <Search style={{ position: 'absolute', left: 'var(--space-3)', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.6)', pointerEvents: 'none' }} size={18} />
+              <input
+                type="text"
+                placeholder="Buscar por nombre o documento..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ paddingLeft: '40px', minHeight: '44px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 'var(--radius-lg)', color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 600, width: '280px', outline: 'none' }}
+              />
+            </div>
+            <button
+              onClick={() => handleOpenForm()}
+              style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', background: 'rgba(255,255,255,0.95)', border: 'none', color: 'var(--brand-600)', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius-lg)', fontWeight: 700, fontSize: 'var(--text-sm)', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', transition: 'all var(--transition-fast)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'; }}
+            >
+              <Plus size={18} />
+              Nuevo Cliente
+            </button>
           </div>
-          <button 
-            className="tc-btn tc-btn--primary shadow-lg shadow-brand-500/20 active:scale-95 transition-transform" 
-            onClick={() => handleOpenForm()}
-          >
-            <Plus size={20} />
-            <span>Nuevo Cliente</span>
-          </button>
         </div>
       </div>
 
-      {/* Stats Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-slideUp" style={{ animationDelay: '0.1s' }}>
-        <div className="tc-card p-5 border-l-4 border-brand-500 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Clientes Registrados</p>
-            <p className="text-3xl font-black text-gray-800">{customers.length}</p>
-          </div>
-          <div className="p-3 bg-brand-50 text-brand-600 rounded-xl">
+      {/* Stats Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-5)', marginBottom: 'var(--space-6)', animation: 'slideUp 0.4s ease' }}>
+        <div className="tc-metric-card tc-metric-card--brand" style={{ padding: 'var(--space-5)' }}>
+          <div className="tc-metric-icon tc-metric-icon--brand" style={{ width: '52px', height: '52px' }}>
             <Users size={24} />
           </div>
-        </div>
-        
-        <div className="tc-card p-5 border-l-4 border-amber-500 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Cuentas por Cobrar</p>
-            <p className="text-3xl font-black text-gray-800">Fiados</p>
-          </div>
-          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
-            <CreditCard size={24} />
+          <div className="tc-metric-content">
+            <p className="tc-metric-label">Clientes Registrados</p>
+            <p className="tc-metric-value" style={{ fontSize: 'var(--text-3xl)' }}>{customers.length}</p>
           </div>
         </div>
 
-        <div className="tc-card p-5 border-l-4 border-emerald-500 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Actividad Reciente</p>
-            <p className="text-3xl font-black text-gray-800">Alta</p>
+        <div className="tc-metric-card tc-metric-card--warning" style={{ padding: 'var(--space-5)' }}>
+          <div className="tc-metric-icon tc-metric-icon--warning" style={{ width: '52px', height: '52px' }}>
+            <CreditCard size={24} />
           </div>
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+          <div className="tc-metric-content">
+            <p className="tc-metric-label">Cuentas por Cobrar</p>
+            <p className="tc-metric-value" style={{ fontSize: 'var(--text-3xl)' }}>{activeDebtors}</p>
+            <p className="tc-metric-sub">{activeDebtors > 0 ? 'Clientes con deudas pendientes' : 'Sin deudas pendientes'}</p>
+          </div>
+        </div>
+
+        <div className="tc-metric-card tc-metric-card--success" style={{ padding: 'var(--space-5)' }}>
+          <div className="tc-metric-icon tc-metric-icon--success" style={{ width: '52px', height: '52px' }}>
             <Activity size={24} />
+          </div>
+          <div className="tc-metric-content">
+            <p className="tc-metric-label">Actividad Reciente</p>
+            <p className="tc-metric-value" style={{ fontSize: 'var(--text-3xl)' }}>Alta</p>
+            <p className="tc-metric-sub">Directorio activo y actualizado</p>
           </div>
         </div>
       </div>
 
-      {/* Main Content Card */}
-      <div className="tc-section animate-slideUp overflow-hidden !p-0">
+      {/* Main Table Card */}
+      <div className="tc-section animate-slideUp" style={{ padding: 0, overflow: 'hidden', animationDelay: '0.1s' }}>
         {error ? (
-          <div className="p-8">
+          <div style={{ padding: 'var(--space-8)' }}>
             <div className="tc-notice tc-notice--error">
               <p><strong>Error al cargar datos:</strong> {error}</p>
             </div>
           </div>
         ) : isLoading ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <div className="w-12 h-12 border-4 border-gray-100 border-t-brand-500 rounded-full animate-spin"></div>
-            <p className="text-gray-400 font-bold tracking-tight uppercase text-[10px]">Sincronizando directorio...</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-16)', gap: 'var(--space-4)' }}>
+            <div style={{ width: '48px', height: '48px', border: '4px solid var(--gray-100)', borderTop: '4px solid var(--brand-500)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <p style={{ color: 'var(--gray-400)', fontWeight: 700, fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sincronizando directorio...</p>
           </div>
         ) : (
           <div className="tc-table-wrap">
             <table className="tc-table">
               <thead>
                 <tr>
-                  <th className="w-20 text-center">ID</th>
+                  <th style={{ width: '80px', textAlign: 'center' }}>ID</th>
                   <th>Cliente</th>
                   <th>Información de Contacto</th>
-                  <th className="text-right px-8">Acciones de Gestión</th>
+                  <th style={{ textAlign: 'right', paddingRight: 'var(--space-6)' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {customers.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-50/80 transition-colors group">
-                    <td className="text-center">
-                      <span className="font-mono text-[10px] font-black bg-gray-100 px-2 py-1 rounded-md text-gray-500">
+                  <tr key={c.id} style={{ transition: 'background var(--transition-fast)' }}>
+                    <td style={{ textAlign: 'center' }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 'var(--text-xs)', fontWeight: 800, background: 'var(--gray-100)', padding: '4px 8px', borderRadius: 'var(--radius-md)', color: 'var(--gray-500)' }}>
                         #{c.id.toString().padStart(4, '0')}
                       </span>
                     </td>
                     <td>
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-black text-sm border border-brand-100 shadow-sm group-hover:scale-110 transition-transform">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                        <div style={{ width: '44px', height: '44px', borderRadius: 'var(--radius-xl)', background: 'var(--brand-50)', color: 'var(--brand-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 'var(--text-base)', border: '2px solid var(--brand-100)' }}>
                           {c.fullName.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-black text-gray-800 leading-tight">{c.fullName}</p>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                          <p style={{ fontWeight: 700, color: 'var(--gray-800)', fontSize: 'var(--text-sm)', lineHeight: 1.3 }}>{c.fullName}</p>
+                          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-400)', fontWeight: 600 }}>
                             Doc: {c.document || 'No registrado'}
                           </p>
                         </div>
                       </div>
                     </td>
                     <td>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-gray-700 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--gray-700)' }}>
+                          <Phone size={12} style={{ color: 'var(--success-500)' }} />
                           {c.phone || 'Sin teléfono'}
                         </span>
-                        <span className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">
-                          {c.address || 'Sin dirección registrada'}
-                        </span>
+                        {c.address && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--gray-400)', fontWeight: 500 }}>
+                            <MapPin size={12} />
+                            {c.address}
+                          </span>
+                        )}
                       </div>
                     </td>
-                    <td className="text-right px-8">
-                      <div className="flex justify-end gap-2">
+                    <td style={{ textAlign: 'right', paddingRight: 'var(--space-6)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
                         <button
-                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-brand-600 hover:border-brand-200 hover:shadow-md transition-all active:scale-95"
                           onClick={() => handleOpenForm(c)}
-                          title="Editar perfil"
+                          style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-lg)', background: '#fff', border: '1px solid var(--gray-200)', color: 'var(--gray-500)', cursor: 'pointer', transition: 'all var(--transition-fast)' }}
+                          title="Editar"
+                          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--brand-600)'; e.currentTarget.style.borderColor = 'var(--brand-200)'; e.currentTarget.style.background = 'var(--brand-50)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--gray-500)'; e.currentTarget.style.borderColor = 'var(--gray-200)'; e.currentTarget.style.background = '#fff'; }}
                         >
                           <Edit2 size={16} />
                         </button>
                         <button
-                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-indigo-600 hover:border-indigo-200 hover:shadow-md transition-all active:scale-95"
                           onClick={() => handleOpenHistory(c)}
-                          title="Historial de compras"
+                          style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-lg)', background: '#fff', border: '1px solid var(--gray-200)', color: 'var(--gray-500)', cursor: 'pointer', transition: 'all var(--transition-fast)' }}
+                          title="Historial"
+                          onMouseEnter={(e) => { e.currentTarget.style.color = '#7c3aed'; e.currentTarget.style.borderColor = '#ddd6fe'; e.currentTarget.style.background = '#faf5ff'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--gray-500)'; e.currentTarget.style.borderColor = 'var(--gray-200)'; e.currentTarget.style.background = '#fff'; }}
                         >
                           <FileText size={16} />
                         </button>
                         <button
-                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-amber-600 hover:border-amber-200 hover:shadow-md transition-all active:scale-95"
                           onClick={() => handleOpenDebts(c)}
-                          title="Cuentas por cobrar (Fiados)"
+                          style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-lg)', background: '#fff', border: '1px solid var(--gray-200)', color: 'var(--gray-500)', cursor: 'pointer', transition: 'all var(--transition-fast)' }}
+                          title="Deudas"
+                          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--warning-600)'; e.currentTarget.style.borderColor = 'var(--warning-200)'; e.currentTarget.style.background = 'var(--warning-50)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--gray-500)'; e.currentTarget.style.borderColor = 'var(--gray-200)'; e.currentTarget.style.background = '#fff'; }}
                         >
                           <CreditCard size={16} />
                         </button>
@@ -232,15 +236,23 @@ const CustomersPage: React.FC = () => {
                 ))}
                 {customers.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="py-24 text-center">
-                      <div className="flex flex-col items-center gap-4 text-gray-300">
-                        <div className="w-20 h-20 rounded-full bg-gray-50 border-2 border-dashed border-gray-100 flex items-center justify-center">
-                          <User size={40} />
+                    <td colSpan={4} style={{ padding: 'var(--space-16)', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)' }}>
+                        <div style={{ width: '80px', height: '80px', borderRadius: 'var(--radius-3xl)', background: 'var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <User size={40} style={{ color: 'var(--gray-300)' }} />
                         </div>
-                        <div className="max-w-xs">
-                          <p className="text-lg font-black text-gray-400">Sin resultados</p>
-                          <p className="text-xs font-medium text-gray-400">No encontramos ningún cliente que coincida con tu búsqueda.</p>
+                        <div>
+                          <p style={{ fontWeight: 800, fontSize: 'var(--text-lg)', color: 'var(--gray-400)' }}>Sin resultados</p>
+                          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--gray-400)', marginTop: '4px' }}>No encontramos ningún cliente que coincida con tu búsqueda.</p>
                         </div>
+                        <button
+                          onClick={() => handleOpenForm()}
+                          className="tc-btn tc-btn--primary"
+                          style={{ marginTop: 'var(--space-2)', fontWeight: 600 }}
+                        >
+                          <Plus size={16} />
+                          Registrar primer cliente
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -251,7 +263,7 @@ const CustomersPage: React.FC = () => {
         )}
       </div>
 
-      {/* Modals are kept with their internal premium styling logic */}
+      {/* Modals */}
       {isFormOpen && (
         <CustomerFormModal
           isOpen={isFormOpen}

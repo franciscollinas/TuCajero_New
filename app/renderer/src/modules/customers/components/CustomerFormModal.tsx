@@ -101,76 +101,76 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, onClose, 
 
         <form id="customerForm" onSubmit={handleSubmit} className="space-y-5">
           <div className="tc-field">
-            <label className="tc-label">Nombre Completo <span className="text-danger-500">*</span></label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <label className="tc-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-2)' }}>
+              <User size={15} style={{ color: 'var(--gray-500)', flexShrink: 0 }} />
+              <span>Nombre Completo <span style={{ color: 'var(--danger-500)' }}>*</span></span>
+            </label>
+            <input
+              type="text"
+              className="tc-input"
+              value={formData.fullName}
+              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+              placeholder="Ej. Juan Pérez"
+              autoFocus
+              required
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
+            <div className="tc-field">
+              <label className="tc-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-2)' }}>
+                <Hash size={15} style={{ color: 'var(--gray-500)', flexShrink: 0 }} />
+                <span>Documento / NIT</span>
+              </label>
               <input
                 type="text"
-                className="tc-input pl-10"
-                value={formData.fullName}
-                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                placeholder="Ej. Juan Pérez"
-                autoFocus
-                required
+                className="tc-input"
+                value={formData.document}
+                onChange={(e) => setFormData({ ...formData, document: e.target.value })}
+                placeholder="Documento"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="tc-field">
-              <label className="tc-label">Documento / NIT</label>
-              <div className="relative">
-                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  className="tc-input pl-10"
-                  value={formData.document}
-                  onChange={(e) => setFormData({ ...formData, document: e.target.value })}
-                  placeholder="Documento"
-                />
-              </div>
-            </div>
-            <div className="tc-field">
-              <label className="tc-label">Teléfono</label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  className="tc-input pl-10"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="Teléfono"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="tc-field">
-            <label className="tc-label">Correo Electrónico</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <label className="tc-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-2)' }}>
+                <Phone size={15} style={{ color: 'var(--gray-500)', flexShrink: 0 }} />
+                <span>Teléfono</span>
+              </label>
               <input
-                type="email"
-                className="tc-input pl-10"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="correo@ejemplo.com"
+                type="text"
+                className="tc-input"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="Teléfono"
               />
             </div>
           </div>
 
           <div className="tc-field">
-            <label className="tc-label">Dirección / Ubicación</label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="text"
-                className="tc-input pl-10"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="Dirección completa"
-              />
-            </div>
+            <label className="tc-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-2)' }}>
+              <Mail size={15} style={{ color: 'var(--gray-500)', flexShrink: 0 }} />
+              <span>Correo Electrónico</span>
+            </label>
+            <input
+              type="email"
+              className="tc-input"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              placeholder="correo@ejemplo.com"
+            />
+          </div>
+
+          <div className="tc-field">
+            <label className="tc-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-2)' }}>
+              <MapPin size={15} style={{ color: 'var(--gray-500)', flexShrink: 0 }} />
+              <span>Dirección / Ubicación</span>
+            </label>
+            <input
+              type="text"
+              className="tc-input"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              placeholder="Dirección completa"
+            />
           </div>
         </form>
 
