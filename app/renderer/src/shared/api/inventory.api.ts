@@ -15,8 +15,13 @@ export function getCategories(): Promise<ApiResponse<Category[]>> {
   return window.api.invoke<Category[]>('inventory:getCategories');
 }
 
-export function getAllProducts(): Promise<ApiResponse<Product[]>> {
-  return window.api.invoke<Product[]>('inventory:getAll');
+export function getAllProducts(options?: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  categoryId?: number;
+}): Promise<ApiResponse<Product[]>> {
+  return window.api.invoke<Product[]>('inventory:getAll', options);
 }
 
 export function getProductById(id: number): Promise<ApiResponse<ProductDetail>> {

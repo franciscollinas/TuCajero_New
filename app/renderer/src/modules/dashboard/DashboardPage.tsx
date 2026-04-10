@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   TrendingUp,
@@ -84,7 +84,7 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function CustomBarTooltip({ active, payload }: any) {
+const CustomBarTooltip = memo(function CustomBarTooltip({ active, payload }: any) {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -119,9 +119,9 @@ function CustomBarTooltip({ active, payload }: any) {
     );
   }
   return null;
-}
+});
 
-function CustomPieTooltip({ active, payload }: any) {
+const CustomPieTooltip = memo(function CustomPieTooltip({ active, payload }: any) {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -144,7 +144,7 @@ function CustomPieTooltip({ active, payload }: any) {
     );
   }
   return null;
-}
+});
 
 export function DashboardPage(): JSX.Element {
   const { user } = useAuth();

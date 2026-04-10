@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useEffect } from 'react';
+import { type ReactNode, useState, useEffect, memo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../../shared/context/AuthContext';
@@ -39,12 +39,6 @@ export function Layout({ children }: LayoutProps): JSX.Element {
   const { config } = useConfig();
   const { can } = useRBAC();
   const location = useLocation();
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const handleLogout = async (): Promise<void> => {
     await logout();
@@ -396,21 +390,7 @@ export function Layout({ children }: LayoutProps): JSX.Element {
 
           {/* Right: Date/Time */}
           <div style={{ flex: '0 0 auto', textAlign: 'right' }}>
-            <span style={{ fontSize: '12px', color: 'var(--gray-500)', display: 'block' }}>
-              {currentTime.toLocaleDateString('es-CO', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              })}
-            </span>
-            <span style={{ fontWeight: 700, color: 'var(--gray-700)', fontSize: '15px' }}>
-              {currentTime.toLocaleTimeString('es-CO', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-              })}
-            </span>
+            <Clock />
           </div>
         </header>
         <main className="tc-main">{children}</main>
@@ -698,3 +678,36 @@ const logoutIcon = (
     <line x1="21" y1="12" x2="9" y2="12" />
   </svg>
 );
+
+/**
+ * Clock component that updates every second without causing parent re-renders.
+ * Isolated with memo to prevent global Layout re-renders.
+ */
+const Clock = memo(function Clock(): JSX.Element {
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <>
+      <span style={{ fontSize: '12px', color: 'var(--gray-500)', display: 'block' }}>
+        {currentTime.toLocaleDateString('es-CO', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        })}
+      </span>
+      <span style={{ fontWeight: 700, color: 'var(--gray-700)', fontSize: '15px' }}>
+        {currentTime.toLocaleTimeString('es-CO', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        })}
+      </span>
+    </>
+  );
+});

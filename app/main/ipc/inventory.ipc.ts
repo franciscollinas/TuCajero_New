@@ -15,27 +15,47 @@ import type {
 import { InventoryService } from '../services/inventory.service';
 import { logger } from '../utils/logger';
 import { toApiError } from '../utils/errors';
+import { cache, CACHE_TTL } from '../utils/cache';
 
 const inventoryService = new InventoryService();
 
 export function registerInventoryIpc(): void {
   ipcMain.handle('inventory:getCategories', async (): Promise<ApiResponse<Category[]>> => {
     try {
-      const result = await inventoryService.getCategories();
+      const result = await cache.getOrSet('categories', CACHE_TTL.CATEGORIES, () =>
+        inventoryService.getCategories(),
+      );
       return { success: true, data: result };
     } catch (err) {
       return { success: false, error: toApiError(err) };
     }
   });
 
-  ipcMain.handle('inventory:getAll', async (): Promise<ApiResponse<Product[]>> => {
-    try {
-      const result = await inventoryService.getAllProducts();
-      return { success: true, data: result };
-    } catch (err) {
-      return { success: false, error: toApiError(err) };
-    }
-  });
+  ipcMain.handle(
+    'inventory:getAll',
+    async (
+      _event,
+      options?: { page?: number; pageSize?: number; search?: string; categoryId?: number },
+    ): Promise<ApiResponse<Product[]>> => {
+      try {
+        // Only cache if no search/filter to avoid stale results
+        const cacheKey =
+          options?.search || options?.categoryId
+            ? null
+            : `inventory:all:${options?.page || 1}:${options?.pageSize || 'all'}`;
+
+        const result = cacheKey
+          ? await cache.getOrSet(cacheKey, CACHE_TTL.INVENTORY, () =>
+              inventoryService.getAllProducts(options),
+            )
+          : await inventoryService.getAllProducts(options);
+
+        return { success: true, data: result };
+      } catch (err) {
+        return { success: false, error: toApiError(err) };
+      }
+    },
+  );
 
   ipcMain.handle('inventory:getById', async (_event, id: number): Promise<ApiResponse<ProductDetail>> => {
     try {
@@ -64,6 +84,11 @@ export function registerInventoryIpc(): void {
       try {
         const result = await inventoryService.createProduct(data);
         logger.info('inventory:create-success', { productId: result.id, code: result.code });
+        cache.invalidate('categories');
+        // Invalidate all inventory caches
+        Array.from(cache['store'].keys())
+          .filter((k) => k.startsWith('inventory:'))
+          .forEach((k) => cache.invalidate(k));
         return { success: true, data: result };
       } catch (err) {
         logger.error('inventory:create-error', { err, code: data.code });
@@ -77,6 +102,10 @@ export function registerInventoryIpc(): void {
     async (_event, id: number, data: Partial<ProductInput>): Promise<ApiResponse<Product>> => {
       try {
         const result = await inventoryService.updateProduct(id, data);
+        // Invalidate all inventory caches
+        Array.from(cache['store'].keys())
+          .filter((k) => k.startsWith('inventory:'))
+          .forEach((k) => cache.invalidate(k));
         return { success: true, data: result };
       } catch (err) {
         return { success: false, error: toApiError(err) };
@@ -87,6 +116,10 @@ export function registerInventoryIpc(): void {
   ipcMain.handle('inventory:delete', async (_event, id: number): Promise<ApiResponse<Product>> => {
     try {
       const result = await inventoryService.deleteProduct(id);
+      // Invalidate all inventory caches
+      Array.from(cache['store'].keys())
+        .filter((k) => k.startsWith('inventory:'))
+        .forEach((k) => cache.invalidate(k));
       return { success: true, data: result };
     } catch (err) {
       return { success: false, error: toApiError(err) };

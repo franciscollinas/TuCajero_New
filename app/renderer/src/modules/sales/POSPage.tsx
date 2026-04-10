@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -50,6 +50,94 @@ interface CartItem {
   discount: number;
 }
 
+/**
+ * Memoized product card to prevent unnecessary re-renders.
+ * Only re-renders when product or addToCart changes.
+ */
+const ProductCard = memo(function ProductCard({
+  product,
+  addToCart,
+}: {
+  product: Product;
+  addToCart: (product: Product) => void;
+}): JSX.Element {
+  return (
+    <div
+      onClick={() => addToCart(product)}
+      className="tc-card animate-slideUp group cursor-pointer"
+      style={{
+        overflow: 'hidden',
+        transition: 'all var(--transition-normal)',
+        cursor: 'pointer',
+        border: '2px solid transparent',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = 'var(--brand-300)';
+        e.currentTarget.style.transform = 'translateY(-4px)';
+        e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'transparent';
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = 'var(--shadow-card)';
+      }}
+    >
+      <div style={{ padding: 'var(--space-4)' }}>
+        <p
+          style={{
+            fontSize: 'var(--text-xs)',
+            fontWeight: 700,
+            color: 'var(--gray-400)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            marginBottom: '4px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {product.category?.name || 'Varios'}
+        </p>
+        <h4
+          style={{
+            fontWeight: 700,
+            color: 'var(--gray-800)',
+            fontSize: 'var(--text-sm)',
+            marginBottom: 'var(--space-3)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {product.name}
+        </h4>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <span
+            style={{
+              color: 'var(--brand-600)',
+              fontWeight: 800,
+              fontSize: 'var(--text-base)',
+            }}
+          >
+            {formatCurrency(product.price)}
+          </span>
+          <span
+            className={`tc-badge ${product.stock > 10 ? 'tc-badge--success' : 'tc-badge--danger'}`}
+          >
+            Stock: {product.stock}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export function POSPage(): JSX.Element {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -75,7 +163,7 @@ export function POSPage(): JSX.Element {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error' | 'info'>('info');
 
-  const addToCart = (product: Product) => {
+  const addToCart = useCallback((product: Product) => {
     setCart((prev) => {
       const idx = prev.findIndex((item) => item.product.id === product.id);
       if (idx >= 0) {
@@ -85,7 +173,7 @@ export function POSPage(): JSX.Element {
       }
       return [...prev, { product, quantity: 1, unitPrice: product.price, discount: 0 }];
     });
-  };
+  }, []);
 
   const updateQty = (id: number, delta: number) => {
     setCart((prev) =>
@@ -714,80 +802,7 @@ export function POSPage(): JSX.Element {
               }}
             >
               {filteredProducts.map((product) => (
-                <div
-                  key={product.id}
-                  onClick={() => addToCart(product)}
-                  className="tc-card animate-slideUp group cursor-pointer"
-                  style={{
-                    overflow: 'hidden',
-                    transition: 'all var(--transition-normal)',
-                    cursor: 'pointer',
-                    border: '2px solid transparent',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--brand-300)';
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'transparent';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'var(--shadow-card)';
-                  }}
-                >
-                  <div style={{ padding: 'var(--space-4)' }}>
-                    <p
-                      style={{
-                        fontSize: 'var(--text-xs)',
-                        fontWeight: 700,
-                        color: 'var(--gray-400)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                        marginBottom: '4px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {product.category?.name || 'Varios'}
-                    </p>
-                    <h4
-                      style={{
-                        fontWeight: 700,
-                        color: 'var(--gray-800)',
-                        fontSize: 'var(--text-sm)',
-                        marginBottom: 'var(--space-3)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {product.name}
-                    </h4>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <span
-                        style={{
-                          color: 'var(--brand-600)',
-                          fontWeight: 800,
-                          fontSize: 'var(--text-base)',
-                        }}
-                      >
-                        {formatCurrency(product.price)}
-                      </span>
-                      <span
-                        className={`tc-badge ${product.stock > 10 ? 'tc-badge--success' : 'tc-badge--danger'}`}
-                      >
-                        Stock: {product.stock}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                <ProductCard key={product.id} product={product} addToCart={addToCart} />
               ))}
             </div>
           </div>

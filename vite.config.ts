@@ -20,5 +20,26 @@ export default defineConfig({
   build: {
     outDir: '../../dist/renderer',
     emptyOutDir: true,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split vendor chunks for better caching
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'chart-vendor': ['recharts'],
+          'ui-vendor': ['lucide-react'],
+          // Heavy libraries loaded on demand
+          'pdf-vendor': ['pdf-lib', 'pdfkit'],
+          'excel-vendor': ['xlsx'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
   },
 });

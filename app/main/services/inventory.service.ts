@@ -147,11 +147,34 @@ export class InventoryService {
     return categories;
   }
 
-  async getAllProducts(): Promise<Product[]> {
+  async getAllProducts(options?: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    categoryId?: number;
+  }): Promise<Product[]> {
+    const { page, pageSize, search, categoryId } = options || {};
+
+    const where: any = { isActive: true };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' as const } },
+        { code: { contains: search, mode: 'insensitive' as const } },
+        { barcode: { contains: search, mode: 'insensitive' as const } },
+      ];
+    }
+
+    if (categoryId) {
+      where.categoryId = categoryId;
+    }
+
     const products = await prisma.product.findMany({
-      where: { isActive: true },
+      where,
       include: { category: true },
       orderBy: { name: 'asc' },
+      skip: page && pageSize ? (page - 1) * pageSize : undefined,
+      take: pageSize ?? undefined,
     });
 
     return products.map(mapProduct);

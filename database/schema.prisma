@@ -68,6 +68,10 @@ model Product {
   updatedAt       DateTime        @updatedAt
   saleItems       SaleItem[]
   stockMovements  StockMovement[]
+
+  @@index([isActive, name])
+  @@index([categoryId])
+  @@index([isActive, categoryId])
 }
 
 model StockMovement {
@@ -82,6 +86,9 @@ model StockMovement {
   userId        Int
   user          User     @relation(fields: [userId], references: [id])
   createdAt     DateTime @default(now())
+
+  @@index([productId, createdAt])
+  @@index([userId])
 }
 
 model Sale {
@@ -107,6 +114,10 @@ model Sale {
   debt          Debt?
 
   @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([cashSessionId])
+  @@index([userId, createdAt])
+  @@index([customerId])
 }
 
 model SaleItem {
@@ -136,6 +147,10 @@ model Payment {
   amount        Decimal
   reference     String?
   createdAt     DateTime     @default(now())
+
+  @@index([saleId])
+  @@index([cashSessionId])
+  @@index([method])
 }
 
 model CashSession {
@@ -166,6 +181,9 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([action])
+  @@index([entity])
 }
 
 model Config {
