@@ -19,7 +19,9 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
   const [error, setError] = useState<string | null>(null);
   const [activeCashSessionId, setActiveCashSessionId] = useState<number | null>(null);
 
-  const [paymentMode, setPaymentMode] = useState<{ debtId: number, maxAmount: number } | null>(null);
+  const [paymentMode, setPaymentMode] = useState<{ debtId: number; maxAmount: number } | null>(
+    null,
+  );
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('efectivo');
   const [isPaying, setIsPaying] = useState(false);
@@ -43,14 +45,21 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
   const loadDebts = async () => {
     setIsLoading(true);
     setError(null);
+    console.log('Cargando deudas para cliente:', customer.id, customer.fullName);
     try {
       const resp = await getCustomerDebts(customer.id);
+      console.log('Respuesta de deudas:', resp);
       if (resp.success) {
         setDebts(resp.data);
+        console.log('Deudas cargadas:', resp.data.length, 'deudas');
+        resp.data.forEach((d: any, i: number) => {
+          console.log(`Deuda ${i + 1}: balance=${d.balance}, customerId=${d.customerId}`);
+        });
       } else {
         setError(resp.error.message);
       }
     } catch (err: any) {
+      console.error('Error cargando deudas:', err);
       setError(err.message || 'Error inesperado');
     } finally {
       setIsLoading(false);
@@ -62,22 +71,27 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
 
     const amount = Number(paymentAmount);
     if (isNaN(amount) || amount <= 0 || amount > paymentMode.maxAmount) {
-      alert("El monto ingresado no es válido o supera el saldo.");
+      alert('El monto ingresado no es válido o supera el saldo.');
       return;
     }
 
     setIsPaying(true);
     try {
-      const resp = await payCustomerDebt(paymentMode.debtId, amount, paymentMethod, activeCashSessionId || undefined);
+      const resp = await payCustomerDebt(
+        paymentMode.debtId,
+        amount,
+        paymentMethod,
+        activeCashSessionId || undefined,
+      );
       if (resp.success) {
         setPaymentMode(null);
         setPaymentAmount('');
         loadDebts();
       } else {
-        alert("Error al pagar la deuda: " + resp.error?.message);
+        alert('Error al pagar la deuda: ' + resp.error?.message);
       }
     } catch (err: any) {
-      alert("Error inesperado: " + err.message);
+      alert('Error inesperado: ' + err.message);
     } finally {
       setIsPaying(false);
     }
@@ -90,100 +104,318 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
   return (
     <div className="tc-modal-overlay animate-fadeIn">
       <div className="tc-modal animate-scaleIn" style={{ maxWidth: '750px', width: '100%' }}>
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-amber-50 text-amber-600 shadow-sm border border-amber-100">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 'var(--space-6)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '48px',
+                height: '48px',
+                borderRadius: 'var(--radius-xl)',
+                background: 'var(--warning-50)',
+                color: 'var(--warning-600)',
+                boxShadow: 'var(--shadow-xs)',
+                border: '1px solid var(--warning-100)',
+              }}
+            >
               <CreditCard size={26} />
             </div>
             <div>
               <h2 className="tc-modal-title">Gestión de Deudas y Fiados</h2>
-              <p className="text-sm text-gray-500">{customer?.fullName} • Control de cartera pendiente</p>
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--gray-500)' }}>
+                {customer?.fullName} • Control de cartera pendiente
+              </p>
             </div>
           </div>
-          <button 
-            className="tc-btn tc-btn--ghost min-h-0 p-2 text-gray-400 hover:text-gray-600" 
+          <button
+            className="tc-btn tc-btn--ghost"
             onClick={onClose}
             disabled={isPaying}
+            style={{ minHeight: '0', padding: 'var(--space-2)', color: 'var(--gray-400)' }}
           >
             <X size={24} />
           </button>
         </div>
 
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-amber-500 rounded-2xl p-6 text-white shadow-lg shadow-amber-200/50 relative overflow-hidden group">
-            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 'var(--space-4)',
+            marginBottom: 'var(--space-6)',
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--warning-500)',
+              borderRadius: 'var(--radius-2xl)',
+              padding: 'var(--space-6)',
+              color: '#fff',
+              boxShadow: 'var(--shadow-lg)',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ position: 'absolute', right: '-16px', bottom: '-16px', opacity: 0.1 }}>
               <AlertCircle size={120} />
             </div>
-            <div className="relative z-10">
-              <span className="text-amber-100 text-xs font-bold uppercase tracking-wider">Saldo Total Pendiente</span>
-              <div className="text-3xl font-black mt-1 tabular-nums">{formatCurrency(totalBalance)}</div>
+            <div style={{ position: 'relative', zIndex: 10 }}>
+              <span
+                style={{
+                  color: 'var(--warning-100)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                Saldo Total Pendiente
+              </span>
+              <div
+                style={{
+                  fontSize: 'var(--text-3xl)',
+                  fontWeight: 800,
+                  marginTop: 'var(--space-1)',
+                }}
+              >
+                {formatCurrency(totalBalance)}
+              </div>
             </div>
           </div>
-          
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-success-50 text-success-600 flex items-center justify-center">
+
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--gray-100)',
+              borderRadius: 'var(--radius-2xl)',
+              padding: 'var(--space-6)',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-4)',
+            }}
+          >
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: 'var(--radius-full)',
+                background: 'var(--success-50)',
+                color: 'var(--success-600)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
               <DollarSign size={24} />
             </div>
             <div>
-              <span className="text-gray-400 text-xs font-bold uppercase tracking-wider block">Créditos Activos</span>
-              <div className="text-2xl font-bold text-gray-800 tabular-nums">{debts.length}</div>
+              <span
+                style={{
+                  color: 'var(--gray-400)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  display: 'block',
+                }}
+              >
+                Créditos Activos
+              </span>
+              <div
+                style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--gray-800)' }}
+              >
+                {debts.length}
+              </div>
             </div>
           </div>
         </div>
 
-        {error && (
-          <div className="tc-notice tc-notice--error mb-6">
-            {error}
-          </div>
-        )}
+        {error && <div className="tc-notice tc-notice--error mb-6">{error}</div>}
 
-        <div className="max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
+        <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: 'var(--space-2)' }}>
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <div className="tc-spinner border-amber-500"></div>
-              <p className="text-gray-500">Cargando estados de cuenta...</p>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 'var(--space-16) 0',
+                gap: 'var(--space-3)',
+              }}
+            >
+              <div
+                className="tc-skeleton"
+                style={{ width: 40, height: 40, borderRadius: '50%' }}
+              ></div>
+              <p style={{ color: 'var(--gray-500)' }}>Cargando estados de cuenta...</p>
             </div>
           ) : debts.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed border-gray-100 rounded-2xl">
-              <CreditCard className="mx-auto text-gray-300 mb-3" size={48} />
-              <p className="text-gray-500 font-medium">No se encontraron deudas pendientes para este cliente.</p>
+            <div
+              style={{
+                textAlign: 'center',
+                padding: 'var(--space-12)',
+                border: '2px dashed var(--gray-100)',
+                borderRadius: 'var(--radius-2xl)',
+              }}
+            >
+              <CreditCard
+                style={{ margin: '0 auto var(--space-3)', color: 'var(--gray-300)' }}
+                size={48}
+              />
+              <p style={{ color: 'var(--gray-500)', fontWeight: 500 }}>
+                No se encontraron deudas pendientes para este cliente.
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               {debts.map((debt: any) => (
-                <div key={debt.id} className={`border rounded-2xl transition-all duration-300 overflow-hidden ${
-                  paymentMode?.debtId === debt.id ? 'border-amber-500 shadow-md ring-4 ring-amber-50' : 'border-gray-100 hover:border-amber-200'
-                }`}>
-                  <div className="p-5">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400">
+                <div
+                  key={debt.id}
+                  style={{
+                    border:
+                      paymentMode?.debtId === debt.id
+                        ? '2px solid var(--warning-500)'
+                        : '1px solid var(--gray-100)',
+                    borderRadius: 'var(--radius-2xl)',
+                    transition: 'all 0.3s ease',
+                    overflow: 'hidden',
+                    boxShadow: paymentMode?.debtId === debt.id ? 'var(--shadow-md)' : 'none',
+                  }}
+                >
+                  <div style={{ padding: 'var(--space-5)' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginBottom: 'var(--space-4)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                        <div
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: 'var(--radius-lg)',
+                            background: 'var(--gray-50)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--gray-400)',
+                          }}
+                        >
                           <Calendar size={20} />
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-gray-400 uppercase tracking-tight">Fecha de Inicio</p>
-                          <p className="text-sm font-bold text-gray-700">{new Date(debt.createdAt).toLocaleDateString()}</p>
+                          <p
+                            style={{
+                              fontSize: 'var(--text-xs)',
+                              fontWeight: 700,
+                              color: 'var(--gray-400)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.02em',
+                            }}
+                          >
+                            Fecha de Inicio
+                          </p>
+                          <p
+                            style={{
+                              fontSize: 'var(--text-sm)',
+                              fontWeight: 700,
+                              color: 'var(--gray-700)',
+                            }}
+                          >
+                            {new Date(debt.createdAt).toLocaleDateString()}
+                          </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-tight">Pendiente</p>
-                        <p className="text-lg font-black text-amber-600 tabular-nums">{formatCurrency(Number(debt.balance))}</p>
+                      <div style={{ textAlign: 'right' }}>
+                        <p
+                          style={{
+                            fontSize: 'var(--text-xs)',
+                            fontWeight: 700,
+                            color: 'var(--gray-400)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.02em',
+                          }}
+                        >
+                          Pendiente
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 'var(--text-lg)',
+                            fontWeight: 800,
+                            color: 'var(--warning-600)',
+                          }}
+                        >
+                          {formatCurrency(Number(debt.balance))}
+                        </p>
                       </div>
                     </div>
 
                     {paymentMode?.debtId === debt.id ? (
-                      <div className="bg-amber-50/50 rounded-xl p-4 border border-amber-100 mt-4 animate-fadeIn">
-                        <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <div
+                        style={{
+                          background: 'var(--warning-25)',
+                          borderRadius: 'var(--radius-xl)',
+                          padding: 'var(--space-4)',
+                          border: '1px solid var(--warning-100)',
+                          marginTop: 'var(--space-4)',
+                        }}
+                      >
+                        <h4
+                          style={{
+                            fontSize: 'var(--text-xs)',
+                            fontWeight: 800,
+                            color: 'var(--warning-700)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            marginBottom: 'var(--space-4)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 'var(--space-2)',
+                          }}
+                        >
                           <DollarSign size={14} /> Registrar Abono de Capital
                         </h4>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(2, 1fr)',
+                            gap: 'var(--space-4)',
+                            marginBottom: 'var(--space-4)',
+                          }}
+                        >
                           <div className="tc-field">
-                            <label className="tc-label !text-amber-700">Monto del Abono</label>
-                            <div className="relative">
-                              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" size={18} />
+                            <label className="tc-label" style={{ color: 'var(--warning-700)' }}>
+                              Monto del Abono
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                              <DollarSign
+                                style={{
+                                  position: 'absolute',
+                                  left: '12px',
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  color: 'var(--warning-400)',
+                                }}
+                                size={18}
+                              />
                               <input
                                 type="number"
-                                className="tc-input pl-10 !border-amber-200 focus:!border-amber-500 focus:!ring-amber-500/20"
+                                className="tc-input"
+                                style={{ paddingLeft: '40px', borderColor: 'var(--warning-200)' }}
                                 value={paymentAmount}
                                 onChange={(e) => setPaymentAmount(e.target.value)}
                                 max={Number(debt.balance)}
@@ -194,45 +426,80 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
                             </div>
                           </div>
                           <div className="tc-field">
-                            <label className="tc-label !text-amber-700">Medio de Pago</label>
-                            <select 
-                              className="tc-input !border-amber-200 focus:!border-amber-500" 
-                              value={paymentMethod} 
+                            <label className="tc-label" style={{ color: 'var(--warning-700)' }}>
+                              Medio de Pago
+                            </label>
+                            <select
+                              className="tc-input"
+                              style={{ borderColor: 'var(--warning-200)' }}
+                              value={paymentMethod}
                               onChange={(e) => setPaymentMethod(e.target.value)}
                             >
-                              <option value="efectivo">Efectivo 💵</option>
-                              <option value="nequi">Nequi 💸</option>
-                              <option value="daviplata">Daviplata 🔴</option>
-                              <option value="tarjeta">Tarjeta 💳</option>
-                              <option value="transferencia">Transferencia 🏦</option>
+                              <option value="efectivo">Efectivo</option>
+                              <option value="nequi">Nequi</option>
+                              <option value="daviplata">Daviplata</option>
+                              <option value="tarjeta">Tarjeta</option>
+                              <option value="transferencia">Transferencia</option>
                             </select>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          <button className="tc-btn tc-btn--secondary flex-1" onClick={() => setPaymentMode(null)} disabled={isPaying}>
+                        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                          <button
+                            className="tc-btn tc-btn--secondary"
+                            style={{ flex: 1 }}
+                            onClick={() => setPaymentMode(null)}
+                            disabled={isPaying}
+                          >
                             Cancelar
                           </button>
-                          <button className="tc-btn tc-btn--primary flex-1 !bg-amber-600 !hover:bg-amber-700 shadow-lg shadow-amber-200" onClick={handlePay} disabled={isPaying || !paymentAmount}>
+                          <button
+                            className="tc-btn tc-btn--primary"
+                            style={{
+                              flex: 1,
+                              background: 'var(--warning-600)',
+                              borderColor: 'var(--warning-600)',
+                            }}
+                            onClick={handlePay}
+                            disabled={isPaying || !paymentAmount}
+                          >
                             {isPaying ? 'Procesando...' : 'Confirmar Abono'}
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex justify-between items-center border-t border-gray-50 pt-4 mt-2">
-                        <div className="flex items-center gap-2">
-                          <div className="flex -space-x-2">
-                            {[1, 2, 3].slice(0, debt.payments?.length || 0).map((_, i) => (
-                              <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-success-100 flex items-center justify-center text-[10px] text-success-600 font-bold">
-                                {i+1}
-                              </div>
-                            ))}
-                          </div>
-                          <p className="text-xs text-gray-500 font-semibold italic">
-                            {debt.payments?.length ? `${debt.payments.length} abonos realizados` : 'Sin abonos previos'}
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          borderTop: '1px solid var(--gray-50)',
+                          paddingTop: 'var(--space-4)',
+                          marginTop: 'var(--space-2)',
+                        }}
+                      >
+                        <div
+                          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
+                        >
+                          <p
+                            style={{
+                              fontSize: 'var(--text-xs)',
+                              color: 'var(--gray-500)',
+                              fontStyle: 'italic',
+                            }}
+                          >
+                            {debt.payments?.length
+                              ? `${debt.payments.length} abonos realizados`
+                              : 'Sin abonos previos'}
                           </p>
                         </div>
-                        <button 
-                          className="tc-btn tc-btn--primary !bg-amber-500 hover:!bg-amber-600 min-h-0 py-2 px-4 shadow-sm"
+                        <button
+                          className="tc-btn tc-btn--primary"
+                          style={{
+                            background: 'var(--warning-500)',
+                            borderColor: 'var(--warning-500)',
+                            padding: 'var(--space-2) var(--space-4)',
+                            minHeight: '0',
+                          }}
                           onClick={() => {
                             setPaymentMode({ debtId: debt.id, maxAmount: Number(debt.balance) });
                             setPaymentAmount(debt.balance.toString());
@@ -244,14 +511,46 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
                     )}
 
                     {debt.payments && debt.payments.length > 0 && !paymentMode && (
-                      <div className="mt-4 space-y-2">
-                        <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Historial Reciente de Abonos</p>
-                        <div className="flex flex-wrap gap-2">
+                      <div style={{ marginTop: 'var(--space-4)' }}>
+                        <p
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 800,
+                            color: 'var(--gray-300)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                          }}
+                        >
+                          Historial Reciente de Abonos
+                        </p>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 'var(--space-2)',
+                            marginTop: 'var(--space-2)',
+                          }}
+                        >
                           {debt.payments.map((p: any) => (
-                            <div key={p.id} className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-bold text-gray-600">
-                              <span className="text-success-600">{formatCurrency(Number(p.amount))}</span>
-                              <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                              <span className="text-gray-400 capitalize">{p.method}</span>
+                            <div
+                              key={p.id}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 'var(--space-2)',
+                                padding: 'var(--space-1) var(--space-2)',
+                                borderRadius: 'var(--radius-lg)',
+                                background: 'var(--gray-50)',
+                                border: '1px solid var(--gray-100)',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                color: 'var(--gray-600)',
+                              }}
+                            >
+                              <span style={{ color: 'var(--success-600)' }}>
+                                {formatCurrency(Number(p.amount))}
+                              </span>
+                              <span style={{ color: 'var(--gray-400)' }}>{p.method}</span>
                             </div>
                           ))}
                         </div>
@@ -263,9 +562,16 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
             </div>
           )}
         </div>
-        
-        <div className="tc-modal-actions mt-8 border-t border-gray-50 pt-6">
-          <button className="tc-btn tc-btn--secondary w-full md:w-auto" onClick={onClose}>
+
+        <div
+          className="tc-modal-actions"
+          style={{
+            marginTop: 'var(--space-8)',
+            borderTop: '1px solid var(--gray-50)',
+            paddingTop: 'var(--space-6)',
+          }}
+        >
+          <button className="tc-btn tc-btn--secondary" style={{ width: '100%' }} onClick={onClose}>
             Regresar al Listado
           </button>
         </div>

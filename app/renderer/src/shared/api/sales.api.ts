@@ -9,8 +9,9 @@ export function createSale(
   discount = 0,
   deliveryFee = 0,
   customerId?: number | null,
+  isCreditSale = false,
 ): Promise<ApiResponse<SaleRecord>> {
-  return window.api.invoke<SaleRecord>('sales:create', cashSessionId, userId, items, payments, discount, deliveryFee, customerId);
+  return window.api.invoke<SaleRecord>('sales:create', cashSessionId, userId, items, payments, discount, deliveryFee, customerId, isCreditSale);
 }
 
 export function getSaleById(id: number): Promise<ApiResponse<SaleRecord | null>> {
@@ -23,6 +24,10 @@ export function getSaleByNumber(saleNumber: string): Promise<ApiResponse<SaleRec
 
 export function getSalesByCashRegister(cashSessionId: number): Promise<ApiResponse<SaleRecord[]>> {
   return window.api.invoke<SaleRecord[]>('sales:getByCashRegister', cashSessionId);
+}
+
+export function getSalesByUser(userId: number): Promise<ApiResponse<SaleRecord[]>> {
+  return window.api.invoke<SaleRecord[]>('sales:getByUser', userId);
 }
 
 export function getSalesByDateRange(

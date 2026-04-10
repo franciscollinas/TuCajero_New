@@ -8,6 +8,7 @@ export interface Customer {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  debts?: Debt[];
 }
 
 export interface Debt {

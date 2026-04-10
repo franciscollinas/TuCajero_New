@@ -1,7 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 
 import { es } from '../../shared/i18n';
-import { tokens } from '../../shared/theme';
 import type { InventoryProduct } from '../../shared/types/inventory.types';
 import {
   formatCurrency,
@@ -17,7 +16,15 @@ interface StockAdjustModalProps {
   loading?: boolean;
   readOnly?: boolean;
   onClose: () => void;
-  onSubmit: (payload: { quantity: number; reason: string; mode: 'entrada' | 'salida' }) => Promise<void> | void;
+  onSubmit: (payload: {
+    quantity: number;
+    reason: string;
+    mode: 'entrada' | 'salida';
+  }) => Promise<void> | void;
+  onUpdateProduct?: (
+    id: number,
+    data: { price?: number; expiryDate?: string | null; location?: string | null },
+  ) => Promise<void>;
 }
 
 export function StockAdjustModal({
@@ -27,10 +34,18 @@ export function StockAdjustModal({
   readOnly = false,
   onClose,
   onSubmit,
+  onUpdateProduct,
 }: StockAdjustModalProps): JSX.Element | null {
   const [quantity, setQuantity] = useState('1');
   const [reason, setReason] = useState('');
   const [mode, setMode] = useState<'entrada' | 'salida'>('entrada');
+  const [editingPrice, setEditingPrice] = useState(false);
+  const [editingExpiry, setEditingExpiry] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [priceValue, setPriceValue] = useState('');
+  const [expiryValue, setExpiryValue] = useState('');
+  const [locationValue, setLocationValue] = useState('');
+  const [updatingProduct, setUpdatingProduct] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -40,6 +55,12 @@ export function StockAdjustModal({
     setQuantity('1');
     setReason('');
     setMode('entrada');
+    setEditingPrice(false);
+    setEditingExpiry(false);
+    setEditingLocation(false);
+    setPriceValue(product?.price?.toString() || '');
+    setExpiryValue(product?.expiryDate?.split('T')[0] || '');
+    setLocationValue(product?.location || '');
   }, [open, product]);
 
   if (!open || !product) {
@@ -48,6 +69,38 @@ export function StockAdjustModal({
 
   const status = getInventoryStatus(product);
   const statusColor = getInventoryStatusColor(status);
+
+  const handleUpdateProduct = async (): Promise<void> => {
+    if (!product || !onUpdateProduct) return;
+
+    setUpdatingProduct(true);
+    try {
+      const updates: { price?: number; expiryDate?: string | null; location?: string | null } = {};
+
+      if (priceValue && Number(priceValue) !== product.price) {
+        updates.price = Number(priceValue);
+      }
+
+      if (expiryValue !== (product.expiryDate?.split('T')[0] || '')) {
+        updates.expiryDate = expiryValue ? expiryValue : null;
+      }
+
+      if (locationValue !== (product.location || '')) {
+        updates.location = locationValue || null;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await onUpdateProduct(product.id, updates);
+        setEditingPrice(false);
+        setEditingExpiry(false);
+        setEditingLocation(false);
+      }
+    } catch (err) {
+      console.error('Error updating product:', err);
+    } finally {
+      setUpdatingProduct(false);
+    }
+  };
 
   const handleSubmit = async (): Promise<void> => {
     const parsedQuantity = Number(quantity);
@@ -64,7 +117,12 @@ export function StockAdjustModal({
 
   return (
     <div style={backdropStyle} role="presentation" onClick={onClose}>
-      <section style={modalStyle} role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+      <section
+        style={modalStyle}
+        role="dialog"
+        aria-modal="true"
+        onClick={(event) => event.stopPropagation()}
+      >
         <header style={headerStyle}>
           <div>
             <p style={eyebrowStyle}>{es.inventory.adjustStock}</p>
@@ -85,15 +143,193 @@ export function StockAdjustModal({
           </article>
           <article style={summaryCardStyle}>
             <p style={summaryLabelStyle}>{es.inventory.price}</p>
-            <p style={summaryValueStyle}>{formatCurrency(product.price)}</p>
+            {editingPrice ? (
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' }}>
+                <input
+                  type="number"
+                  value={priceValue}
+                  onChange={(e) => setPriceValue(e.target.value)}
+                  style={{
+                    ...inputStyle,
+                    fontSize: '16px',
+                    padding: '0 8px',
+                    minHeight: '36px',
+                    width: '100px',
+                  }}
+                  autoFocus
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <button
+                    type="button"
+                    onClick={handleUpdateProduct}
+                    disabled={updatingProduct}
+                    style={{
+                      minHeight: '17px',
+                      padding: '0 8px',
+                      fontSize: '10px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      background: '#465fff',
+                      color: '#fff',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ✓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingPrice(false)}
+                    style={{
+                      ...secondaryButtonStyle,
+                      minHeight: '17px',
+                      padding: '0 8px',
+                      fontSize: '10px',
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p
+                style={{ ...summaryValueStyle, cursor: 'pointer' }}
+                onClick={() => {
+                  setPriceValue(product.price.toString());
+                  setEditingPrice(true);
+                }}
+              >
+                {formatCurrency(product.price)}
+                <span style={{ marginLeft: '8px', fontSize: '12px', color: '#9CA3AF' }}>✎</span>
+              </p>
+            )}
           </article>
           <article style={summaryCardStyle}>
             <p style={summaryLabelStyle}>{es.inventory.expiryDate}</p>
-            <p style={summaryValueStyle}>{formatDate(product.expiryDate)}</p>
+            {editingExpiry ? (
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' }}>
+                <input
+                  type="date"
+                  value={expiryValue}
+                  onChange={(e) => setExpiryValue(e.target.value)}
+                  style={{ ...inputStyle, fontSize: '14px', padding: '0 8px', minHeight: '36px' }}
+                  autoFocus
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <button
+                    type="button"
+                    onClick={handleUpdateProduct}
+                    disabled={updatingProduct}
+                    style={{
+                      minHeight: '17px',
+                      padding: '0 8px',
+                      fontSize: '10px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      background: '#465fff',
+                      color: '#fff',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ✓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingExpiry(false)}
+                    style={{
+                      ...secondaryButtonStyle,
+                      minHeight: '17px',
+                      padding: '0 8px',
+                      fontSize: '10px',
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p
+                style={{ ...summaryValueStyle, cursor: 'pointer' }}
+                onClick={() => {
+                  setExpiryValue(product.expiryDate?.split('T')[0] || '');
+                  setEditingExpiry(true);
+                }}
+              >
+                {formatDate(product.expiryDate)}
+                <span style={{ marginLeft: '8px', fontSize: '12px', color: '#9CA3AF' }}>✎</span>
+              </p>
+            )}
           </article>
           <article style={summaryCardStyle}>
             <p style={summaryLabelStyle}>{es.inventory.semaforo}</p>
-            <p style={{ ...summaryValueStyle, color: statusColor }}>{getInventoryStatusLabel(status)}</p>
+            <p style={{ ...summaryValueStyle, color: statusColor }}>
+              {getInventoryStatusLabel(status)}
+            </p>
+          </article>
+          <article style={summaryCardStyle}>
+            <p style={summaryLabelStyle}>Ubicación</p>
+            {editingLocation ? (
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' }}>
+                <input
+                  type="text"
+                  value={locationValue}
+                  onChange={(e) => setLocationValue(e.target.value)}
+                  style={{
+                    ...inputStyle,
+                    fontSize: '14px',
+                    padding: '0 8px',
+                    minHeight: '36px',
+                    width: '100px',
+                  }}
+                  placeholder="Estante A-1"
+                  autoFocus
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <button
+                    type="button"
+                    onClick={handleUpdateProduct}
+                    disabled={updatingProduct}
+                    style={{
+                      minHeight: '17px',
+                      padding: '0 8px',
+                      fontSize: '10px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      background: '#465fff',
+                      color: '#fff',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ✓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingLocation(false)}
+                    style={{
+                      ...secondaryButtonStyle,
+                      minHeight: '17px',
+                      padding: '0 8px',
+                      fontSize: '10px',
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p
+                style={{ ...summaryValueStyle, cursor: 'pointer' }}
+                onClick={() => {
+                  setLocationValue(product.location || '');
+                  setEditingLocation(true);
+                }}
+              >
+                {product.location || 'Sin ubicación'}
+                <span style={{ marginLeft: '8px', fontSize: '12px', color: '#9CA3AF' }}>✎</span>
+              </p>
+            )}
           </article>
         </div>
 
@@ -299,6 +535,6 @@ const secondaryButtonStyle: CSSProperties = {
 const primaryButtonStyle: CSSProperties = {
   ...secondaryButtonStyle,
   border: 'none',
-  background: tokens.colors.primary[600],
+  background: '#465fff',
   color: '#FFFFFF',
 };

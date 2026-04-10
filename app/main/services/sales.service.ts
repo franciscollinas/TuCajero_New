@@ -20,6 +20,7 @@ const SALE_INCLUDE = {
   user: { select: { id: true, fullName: true, username: true } },
   cashSession: true,
   customer: true,
+  debt: true,
 } as const;
 
 type SaleWithRelations = Prisma.SaleGetPayload<{
@@ -51,7 +52,14 @@ function toNumber(value: Prisma.Decimal | null): number | null {
 }
 
 function mapPaymentMethod(method: string): PaymentMethod {
-  const allowed: PaymentMethod[] = ['efectivo', 'nequi', 'daviplata', 'tarjeta', 'transferencia', 'credito'];
+  const allowed: PaymentMethod[] = [
+    'efectivo',
+    'nequi',
+    'daviplata',
+    'tarjeta',
+    'transferencia',
+    'credito',
+  ];
   return allowed.includes(method as PaymentMethod) ? (method as PaymentMethod) : 'transferencia';
 }
 
@@ -67,11 +75,13 @@ function mapSale(sale: SaleWithRelations): SaleRecord {
     deliveryFee: Number(sale.deliveryFee),
     total: Number(sale.total),
     customerId: sale.customerId,
-    customer: sale.customer ? {
-      id: sale.customer.id,
-      name: sale.customer.name,
-      phone: sale.customer.phone
-    } : null,
+    customer: sale.customer
+      ? {
+          id: sale.customer.id,
+          name: sale.customer.name,
+          phone: sale.customer.phone,
+        }
+      : null,
     status: sale.status,
     createdAt: sale.createdAt.toISOString(),
     items: sale.items.map((item) => ({
@@ -176,7 +186,10 @@ export class SalesService {
       const product = productMap.get(item.productId);
       if (!product) {
         // Will be caught inside transaction; fail early for calculation purposes
-        throw new AppError(ErrorCode.PRODUCT_NOT_FOUND, `Producto ${item.productId} no encontrado.`);
+        throw new AppError(
+          ErrorCode.PRODUCT_NOT_FOUND,
+          `Producto ${item.productId} no encontrado.`,
+        );
       }
       const lineSubtotal = item.quantity * item.unitPrice;
       const lineNet = lineSubtotal - item.discount;
@@ -210,11 +223,17 @@ export class SalesService {
         const product = txProductMap.get(item.productId);
 
         if (!product || !product.isActive) {
-          throw new AppError(ErrorCode.PRODUCT_NOT_FOUND, `Producto ${item.productId} no encontrado.`);
+          throw new AppError(
+            ErrorCode.PRODUCT_NOT_FOUND,
+            `Producto ${item.productId} no encontrado.`,
+          );
         }
 
         if (product.expiryDate && product.expiryDate.getTime() < Date.now()) {
-          throw new AppError(ErrorCode.PRODUCT_EXPIRED, `"${product.name}" está vencido y no puede venderse.`);
+          throw new AppError(
+            ErrorCode.PRODUCT_EXPIRED,
+            `"${product.name}" está vencido y no puede venderse.`,
+          );
         }
 
         if (product.stock < item.quantity) {
@@ -225,9 +244,12 @@ export class SalesService {
         }
       }
 
-      const creditPayment = payments.find(p => p.method === 'credito');
+      const creditPayment = payments.find((p) => p.method === 'credito');
       if (creditPayment && !customerId) {
-        throw new AppError(ErrorCode.VALIDATION, 'Se requiere seleccionar un cliente para ventas a crédito (fiado).');
+        throw new AppError(
+          ErrorCode.VALIDATION,
+          'Se requiere seleccionar un cliente para ventas a crédito (fiado).',
+        );
       }
 
       const createdSale = await tx.sale.create({
@@ -278,7 +300,7 @@ export class SalesService {
             amount: creditPayment.amount,
             balance: creditPayment.amount,
             status: 'PENDING',
-          }
+          },
         });
       }
 
@@ -461,7 +483,9 @@ export class SalesService {
             await tx.cashSession.update({
               where: { id: sale.cashSessionId },
               data: {
-                expectedCash: (cashSession.expectedCash ?? cashSession.initialCash).minus(cashAmount),
+                expectedCash: (cashSession.expectedCash ?? cashSession.initialCash).minus(
+                  cashAmount,
+                ),
               },
             });
           }
@@ -485,7 +509,7 @@ export class SalesService {
 
   async getDashboardSummary(): Promise<DashboardSummary> {
     const now = new Date();
-    
+
     // Build "today" range using local timezone components to avoid UTC drift
     const year = now.getFullYear();
     const month = now.getMonth();
@@ -500,36 +524,37 @@ export class SalesService {
       prisma.sale.aggregate({
         where: {
           createdAt: { gte: today, lte: endOfToday },
-          status: 'COMPLETED'
+          status: 'COMPLETED',
         },
         _sum: { total: true },
-        _count: { id: true }
+        _count: { id: true },
       }),
       prisma.sale.findMany({
         where: {
           createdAt: { gte: startOf7Days },
-          status: 'COMPLETED'
+          status: 'COMPLETED',
         },
         select: {
           total: true,
-          createdAt: true
-        }
+          createdAt: true,
+        },
       }),
       prisma.saleItem.groupBy({
         by: ['productId'],
         where: {
           sale: {
             status: 'COMPLETED',
-            createdAt: { gte: startOf7Days }
-          }
+            createdAt: { gte: startOf7Days },
+          },
         },
-        _sum: { total: true }
+        _sum: { total: true },
       }),
       prisma.sale.findMany({
         take: 10,
+        where: { debt: null },
         orderBy: { createdAt: 'desc' },
-        include: SALE_INCLUDE
-      })
+        include: SALE_INCLUDE,
+      }),
     ]);
 
     // 1. Weekly Chart Processing
@@ -540,7 +565,7 @@ export class SalesService {
       weeklyBuckets[name] = { ventas: 0, ingresos: 0 };
     }
 
-    allRecentSales.forEach(s => {
+    allRecentSales.forEach((s) => {
       const name = s.createdAt.toLocaleDateString('es-CO', { weekday: 'short' });
       if (weeklyBuckets[name]) {
         weeklyBuckets[name].ventas++;
@@ -548,23 +573,27 @@ export class SalesService {
       }
     });
 
-    const weeklyChart = Object.keys(weeklyBuckets).map(name => ({
+    const weeklyChart = Object.keys(weeklyBuckets).map((name) => ({
       name: name.charAt(0).toUpperCase() + name.slice(1),
-      ...weeklyBuckets[name]
+      ...weeklyBuckets[name],
     }));
 
     // 2. Top Categories Mapping - Minified Fetch
-    const productIds = categoryGroups.map(g => g.productId);
-    const productsInSales = productIds.length > 0 ? await prisma.product.findMany({
-      where: { id: { in: productIds } },
-      select: { id: true, category: { select: { name: true } } }
-    }) : [];
+    const productIds = categoryGroups.map((g) => g.productId);
+    const productsInSales =
+      productIds.length > 0
+        ? await prisma.product.findMany({
+            where: { id: { in: productIds } },
+            select: { id: true, category: { select: { name: true } } },
+          })
+        : [];
 
     const categoryPerformance: Record<string, number> = {};
-    categoryGroups.forEach(g => {
-      const p = productsInSales.find(item => item.id === g.productId);
+    categoryGroups.forEach((g) => {
+      const p = productsInSales.find((item) => item.id === g.productId);
       if (p && p.category) {
-        categoryPerformance[p.category.name] = (categoryPerformance[p.category.name] || 0) + Number(g._sum.total || 0);
+        categoryPerformance[p.category.name] =
+          (categoryPerformance[p.category.name] || 0) + Number(g._sum.total || 0);
       }
     });
 
@@ -576,11 +605,11 @@ export class SalesService {
     return {
       today: {
         totalVendidos: todaySales._count.id,
-        totalMonto: Number(todaySales._sum.total ?? 0)
+        totalMonto: Number(todaySales._sum.total ?? 0),
       },
       weeklyChart,
       topCategories,
-      recentSales: recent.map(mapSale)
+      recentSales: recent.map(mapSale),
     };
   }
 

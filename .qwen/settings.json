@@ -30,7 +30,8 @@
       "Bash(select-object *)",
       "Bash(git restore *)",
       "Bash(date *)",
-      "Bash(time *)"
+      "Bash(time *)",
+      "Bash(del *)"
     ]
   },
   "$version": 3

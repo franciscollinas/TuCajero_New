@@ -1,8 +1,5 @@
 import { ipcMain } from 'electron';
-import type {
-  CashCloseSummary,
-  CashRegister,
-} from '../../renderer/src/shared/types/cash.types';
+import type { CashCloseSummary, CashRegister } from '../../renderer/src/shared/types/cash.types';
 import type { ApiResponse } from '../../renderer/src/shared/types/api.types';
 
 import { CashSessionService } from '../services/cash-session.service';
@@ -35,7 +32,11 @@ export function registerCashSessionIpc(): void {
       expectedCash: number,
     ): Promise<ApiResponse<CashCloseSummary>> => {
       try {
-        const result = await cashSessionService.closeCashSession(sessionId, finalCash, expectedCash);
+        const result = await cashSessionService.closeCashSession(
+          sessionId,
+          finalCash,
+          expectedCash,
+        );
         logger.info('cash:close-success', { sessionId });
         return { success: true, data: result };
       } catch (err) {
@@ -62,6 +63,30 @@ export function registerCashSessionIpc(): void {
     async (_event, sessionId: number): Promise<ApiResponse<any>> => {
       try {
         const result = await cashSessionService.getCashSessionSummary(sessionId);
+        return { success: true, data: result };
+      } catch (err) {
+        return { success: false, error: toApiError(err) };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    'cash:getTodaySalesTotal',
+    async (_event, userId: number): Promise<ApiResponse<number>> => {
+      try {
+        const result = await cashSessionService.getTodaySalesTotal(userId);
+        return { success: true, data: result };
+      } catch (err) {
+        return { success: false, error: toApiError(err) };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    'cash:getMonthSalesTotal',
+    async (_event, userId: number): Promise<ApiResponse<number>> => {
+      try {
+        const result = await cashSessionService.getMonthSalesTotal(userId);
         return { success: true, data: result };
       } catch (err) {
         return { success: false, error: toApiError(err) };

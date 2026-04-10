@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 
 import { exportReport, getReportsDashboardData } from '../../shared/api/reports.api';
 import { useAuth } from '../../shared/context/AuthContext';
@@ -27,7 +39,14 @@ const COLORS = {
   gray: '#667085',
 };
 
-const PIE_COLORS = [COLORS.blue, COLORS.green, COLORS.orange, COLORS.red, COLORS.purple, COLORS.cyan];
+const PIE_COLORS = [
+  COLORS.blue,
+  COLORS.green,
+  COLORS.orange,
+  COLORS.red,
+  COLORS.purple,
+  COLORS.cyan,
+];
 
 function toInputDate(value: Date): string {
   return value.toISOString().slice(0, 10);
@@ -68,80 +87,210 @@ function renderMetricList(metrics: ReportMetric[]): string {
 // ===== Icon Components =====
 function IconSales(props: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 function IconRevenue(props: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M12 2V22M17 5H9.5C7.01472 5 5 7.01472 5 9.5C5 11.9853 7.01472 14 9.5 14H14.5C16.9853 14 19 16.0147 19 18.5C19 20.9853 16.9853 23 14.5 23H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M12 2V22M17 5H9.5C7.01472 5 5 7.01472 5 9.5C5 11.9853 7.01472 14 9.5 14H14.5C16.9853 14 19 16.0147 19 18.5C19 20.9853 16.9853 23 14.5 23H6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 function IconInventory(props: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M20 7L12 3L4 7M20 7L12 11M20 7V17L12 21M12 11L4 7M12 11V21M4 7V17L12 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M20 7L12 3L4 7M20 7L12 11M20 7V17L12 21M12 11L4 7M12 11V21M4 7V17L12 21"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 function IconAudit(props: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7C12.1046 7 13 6.10457 13 5M9 5C9 3.89543 9.89543 3 11 3C12.1046 3 13 3.89543 13 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7C12.1046 7 13 6.10457 13 5M9 5C9 3.89543 9.89543 3 11 3C12.1046 3 13 3.89543 13 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 function IconCalendar(props: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8.5C3 5.5 4.5 3.5 8 3.5H16C19.5 3.5 21 5.5 21 8.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8.5C3 5.5 4.5 3.5 8 3.5H16C19.5 3.5 21 5.5 21 8.5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
 function IconExport(props: { className?: string }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M17 8L12 3M12 3L7 8M12 3V15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M17 8L12 3M12 3L7 8M12 3V15"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 function IconChart(props: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M18 20V10M12 20V4M6 20V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M18 20V10M12 20V4M6 20V14"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 function IconPieChart(props: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2V22C17.52 22 22 17.52 22 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2V22C17.52 22 22 17.52 22 12Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 function IconEmpty(props: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7C12.1046 7 13 6.10457 13 5M9 5C9 3.89543 9.89543 3 11 3C12.1046 3 13 3.89543 13 5M9 12H15M9 16H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <svg
+      width="64"
+      height="64"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7C12.1046 7 13 6.10457 13 5M9 5C9 3.89543 9.89543 3 11 3C12.1046 3 13 3.89543 13 5M9 12H15M9 16H13"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 function IconArrowLeft(props: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M19 12H5M5 12L12 19M5 12L12 5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -178,7 +327,9 @@ function EmptyState({ message }: { message: string }): JSX.Element {
       <div style={{ color: 'var(--gray-300)', marginBottom: 'var(--space-4)' }}>
         <IconEmpty />
       </div>
-      <p style={{ color: 'var(--gray-500)', fontSize: 'var(--text-base)', fontWeight: 500 }}>{message}</p>
+      <p style={{ color: 'var(--gray-500)', fontSize: 'var(--text-base)', fontWeight: 500 }}>
+        {message}
+      </p>
     </div>
   );
 }
@@ -209,7 +360,14 @@ function CustomBarTooltip({ active, payload }: CustomTooltipProps): JSX.Element 
           border: '1px solid var(--border-light)',
         }}
       >
-        <p style={{ fontWeight: 600, color: 'var(--gray-800)', marginBottom: '4px', fontSize: 'var(--text-sm)' }}>
+        <p
+          style={{
+            fontWeight: 600,
+            color: 'var(--gray-800)',
+            marginBottom: '4px',
+            fontSize: 'var(--text-sm)',
+          }}
+        >
           {String(data?.day ?? data?.name ?? '')}
         </p>
         <p style={{ color: COLORS.blue, fontWeight: 700, fontSize: 'var(--text-sm)' }}>
@@ -235,7 +393,14 @@ function CustomPieTooltip({ active, payload }: CustomTooltipProps): JSX.Element 
           border: '1px solid var(--border-light)',
         }}
       >
-        <p style={{ fontWeight: 600, color: 'var(--gray-800)', marginBottom: '4px', fontSize: 'var(--text-sm)' }}>
+        <p
+          style={{
+            fontWeight: 600,
+            color: 'var(--gray-800)',
+            marginBottom: '4px',
+            fontSize: 'var(--text-sm)',
+          }}
+        >
           {String(data?.name ?? '')}
         </p>
         <p style={{ color: data?.fill, fontWeight: 700, fontSize: 'var(--text-sm)' }}>
@@ -327,20 +492,34 @@ export function ReportsPage(): JSX.Element {
     if (!data || data.sales.length === 0) return [];
 
     const dayMap = new Map<string, number>();
-    data.sales.forEach((sale) => {
-      const date = new Date(sale.createdAt);
-      const dayKey = date.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' });
-      dayMap.set(dayKey, (dayMap.get(dayKey) || 0) + sale.total);
-    });
+    data.sales
+      .filter((sale) => !sale.isCredit)
+      .forEach((sale) => {
+        const date = new Date(sale.createdAt);
+        const dayKey = date.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' });
+        dayMap.set(dayKey, (dayMap.get(dayKey) || 0) + sale.total);
+      });
 
-    return Array.from(dayMap.entries())
+    const sortedData = Array.from(dayMap.entries())
       .slice(0, 7)
-      .map(([day, total]) => ({ day, total }));
+      .map(([day, total]) => ({ day, total }))
+      .sort((a, b) => {
+        const dateA = new Date(a.day.replace(/(\w+)\s+(\d+)/, '$2/$1'));
+        const dateB = new Date(b.day.replace(/(\w+)\s+(\d+)/, '$2/$1'));
+        return dateA.getTime() - dateB.getTime();
+      });
+
+    return sortedData;
   }, [data]);
 
   // Prepare data for PieChart (payment methods)
   const paymentMethodsData = useMemo(() => {
-    if (!data || !data.salesSummary.paymentsByMethod || data.salesSummary.paymentsByMethod.length === 0) return [];
+    if (
+      !data ||
+      !data.salesSummary.paymentsByMethod ||
+      data.salesSummary.paymentsByMethod.length === 0
+    )
+      return [];
 
     return data.salesSummary.paymentsByMethod.map((metric) => ({
       name: metric.label,
@@ -396,7 +575,15 @@ export function ReportsPage(): JSX.Element {
           }}
         />
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              flexWrap: 'wrap',
+              gap: 'var(--space-4)',
+            }}
+          >
             <div>
               <p
                 style={{
@@ -435,7 +622,15 @@ export function ReportsPage(): JSX.Element {
                 {es.reports.subtitle}
               </p>
             </div>
-            <Link to="/dashboard" className="tc-btn tc-btn--secondary" style={{ background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.3)', color: '#fff' }}>
+            <Link
+              to="/dashboard"
+              className="tc-btn tc-btn--secondary"
+              style={{
+                background: 'rgba(255, 255, 255, 0.15)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                color: '#fff',
+              }}
+            >
               <IconArrowLeft />
               {es.dashboard.title}
             </Link>
@@ -444,17 +639,19 @@ export function ReportsPage(): JSX.Element {
       </div>
 
       {/* ===== Date Range Filter Card ===== */}
-      <section
-        className="tc-section animate-slideUp"
-        style={{ marginBottom: 'var(--space-6)' }}
-      >
+      <section className="tc-section animate-slideUp" style={{ marginBottom: 'var(--space-6)' }}>
         <div className="tc-section-header">
           <div>
-            <h2 className="tc-section-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <h2
+              className="tc-section-title"
+              style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
+            >
               <IconCalendar style={{ color: COLORS.blue }} />
               Filtrar por fecha
             </h2>
-            <p className="tc-section-subtitle">Selecciona el rango de fechas para consultar reportes</p>
+            <p className="tc-section-subtitle">
+              Selecciona el rango de fechas para consultar reportes
+            </p>
           </div>
         </div>
         <div className="tc-grid-form">
@@ -464,7 +661,9 @@ export function ReportsPage(): JSX.Element {
               type="date"
               className="tc-input"
               value={range.startDate}
-              onChange={(event) => setRange((current) => ({ ...current, startDate: event.target.value }))}
+              onChange={(event) =>
+                setRange((current) => ({ ...current, startDate: event.target.value }))
+              }
             />
           </label>
           <label className="tc-field">
@@ -473,7 +672,9 @@ export function ReportsPage(): JSX.Element {
               type="date"
               className="tc-input"
               value={range.endDate}
-              onChange={(event) => setRange((current) => ({ ...current, endDate: event.target.value }))}
+              onChange={(event) =>
+                setRange((current) => ({ ...current, endDate: event.target.value }))
+              }
             />
           </label>
         </div>
@@ -500,19 +701,14 @@ export function ReportsPage(): JSX.Element {
       {!loading && data ? (
         <>
           {/* ===== Metric Cards with Gradients & Icons ===== */}
-          <div
-            className="tc-grid-4 animate-slideUp"
-            style={{ marginBottom: 'var(--space-6)' }}
-          >
+          <div className="tc-grid-4 animate-slideUp" style={{ marginBottom: 'var(--space-6)' }}>
             {summaryCards.map((card, index) => (
               <article
                 key={card.label}
                 className={`tc-metric-card tc-metric-card--${card.color}`}
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <div className={`tc-metric-icon tc-metric-icon--${card.color}`}>
-                  {card.icon}
-                </div>
+                <div className={`tc-metric-icon tc-metric-icon--${card.color}`}>{card.icon}</div>
                 <div className="tc-metric-content">
                   <p className="tc-metric-label">{card.label}</p>
                   <p className="tc-metric-value">{card.value}</p>
@@ -528,17 +724,36 @@ export function ReportsPage(): JSX.Element {
               className="tc-section tc-chart-container animate-slideUp"
               style={{ animationDelay: '200ms' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)',
+                  marginBottom: 'var(--space-1)',
+                }}
+              >
                 <IconChart style={{ color: COLORS.blue }} />
                 <h3 className="tc-chart-title">Ventas por dia</h3>
               </div>
-              <p className="tc-chart-subtitle">Distribucion de ingresos en el periodo seleccionado</p>
+              <p className="tc-chart-subtitle">
+                Distribucion de ingresos en el periodo seleccionado
+              </p>
               {salesByDayData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={salesByDayData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--gray-100)" />
-                    <XAxis dataKey="day" tick={{ fontSize: 12, fill: COLORS.gray }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 12, fill: COLORS.gray }} axisLine={false} tickLine={false} tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} />
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fontSize: 12, fill: COLORS.gray }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 12, fill: COLORS.gray }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                    />
                     <Tooltip content={<CustomBarTooltip />} />
                     <Bar
                       dataKey="total"
@@ -564,7 +779,14 @@ export function ReportsPage(): JSX.Element {
               className="tc-section tc-chart-container animate-slideUp"
               style={{ animationDelay: '300ms' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)',
+                  marginBottom: 'var(--space-1)',
+                }}
+              >
                 <IconPieChart style={{ color: COLORS.green }} />
                 <h3 className="tc-chart-title">{es.reports.paymentMix}</h3>
               </div>
@@ -577,7 +799,9 @@ export function ReportsPage(): JSX.Element {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent ? percent * 100 : 0).toFixed(0)}%`}
+                      label={({ name, percent }) =>
+                        `${name} ${(percent ? percent * 100 : 0).toFixed(0)}%`
+                      }
                       outerRadius={90}
                       innerRadius={50}
                       fill="#8884d8"
@@ -594,7 +818,17 @@ export function ReportsPage(): JSX.Element {
                       verticalAlign="bottom"
                       height={36}
                       iconType="circle"
-                      formatter={(value) => <span style={{ color: 'var(--gray-700)', fontSize: 'var(--text-sm)', fontWeight: 500 }}>{value}</span>}
+                      formatter={(value) => (
+                        <span
+                          style={{
+                            color: 'var(--gray-700)',
+                            fontSize: 'var(--text-sm)',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {value}
+                        </span>
+                      )}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -613,7 +847,7 @@ export function ReportsPage(): JSX.Element {
             onExport={handleExport}
             icon={<IconSales style={{ color: COLORS.blue }} />}
           >
-            <SalesTable rows={data.sales.slice(0, 12)} />
+            <SalesTable rows={data.sales.filter((s) => !s.isCredit).slice(0, 12)} />
           </ReportSection>
 
           {/* ===== Cash Sessions Section ===== */}
@@ -722,7 +956,10 @@ function ReportSection({
     <section className="tc-section animate-slideUp" style={{ marginBottom: 'var(--space-6)' }}>
       <div className="tc-section-header">
         <div>
-          <h2 className="tc-section-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <h2
+            className="tc-section-title"
+            style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
+          >
             {icon}
             {title}
           </h2>
@@ -796,8 +1033,12 @@ function SalesTable({ rows }: { rows: SalesReportRow[] }): JSX.Element {
                   {sale.itemsCount}
                 </span>
               </td>
-              <td style={{ fontWeight: 600, color: 'var(--gray-800)' }}>{formatCurrency(sale.total)}</td>
-              <td style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-500)' }}>{renderMetricList(sale.payments)}</td>
+              <td style={{ fontWeight: 600, color: 'var(--gray-800)' }}>
+                {formatCurrency(sale.total)}
+              </td>
+              <td style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-500)' }}>
+                {renderMetricList(sale.payments)}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -865,7 +1106,9 @@ function CashSessionsTable({ rows }: { rows: CashSessionReportRow[] }): JSX.Elem
                   {session.salesCount}
                 </span>
               </td>
-              <td style={{ fontWeight: 600, color: 'var(--gray-800)' }}>{formatCurrency(session.salesTotal)}</td>
+              <td style={{ fontWeight: 600, color: 'var(--gray-800)' }}>
+                {formatCurrency(session.salesTotal)}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -910,7 +1153,9 @@ function InventoryTable({ rows }: { rows: InventoryReportRow[] }): JSX.Element {
         <tbody>
           {rows.map((item) => (
             <tr key={item.id}>
-              <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--gray-800)' }}>{item.code}</td>
+              <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--gray-800)' }}>
+                {item.code}
+              </td>
               <td style={{ fontWeight: 500 }}>{item.name}</td>
               <td>{item.categoryName}</td>
               <td>
@@ -930,7 +1175,9 @@ function InventoryTable({ rows }: { rows: InventoryReportRow[] }): JSX.Element {
                   {item.stock}
                 </span>
               </td>
-              <td style={{ fontWeight: 600, color: 'var(--gray-800)' }}>{formatCurrency(item.price)}</td>
+              <td style={{ fontWeight: 600, color: 'var(--gray-800)' }}>
+                {formatCurrency(item.price)}
+              </td>
               <td>{formatDate(item.expiryDate)}</td>
               <td>{getStatusBadge(item.status)}</td>
             </tr>

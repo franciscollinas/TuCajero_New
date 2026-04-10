@@ -24,6 +24,7 @@ export interface SalesReportRow {
   tax: number;
   discount: number;
   total: number;
+  isCredit: boolean;
   payments: ReportMetric[];
 }
 

@@ -44,7 +44,12 @@ function toFileDate(value: Date): string {
   return value.toISOString().replace(/[:.]/g, '-');
 }
 
-function toInventoryStatus(row: { stock: number; minStock: number; criticalStock: number; expiryDate: Date | null }): InventoryReportRow['status'] {
+function toInventoryStatus(row: {
+  stock: number;
+  minStock: number;
+  criticalStock: number;
+  expiryDate: Date | null;
+}): InventoryReportRow['status'] {
   if (row.expiryDate) {
     const now = new Date();
     const expiry = row.expiryDate;
@@ -86,7 +91,11 @@ export class ReportsService {
     }
   }
 
-  private resolveRange(input: ReportDateRange): { start: Date; end: Date; normalized: ReportDateRange } {
+  private resolveRange(input: ReportDateRange): {
+    start: Date;
+    end: Date;
+    normalized: ReportDateRange;
+  } {
     const start = startOfDay(new Date(input.startDate));
     const end = endOfDay(new Date(input.endDate));
 
@@ -95,7 +104,10 @@ export class ReportsService {
     }
 
     if (start.getTime() > end.getTime()) {
-      throw new AppError(ErrorCode.VALIDATION, 'La fecha inicial no puede ser mayor que la fecha final.');
+      throw new AppError(
+        ErrorCode.VALIDATION,
+        'La fecha inicial no puede ser mayor que la fecha final.',
+      );
     }
 
     return {
@@ -124,6 +136,7 @@ export class ReportsService {
             fullName: true,
           },
         },
+        debt: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -136,6 +149,8 @@ export class ReportsService {
         return acc;
       }, {});
 
+      const isCredit = !!sale.debt;
+
       return {
         id: sale.id,
         saleNumber: sale.saleNumber,
@@ -147,13 +162,14 @@ export class ReportsService {
         tax: Number(sale.tax),
         discount: Number(sale.discount),
         total: Number(sale.total),
+        isCredit,
         payments: Object.entries(paymentMap).map(([label, value]) => ({ label, value })),
       };
     });
   }
 
   private buildSalesSummary(sales: SalesReportRow[]): ReportsSummary {
-    const completed = sales.filter((sale) => sale.status === 'COMPLETED');
+    const completed = sales.filter((sale) => sale.status === 'COMPLETED' && !sale.isCredit);
     const paymentsByMethod = completed.reduce<Record<string, number>>((acc, sale) => {
       sale.payments.forEach((payment) => {
         acc[payment.label] = (acc[payment.label] ?? 0) + payment.value;
@@ -174,7 +190,10 @@ export class ReportsService {
       totalTax: completed.reduce((sum, sale) => sum + sale.tax, 0),
       totalDiscount,
       averageTicket: completed.length > 0 ? netRevenue / completed.length : 0,
-      paymentsByMethod: Object.entries(paymentsByMethod).map(([label, value]) => ({ label, value })),
+      paymentsByMethod: Object.entries(paymentsByMethod).map(([label, value]) => ({
+        label,
+        value,
+      })),
     };
   }
 
@@ -328,7 +347,10 @@ export class ReportsService {
     };
   }
 
-  async getDashboardData(actorUserId: number, range: ReportDateRange): Promise<ReportsDashboardData> {
+  async getDashboardData(
+    actorUserId: number,
+    range: ReportDateRange,
+  ): Promise<ReportsDashboardData> {
     await this.assertReportsAccess(actorUserId);
     const { start, end, normalized } = this.resolveRange(range);
 
@@ -362,7 +384,10 @@ export class ReportsService {
     return reportsDir;
   }
 
-  private createSheetRows(reportType: ReportType, data: ReportsDashboardData): Record<string, string | number | null>[] {
+  private createSheetRows(
+    reportType: ReportType,
+    data: ReportsDashboardData,
+  ): Record<string, string | number | null>[] {
     switch (reportType) {
       case 'sales':
         return data.sales.map((sale) => ({

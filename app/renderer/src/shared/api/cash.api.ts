@@ -30,3 +30,11 @@ export async function closeCashRegister(
 export async function getCashSessionSummary(sessionId: number): Promise<ApiResponse<any>> {
   return window.api.invoke<any>('cash:getSummary', sessionId);
 }
+
+export async function getTodaySalesTotal(userId: number): Promise<ApiResponse<number>> {
+  return window.api.invoke<number>('cash:getTodaySalesTotal', userId);
+}
+
+export async function getMonthSalesTotal(userId: number): Promise<ApiResponse<number>> {
+  return window.api.invoke<number>('cash:getMonthSalesTotal', userId);
+}

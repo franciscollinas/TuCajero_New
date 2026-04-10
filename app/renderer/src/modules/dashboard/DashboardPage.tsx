@@ -13,6 +13,8 @@ import {
   Clock,
   User,
   CreditCard,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import {
   LineChart,
@@ -27,6 +29,11 @@ import {
   Cell,
   Legend,
 } from 'recharts';
+import {
+  getActiveCashRegister,
+  openCashRegister,
+  closeCashRegister,
+} from '../../shared/api/cash.api';
 
 import { getDashboardSummary } from '../../shared/api/sales.api';
 import { formatCurrency } from '../../shared/utils/formatters';
@@ -47,13 +54,14 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 };
 
 function getPaymentMethodsBadge(payments: SalePayment[]): string {
-  return payments.map(p => PAYMENT_METHOD_LABELS[p.method] || p.method).join(', ');
+  return payments.map((p) => PAYMENT_METHOD_LABELS[p.method] || p.method).join(', ');
 }
 
 function getProductsSummary(sale: SaleRecord): string {
   const items = sale.items ?? [];
   if (items.length === 0) return '—';
-  if (items.length <= 2) return items.map(i => `${i.quantity}x ${i.product?.name ?? 'Producto'}`).join(', ');
+  if (items.length <= 2)
+    return items.map((i) => `${i.quantity}x ${i.product?.name ?? 'Producto'}`).join(', ');
   return `${items[0].quantity}x ${items[0].product?.name ?? 'Producto'} +${items.length - 1}`;
 }
 
@@ -80,20 +88,32 @@ function CustomBarTooltip({ active, payload }: any) {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div style={{
-        background: '#fff',
-        border: '1px solid var(--border-light)',
-        borderRadius: 'var(--radius-lg)',
-        padding: 'var(--space-3)',
-        boxShadow: 'var(--shadow-md)',
-        minWidth: '160px',
-      }}>
-        <p style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--gray-800)', marginBottom: '4px' }}>{data.name}</p>
+      <div
+        style={{
+          background: '#fff',
+          border: '1px solid var(--border-light)',
+          borderRadius: 'var(--radius-lg)',
+          padding: 'var(--space-3)',
+          boxShadow: 'var(--shadow-md)',
+          minWidth: '160px',
+        }}
+      >
+        <p
+          style={{
+            fontWeight: 700,
+            fontSize: 'var(--text-sm)',
+            color: 'var(--gray-800)',
+            marginBottom: '4px',
+          }}
+        >
+          {data.name}
+        </p>
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-500)', marginBottom: '2px' }}>
           Ventas: <strong style={{ color: 'var(--brand-600)' }}>{data.ventas}</strong>
         </p>
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-500)' }}>
-          Ingresos: <strong style={{ color: 'var(--success-600)' }}>{formatCurrency(data.ingresos)}</strong>
+          Ingresos:{' '}
+          <strong style={{ color: 'var(--success-600)' }}>{formatCurrency(data.ingresos)}</strong>
         </p>
       </div>
     );
@@ -105,14 +125,18 @@ function CustomPieTooltip({ active, payload }: any) {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div style={{
-        background: '#fff',
-        border: '1px solid var(--border-light)',
-        borderRadius: 'var(--radius-lg)',
-        padding: 'var(--space-3)',
-        boxShadow: 'var(--shadow-md)',
-      }}>
-        <p style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--gray-800)' }}>{data.name}</p>
+      <div
+        style={{
+          background: '#fff',
+          border: '1px solid var(--border-light)',
+          borderRadius: 'var(--radius-lg)',
+          padding: 'var(--space-3)',
+          boxShadow: 'var(--shadow-md)',
+        }}
+      >
+        <p style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--gray-800)' }}>
+          {data.name}
+        </p>
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-500)' }}>
           {formatCurrency(data.value)}
         </p>
@@ -127,6 +151,9 @@ export function DashboardPage(): JSX.Element {
   const products = useInventoryStore((state) => state.products);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cashSession, setCashSession] = useState<any>(null);
+  const [cashLoading, setCashLoading] = useState(false);
+  const [initialCashInput, setInitialCashInput] = useState('');
 
   const initials = user
     ? user.fullName
@@ -146,6 +173,25 @@ export function DashboardPage(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
+    const loadCashSession = async () => {
+      if (!user) return;
+      try {
+        const resp = await getActiveCashRegister(user.id);
+        if (!cancelled && resp.success) {
+          setCashSession(resp.data);
+        }
+      } catch (err) {
+        console.error('Error loading cash session:', err);
+      }
+    };
+    loadCashSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    let cancelled = false;
     const loadSummary = async () => {
       try {
         const response = await getDashboardSummary();
@@ -159,8 +205,51 @@ export function DashboardPage(): JSX.Element {
       }
     };
     loadSummary();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const handleOpenCash = async () => {
+    if (!user || cashLoading) return;
+    const amount = parseFloat(initialCashInput) || 0;
+    if (amount <= 0) return;
+    setCashLoading(true);
+    try {
+      const resp = await openCashRegister(user.id, amount);
+      if (resp.success) {
+        setCashSession(resp.data);
+        setInitialCashInput('');
+      }
+    } catch (err) {
+      console.error('Error opening cash:', err);
+    } finally {
+      setCashLoading(false);
+    }
+  };
+
+  const handleCloseCash = async () => {
+    if (!cashSession || cashLoading) return;
+    setCashLoading(true);
+    try {
+      const resp = await closeCashRegister(cashSession.id, 0, 0);
+      if (resp.success) {
+        setCashSession(null);
+      }
+    } catch (err) {
+      console.error('Error closing cash:', err);
+    } finally {
+      setCashLoading(false);
+    }
+  };
+
+  const toggleCashSession = () => {
+    if (cashSession) {
+      handleCloseCash();
+    } else {
+      handleOpenCash();
+    }
+  };
 
   const todayTotal = summary?.today.totalMonto ?? 0;
   const todayCount = summary?.today.totalVendidos ?? 0;
@@ -168,12 +257,54 @@ export function DashboardPage(): JSX.Element {
   return (
     <div className="animate-fadeIn">
       {/* Welcome Header */}
-      <div style={{ marginBottom: '28px', padding: 'var(--space-6)', borderRadius: 'var(--radius-xl)', background: 'var(--gradient-primary)', color: '#fff', position: 'relative', overflow: 'hidden' }}>
+      <div
+        style={{
+          marginBottom: '28px',
+          padding: 'var(--space-6)',
+          borderRadius: 'var(--radius-xl)',
+          background: 'var(--gradient-primary)',
+          color: '#fff',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
         {/* Background decoration */}
-        <div style={{ position: 'absolute', top: '-50%', right: '-10%', width: '300px', height: '300px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: '-60%', left: '10%', width: '200px', height: '200px', borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' }} />
+        <div
+          style={{
+            position: 'absolute',
+            top: '-50%',
+            right: '-10%',
+            width: '300px',
+            height: '300px',
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.05)',
+            pointerEvents: 'none',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '-60%',
+            left: '10%',
+            width: '200px',
+            height: '200px',
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.03)',
+            pointerEvents: 'none',
+          }}
+        />
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-4)', position: 'relative', zIndex: 1 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 'var(--space-4)',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
           {/* Left: Avatar + Info */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-5)' }}>
             <div
@@ -195,15 +326,37 @@ export function DashboardPage(): JSX.Element {
               {initials}
             </div>
             <div>
-              <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 'var(--text-sm)',
+                  color: 'rgba(255,255,255,0.8)',
+                  fontWeight: 500,
+                }}
+              >
                 Bienvenido
               </p>
-              <h2 style={{ margin: '2px 0 0', fontSize: 'var(--text-2xl)', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+              <h2
+                style={{
+                  margin: '2px 0 0',
+                  fontSize: 'var(--text-2xl)',
+                  fontWeight: 800,
+                  color: '#fff',
+                  letterSpacing: '-0.02em',
+                }}
+              >
                 {user?.fullName ?? ''}
               </h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
                 <Calendar size={14} style={{ color: 'rgba(255,255,255,0.6)' }} />
-                <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 'var(--text-xs)',
+                    color: 'rgba(255,255,255,0.7)',
+                    fontWeight: 500,
+                  }}
+                >
                   {today}
                 </p>
               </div>
@@ -212,11 +365,49 @@ export function DashboardPage(): JSX.Element {
 
           {/* Right: Action Buttons */}
           <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-            <Link to="/sales" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', padding: '0 var(--space-5)', minHeight: '44px', borderRadius: 'var(--radius-lg)', background: '#fff', color: 'var(--brand-600)', fontWeight: 600, fontSize: 'var(--text-sm)', textDecoration: 'none', border: 'none', cursor: 'pointer', transition: 'all var(--transition-base)', boxShadow: 'var(--shadow-sm)' }}>
+            <Link
+              to="/sales"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                padding: '0 var(--space-5)',
+                minHeight: '44px',
+                borderRadius: 'var(--radius-lg)',
+                background: '#fff',
+                color: 'var(--brand-600)',
+                fontWeight: 600,
+                fontSize: 'var(--text-sm)',
+                textDecoration: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all var(--transition-base)',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
               <ShoppingCart size={18} />
               {es.sales.posTitle}
             </Link>
-            <Link to="/inventory" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', padding: '0 var(--space-5)', minHeight: '44px', borderRadius: 'var(--radius-lg)', background: 'rgba(255,255,255,0.15)', color: '#fff', fontWeight: 600, fontSize: 'var(--text-sm)', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.25)', cursor: 'pointer', transition: 'all var(--transition-base)', backdropFilter: 'blur(10px)' }}>
+            <Link
+              to="/inventory"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                padding: '0 var(--space-5)',
+                minHeight: '44px',
+                borderRadius: 'var(--radius-lg)',
+                background: 'rgba(255,255,255,0.15)',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: 'var(--text-sm)',
+                textDecoration: 'none',
+                border: '1px solid rgba(255,255,255,0.25)',
+                cursor: 'pointer',
+                transition: 'all var(--transition-base)',
+                backdropFilter: 'blur(10px)',
+              }}
+            >
               <Package size={18} />
               {es.inventory.title}
             </Link>
@@ -237,7 +428,10 @@ export function DashboardPage(): JSX.Element {
           </div>
         </div>
 
-        <div className="tc-metric-card tc-metric-card--danger animate-slideUp" style={{ animationDelay: '50ms' }}>
+        <div
+          className="tc-metric-card tc-metric-card--danger animate-slideUp"
+          style={{ animationDelay: '50ms' }}
+        >
           <div className="tc-metric-icon tc-metric-icon--danger">
             <AlertTriangle size={24} />
           </div>
@@ -248,18 +442,127 @@ export function DashboardPage(): JSX.Element {
           </div>
         </div>
 
-        <div className="tc-metric-card tc-metric-card--success animate-slideUp" style={{ animationDelay: '100ms' }}>
-          <div className="tc-metric-icon tc-metric-icon--success">
-            <Shield size={24} />
+        <div
+          className="animate-slideUp"
+          style={{
+            animationDelay: '100ms',
+            background: '#fff',
+            borderRadius: 'var(--radius-xl)',
+            border: `1px solid var(--border-light)`,
+            borderTop: cashSession ? '3px solid var(--success-500)' : '3px solid var(--brand-500)',
+            padding: 'var(--space-5)',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: cashSession ? '0' : 'var(--space-3)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: 'var(--radius-lg)',
+                  background: cashSession ? 'var(--success-50)' : 'var(--brand-50)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: cashSession ? 'var(--success-600)' : 'var(--brand-600)',
+                }}
+              >
+                {cashSession ? <Lock size={20} /> : <Unlock size={20} />}
+              </div>
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 600,
+                    color: 'var(--gray-500)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  Caja
+                </p>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 'var(--text-xl)',
+                    fontWeight: 800,
+                    color: cashSession ? 'var(--success-600)' : 'var(--brand-600)',
+                  }}
+                >
+                  {cashSession ? 'Abierta' : 'Cerrada'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={toggleCashSession}
+              disabled={
+                cashLoading ||
+                (!cashSession && (!initialCashInput || parseFloat(initialCashInput) <= 0))
+              }
+              style={{
+                width: '52px',
+                height: '28px',
+                borderRadius: '14px',
+                border: 'none',
+                background: cashSession ? 'var(--success-500)' : 'var(--gray-200)',
+                cursor: cashLoading ? 'not-allowed' : 'pointer',
+                position: 'relative',
+                padding: '3px',
+              }}
+            >
+              <div
+                style={{
+                  width: '22px',
+                  height: '22px',
+                  borderRadius: '50%',
+                  background: '#fff',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  transform: cashSession ? 'translateX(24px)' : 'translateX(0)',
+                  transition: 'transform 0.3s ease',
+                }}
+              />
+            </button>
           </div>
-          <div className="tc-metric-content">
-            <p className="tc-metric-label">{es.cashSession.status}</p>
-            <p className="tc-metric-value">{user ? 'Activa' : 'Inactiva'}</p>
-            <p className="tc-metric-sub">{user ? es.dashboard.sessionActive : es.dashboard.noSession}</p>
-          </div>
+          {!cashSession && (
+            <input
+              type="number"
+              placeholder="Monto inicial para abrir"
+              value={initialCashInput}
+              onChange={(e) => setInitialCashInput(e.target.value)}
+              style={{
+                width: '100%',
+                padding: 'var(--space-2) var(--space-3)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-medium)',
+                fontSize: 'var(--text-sm)',
+                marginBottom: 'var(--space-2)',
+              }}
+            />
+          )}
+          <p
+            style={{
+              margin: 0,
+              fontSize: 'var(--text-xs)',
+              color: cashSession ? 'var(--success-600)' : 'var(--gray-400)',
+            }}
+          >
+            {cashSession ? 'Sesión activa' : 'Sesión inactiva - Click para abrir'}
+          </p>
         </div>
 
-        <div className="tc-metric-card tc-metric-card--warning animate-slideUp" style={{ animationDelay: '150ms' }}>
+        <div
+          className="tc-metric-card tc-metric-card--warning animate-slideUp"
+          style={{ animationDelay: '150ms' }}
+        >
           <div className="tc-metric-icon tc-metric-icon--warning">
             <Package size={24} />
           </div>
@@ -274,10 +577,23 @@ export function DashboardPage(): JSX.Element {
       {/* Charts Section */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 'var(--space-6)' }}>
         {/* Weekly Sales Bar Chart */}
-        <div className="tc-section tc-chart-container animate-slideUp" style={{ animationDelay: '200ms' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-1)' }}>
+        <div
+          className="tc-section tc-chart-container animate-slideUp"
+          style={{ animationDelay: '200ms' }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 'var(--space-1)',
+            }}
+          >
             <div>
-              <h3 className="tc-chart-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <h3
+                className="tc-chart-title"
+                style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
+              >
                 <BarChart3 size={20} style={{ color: 'var(--brand-500)' }} />
                 Ventas Últimos 7 Días
               </h3>
@@ -285,9 +601,24 @@ export function DashboardPage(): JSX.Element {
                 Tendencia de ventas e ingresos de la semana
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 'var(--space-4)', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 'var(--space-4)',
+                fontSize: 'var(--text-xs)',
+                fontWeight: 600,
+              }}
+            >
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '24px', height: '3px', borderRadius: '2px', background: 'linear-gradient(90deg, #465fff, #7c3aed)', display: 'inline-block' }} />
+                <span
+                  style={{
+                    width: '24px',
+                    height: '3px',
+                    borderRadius: '2px',
+                    background: 'linear-gradient(90deg, #465fff, #7c3aed)',
+                    display: 'inline-block',
+                  }}
+                />
                 Ingresos
               </span>
             </div>
@@ -327,9 +658,15 @@ export function DashboardPage(): JSX.Element {
         </div>
 
         {/* Categories Pie Chart */}
-        <div className="tc-section tc-chart-container animate-slideUp" style={{ animationDelay: '250ms' }}>
+        <div
+          className="tc-section tc-chart-container animate-slideUp"
+          style={{ animationDelay: '250ms' }}
+        >
           <div style={{ marginBottom: 'var(--space-1)' }}>
-            <h3 className="tc-chart-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <h3
+              className="tc-chart-title"
+              style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
+            >
               <PieChart size={20} style={{ color: 'var(--brand-500)' }} />
               Categorías Más Vendidas
             </h3>
@@ -361,7 +698,15 @@ export function DashboardPage(): JSX.Element {
                 iconType="circle"
                 iconSize={8}
                 formatter={(value: string) => (
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--gray-600)' }}>{value}</span>
+                  <span
+                    style={{
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 600,
+                      color: 'var(--gray-600)',
+                    }}
+                  >
+                    {value}
+                  </span>
                 )}
               />
             </RePieChart>
@@ -370,10 +715,28 @@ export function DashboardPage(): JSX.Element {
       </div>
 
       {/* Recent Sales Table */}
-      <div className="tc-section animate-slideUp" style={{ animationDelay: '300ms', marginTop: 'var(--space-6)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-5)' }}>
+      <div
+        className="tc-section animate-slideUp"
+        style={{ animationDelay: '300ms', marginTop: 'var(--space-6)' }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 'var(--space-5)',
+          }}
+        >
           <div>
-            <h3 className="tc-section-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '4px' }}>
+            <h3
+              className="tc-section-title"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                marginBottom: '4px',
+              }}
+            >
               <List size={20} style={{ color: 'var(--brand-500)' }} />
               Últimas Ventas
             </h3>
@@ -381,7 +744,11 @@ export function DashboardPage(): JSX.Element {
               Registro de las 10 transacciones más recientes
             </p>
           </div>
-          <Link to="/sales/history" className="tc-btn tc-btn--secondary" style={{ fontSize: 'var(--text-sm)', padding: '0 var(--space-4)', minHeight: '40px' }}>
+          <Link
+            to="/sales/history"
+            className="tc-btn tc-btn--secondary"
+            style={{ fontSize: 'var(--text-sm)', padding: '0 var(--space-4)', minHeight: '40px' }}
+          >
             <Clock size={16} />
             Ver Historial Completo
           </Link>
@@ -403,20 +770,59 @@ export function DashboardPage(): JSX.Element {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--gray-400)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)' }}>
-                      <div style={{ width: '16px', height: '16px', border: '2px solid var(--gray-200)', borderTop: '2px solid var(--brand-500)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  <td
+                    colSpan={7}
+                    style={{
+                      textAlign: 'center',
+                      padding: 'var(--space-8)',
+                      color: 'var(--gray-400)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 'var(--space-2)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '16px',
+                          height: '16px',
+                          border: '2px solid var(--gray-200)',
+                          borderTop: '2px solid var(--brand-500)',
+                          borderRadius: '50%',
+                          animation: 'spin 0.8s linear infinite',
+                        }}
+                      />
                       Cargando ventas...
                     </div>
                   </td>
                 </tr>
               ) : (summary?.recentSales ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--gray-400)' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-2)' }}>
+                  <td
+                    colSpan={7}
+                    style={{
+                      textAlign: 'center',
+                      padding: 'var(--space-8)',
+                      color: 'var(--gray-400)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 'var(--space-2)',
+                      }}
+                    >
                       <ShoppingCart size={32} />
                       <span style={{ fontWeight: 600 }}>No hay ventas registradas</span>
-                      <span style={{ fontSize: 'var(--text-xs)' }}>Las ventas aparecerán aquí cuando se realicen</span>
+                      <span style={{ fontSize: 'var(--text-xs)' }}>
+                        Las ventas aparecerán aquí cuando se realicen
+                      </span>
                     </div>
                   </td>
                 </tr>
@@ -426,22 +832,63 @@ export function DashboardPage(): JSX.Element {
                   return (
                     <tr key={sale.id} style={{ transition: 'background var(--transition-fast)' }}>
                       <td>
-                        <span style={{ fontWeight: 700, color: 'var(--brand-600)', fontSize: 'var(--text-sm)' }}>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            color: 'var(--brand-600)',
+                            fontSize: 'var(--text-sm)',
+                          }}
+                        >
                           #{sale.saleNumber}
                         </span>
                       </td>
                       <td>
-                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-500)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span
+                          style={{
+                            fontSize: 'var(--text-xs)',
+                            color: 'var(--gray-500)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
                           <Clock size={12} />
                           {formatDate(sale.createdAt)}
                         </span>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                          <div style={{ width: '28px', height: '28px', borderRadius: 'var(--radius-md)', background: 'var(--brand-50)', color: 'var(--brand-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-xs)', fontWeight: 700, flexShrink: 0 }}>
-                            {customer.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                        <div
+                          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
+                        >
+                          <div
+                            style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: 'var(--radius-md)',
+                              background: 'var(--brand-50)',
+                              color: 'var(--brand-600)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 'var(--text-xs)',
+                              fontWeight: 700,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {customer.name
+                              .split(' ')
+                              .map((w) => w[0])
+                              .join('')
+                              .slice(0, 2)
+                              .toUpperCase()}
                           </div>
-                          <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--gray-800)' }}>
+                          <span
+                            style={{
+                              fontWeight: 600,
+                              fontSize: 'var(--text-sm)',
+                              color: 'var(--gray-800)',
+                            }}
+                          >
                             {customer.name}
                           </span>
                         </div>
@@ -452,12 +899,29 @@ export function DashboardPage(): JSX.Element {
                         </span>
                       </td>
                       <td>
-                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-600)', maxWidth: '200px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={getProductsSummary(sale)}>
+                        <span
+                          style={{
+                            fontSize: 'var(--text-xs)',
+                            color: 'var(--gray-600)',
+                            maxWidth: '200px',
+                            display: 'inline-block',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={getProductsSummary(sale)}
+                        >
                           {getProductsSummary(sale)}
                         </span>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <span style={{ fontWeight: 800, fontSize: 'var(--text-sm)', color: 'var(--gray-900)' }}>
+                        <span
+                          style={{
+                            fontWeight: 800,
+                            fontSize: 'var(--text-sm)',
+                            color: 'var(--gray-900)',
+                          }}
+                        >
                           {formatCurrency(sale.total)}
                         </span>
                       </td>
@@ -468,18 +932,30 @@ export function DashboardPage(): JSX.Element {
                               key={payment.id}
                               className="tc-badge"
                               style={{
-                                background: payment.method === 'efectivo' ? 'var(--success-100)' :
-                                  payment.method === 'nequi' ? '#e9d5ff' :
-                                  payment.method === 'daviplata' ? '#fef0c7' :
-                                  payment.method === 'tarjeta' ? 'var(--brand-100)' :
-                                  payment.method === 'transferencia' ? '#cffafe' :
-                                  'var(--warning-100)',
-                                color: payment.method === 'efectivo' ? 'var(--success-600)' :
-                                  payment.method === 'nequi' ? '#9333ea' :
-                                  payment.method === 'daviplata' ? 'var(--warning-600)' :
-                                  payment.method === 'tarjeta' ? 'var(--brand-600)' :
-                                  payment.method === 'transferencia' ? '#0891b2' :
-                                  'var(--warning-600)',
+                                background:
+                                  payment.method === 'efectivo'
+                                    ? 'var(--success-100)'
+                                    : payment.method === 'nequi'
+                                      ? '#e9d5ff'
+                                      : payment.method === 'daviplata'
+                                        ? '#fef0c7'
+                                        : payment.method === 'tarjeta'
+                                          ? 'var(--brand-100)'
+                                          : payment.method === 'transferencia'
+                                            ? '#cffafe'
+                                            : 'var(--warning-100)',
+                                color:
+                                  payment.method === 'efectivo'
+                                    ? 'var(--success-600)'
+                                    : payment.method === 'nequi'
+                                      ? '#9333ea'
+                                      : payment.method === 'daviplata'
+                                        ? 'var(--warning-600)'
+                                        : payment.method === 'tarjeta'
+                                          ? 'var(--brand-600)'
+                                          : payment.method === 'transferencia'
+                                            ? '#0891b2'
+                                            : 'var(--warning-600)',
                                 fontSize: 'var(--text-xs)',
                                 fontWeight: 600,
                               }}

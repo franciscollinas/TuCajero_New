@@ -1,9 +1,6 @@
 import { Prisma } from '@prisma/client';
 
-import type {
-  CashCloseSummary,
-  CashRegister,
-} from '../../renderer/src/shared/types/cash.types';
+import type { CashCloseSummary, CashRegister } from '../../renderer/src/shared/types/cash.types';
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
 import { AuditService } from './audit.service';
@@ -131,28 +128,59 @@ export class CashSessionService {
   async getCashSessionSummary(sessionId: number): Promise<any> {
     const payments = await prisma.payment.findMany({
       where: {
-        OR: [
-          { cashSessionId: sessionId },
-          { sale: { cashSessionId: sessionId } }
-        ],
+        OR: [{ cashSessionId: sessionId }, { sale: { cashSessionId: sessionId } }],
         AND: [
           {
-            OR: [
-              { saleId: null },
-              { sale: { status: 'COMPLETED' } }
-            ]
-          }
-        ]
-      }
+            OR: [{ saleId: null }, { sale: { status: 'COMPLETED' } }],
+          },
+        ],
+      },
     });
 
-    const summary = payments.reduce((acc: any, p) => {
-      const method = p.method.toLowerCase();
-      acc[method] = (acc[method] || 0) + Number(p.amount);
-      acc.total = (acc.total || 0) + Number(p.amount);
-      return acc;
-    }, { total: 0 });
+    const summary = payments.reduce(
+      (acc: any, p) => {
+        const method = p.method.toLowerCase();
+        acc[method] = (acc[method] || 0) + Number(p.amount);
+        acc.total = (acc.total || 0) + Number(p.amount);
+        return acc;
+      },
+      { total: 0 },
+    );
 
     return summary;
+  }
+
+  async getTodaySalesTotal(userId: number): Promise<number> {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    const result = await prisma.payment.aggregate({
+      where: {
+        sale: { userId, status: 'COMPLETED' },
+        createdAt: { gte: startOfDay, lte: endOfDay },
+        method: { not: 'credito' },
+      },
+      _sum: { amount: true },
+    });
+
+    return Number(result._sum.amount || 0);
+  }
+
+  async getMonthSalesTotal(userId: number): Promise<number> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const result = await prisma.payment.aggregate({
+      where: {
+        sale: { userId, status: 'COMPLETED' },
+        createdAt: { gte: startOfMonth, lte: endOfMonth },
+        method: { not: 'credito' },
+      },
+      _sum: { amount: true },
+    });
+
+    return Number(result._sum.amount || 0);
   }
 }

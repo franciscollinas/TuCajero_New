@@ -5,218 +5,223 @@ import path from 'path';
 
 import type { SaleRecord } from '../../renderer/src/shared/types/sales.types';
 
+// ============================================================
+// UTILIDADES
+// ============================================================
+
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
 function paymentMethodLabel(method: string): string {
   const labels: Record<string, string> = {
-    efectivo: '💵 Efectivo',
-    nequi: '📱 Nequi',
-    daviplata: '📲 Daviplata',
-    tarjeta: '💳 Tarjeta',
-    transferencia: '🏦 Transferencia',
-    credito: '📋 Credito / Fiar',
+    efectivo: 'Efectivo',
+    nequi: 'Nequi',
+    daviplata: 'Daviplata',
+    tarjeta: 'Tarjeta',
+    transferencia: 'Transferencia',
+    credito: 'Credito / Fiar',
   };
-
   return labels[method] ?? method;
 }
+
+// ============================================================
+// GENERADOR DE FACTURA PDF
+// ============================================================
 
 export async function generateInvoicePDF(sale: SaleRecord): Promise<string> {
   const fileName = `Factura_${sale.saleNumber}.pdf`;
   const filePath = path.join(app.getPath('downloads'), fileName);
 
-  // A4 size in points (595 x 842)
+  // Crear documento A4 sin margenes (nosotros manejamos los margenes manualmente)
   const doc = new PDFDocument({ size: 'A4', margin: 0 });
   const stream = fs.createWriteStream(filePath);
-
   doc.pipe(stream);
 
-  const pageWidth = 595;
-  const pageHeight = 842;
-  const margin = 35;
-  const contentWidth = pageWidth - margin * 2;
+  // Dimensiones
+  const PAGE_W = 595;
+  const PAGE_H = 842;
+  const MARGIN = 50;
+  const CONTENT_W = PAGE_W - MARGIN * 2;
 
-  // ===== DECORATIVE BORDER =====
-  doc.lineWidth(2);
-  doc.rect(15, 15, pageWidth - 30, pageHeight - 30).stroke('#e2e8f0');
-  doc.lineWidth(0.5);
-  doc.rect(18, 18, pageWidth - 36, pageHeight - 36).stroke('#f1f5f9');
+  // Columnas de la tabla
+  const COL_PROD_X = MARGIN;
+  const COL_PROD_W = 200;
+  const COL_QTY_X = MARGIN + 210;
+  const COL_QTY_W = 50;
+  const COL_PRICE_X = MARGIN + 270;
+  const COL_PRICE_W = 100;
+  const COL_TOTAL_X = MARGIN + 380;
+  const COL_TOTAL_W = 115;
 
-  // ===== HEADER BACKGROUND WITH GRADIENT EFFECT =====
-  // Simulate gradient with overlapping rectangles
-  doc.rect(0, 0, pageWidth, 130).fill('#1e40af');
-  doc.rect(0, 100, pageWidth, 30).fill('#2563eb');
-  doc.rect(0, 120, pageWidth, 10).fill('#3b82f6');
+  // Posiciones para totales
+  const TOT_LABEL_RIGHT = COL_TOTAL_X - 10;
+  const TOT_LABEL_LEFT = TOT_LABEL_RIGHT - 120;
+  const TOT_VALUE_LEFT = COL_TOTAL_X;
+  const TOT_VALUE_RIGHT = COL_TOTAL_X + COL_TOTAL_W;
 
-  // Decorative circles
-  doc.circle(550, 40, 80).fill('#1e3a8a').opacity(0.3);
-  doc.circle(50, 100, 60).fill('#3b82f6').opacity(0.2);
+  // Color oscuro para encabezados de tabla (similar al ejemplo)
+  const DARK_HEADER = '#2c3e50';
 
-  // Company name and branding
-  doc.fillColor('#ffffff').fontSize(26).font('Helvetica-Bold').text('TU CAJERO', margin, 30, { align: 'center', width: contentWidth });
-  doc.fontSize(10).font('Helvetica').fillColor('#dbeafe').text('Sistema Punto de Venta Profesional', margin, 58, { align: 'center', width: contentWidth });
-  
-  // Company details line
-  doc.fontSize(8).fillColor('#bfdbfe').text('NIT: 900.123.456-7  |  Calle 123 #45-67, Bogota D.C.  |  Tel: (601) 234-5678', margin, 78, { align: 'center', width: contentWidth });
-  doc.fillColor('#93c5fd').text('www.tucajero.com  |  soporte@tucajero.com', margin, 92, { align: 'center', width: contentWidth });
+  let y = 40; // cursor vertical inicial
 
-  // ===== INVOICE INFO BOX =====
-  const boxY = 145;
-  doc.fillColor('#ffffff');
-  doc.roundedRect(margin, boxY, contentWidth, 70, 8).fill('#f8fafc').stroke('#e2e8f0');
+  // ============================================================
+  // 1. HEADER CENTRADO
+  // ============================================================
+  doc.fillColor('#000000').fontSize(18).font('Helvetica-Bold').text('TU CAJERO', MARGIN, y, { align: 'center', width: CONTENT_W });
+  y += 20;
+  doc.fontSize(9).font('Helvetica').fillColor('#333333').text('Calle 123 #45-67, Bogota D.C.', MARGIN, y, { align: 'center', width: CONTENT_W });
+  y += 14;
+  doc.text('Tel: (601) 234-5678', MARGIN, y, { align: 'center', width: CONTENT_W });
+  y += 14;
+  doc.text('NIT: 900.123.456-7', MARGIN, y, { align: 'center', width: CONTENT_W });
 
-  // Invoice number - left side
-  doc.fillColor('#1e40af').fontSize(16).font('Helvetica-Bold').text('FACTURA DE VENTA', margin + 15, boxY + 15);
-  doc.fontSize(12).fillColor('#1e293b').text(sale.saleNumber, margin + 15, boxY + 35);
-  doc.fontSize(8).fillColor('#64748b').text('Numero de comprobante', margin + 15, boxY + 52);
+  // ============================================================
+  // 2. LINEA DE INFORMACION DE LA FACTURA
+  // ============================================================
+  y += 30;
+  const dateStr = new Date(sale.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const timeStr = new Date(sale.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const methodsStr = sale.payments.map(p => paymentMethodLabel(p.method)).join(', ');
 
-  // Date - middle
-  doc.fillColor('#64748b').fontSize(8).font('Helvetica').text('FECHA DE EMISION', margin + 200, boxY + 15);
-  doc.fillColor('#1e293b').fontSize(11).font('Helvetica-Bold').text(new Date(sale.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }), margin + 200, boxY + 30);
-  doc.fillColor('#64748b').fontSize(9).font('Helvetica').text(new Date(sale.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }), margin + 200, boxY + 48);
+  doc.fillColor('#000000').fontSize(10).font('Helvetica-Bold').text(
+    `${sale.saleNumber} - ${dateStr} ${timeStr} - Metodo: ${methodsStr}`,
+    MARGIN, y, { width: CONTENT_W }
+  );
 
-  // Cashier - right
-  doc.fillColor('#64748b').fontSize(8).font('Helvetica').text('CAJERO RESPONSABLE', margin + 380, boxY + 15);
-  doc.fillColor('#1e293b').fontSize(11).font('Helvetica-Bold').text(sale.user.fullName, margin + 380, boxY + 30);
-  
-  if (sale.cashSessionId) {
-    doc.fillColor('#64748b').fontSize(8).font('Helvetica').text('CAJA', margin + 380, boxY + 48);
-    doc.fillColor('#1e293b').fontSize(9).font('Helvetica-Bold').text(`#${sale.cashSessionId}`, margin + 380, boxY + 58);
-  }
+  // ============================================================
+  // 3. LINEA SEPARADORA GRUESA
+  // ============================================================
+  y += 16;
+  doc.rect(MARGIN, y, CONTENT_W, 2).fill(DARK_HEADER);
 
-  // ===== CUSTOMER INFO =====
-  let currentY = boxY + 85;
+  // ============================================================
+  // 4. CLIENTE (si aplica)
+  // ============================================================
   if (sale.customer) {
-    doc.roundedRect(margin, currentY, contentWidth, 50, 6).fill('#eff6ff').stroke('#bfdbfe');
-    doc.fillColor('#1e40af').fontSize(9).font('Helvetica-Bold').text('👤 CLIENTE', margin + 15, currentY + 12);
-    doc.fillColor('#1e293b').fontSize(12).font('Helvetica-Bold').text(sale.customer.name, margin + 15, currentY + 28);
-    if (sale.customer.phone) {
-      doc.fillColor('#64748b').fontSize(9).font('Helvetica').text(`📞 ${sale.customer.phone}`, margin + 15, currentY + 42);
-    }
-    currentY += 65;
+    y += 18;
+    doc.fillColor('#333333').fontSize(9).font('Helvetica').text(
+      `Cliente: ${sale.customer.name}${sale.customer.phone ? ' | Tel: ' + sale.customer.phone : ''}`,
+      MARGIN, y
+    );
   }
 
-  // ===== TABLE HEADER =====
-  doc.roundedRect(margin, currentY, contentWidth, 32, 6).fill('#1e40af');
+  // ============================================================
+  // 5. ENCABEZADO DE TABLA (fondo oscuro, texto blanco)
+  // ============================================================
+  y += 20;
+  doc.rect(MARGIN, y, CONTENT_W, 22).fill(DARK_HEADER);
 
   doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold');
-  doc.text('DESCRIPCION DEL PRODUCTO', margin + 12, currentY + 11);
-  doc.text('CANT', 310, currentY + 11, { width: 50, align: 'center' });
-  doc.text('P. UNIT', 370, currentY + 11, { width: 70, align: 'right' });
-  doc.text('TOTAL', 450, currentY + 11, { width: 85, align: 'right' });
+  doc.text('Producto', COL_PROD_X, y + 7, { width: COL_PROD_W });
+  doc.text('Cant.', COL_QTY_X, y + 7, { width: COL_QTY_W, align: 'center' });
+  doc.text('Precio unit.', COL_PRICE_X, y + 7, { width: COL_PRICE_W, align: 'right' });
+  doc.text('Subtotal', COL_TOTAL_X, y + 7, { width: COL_TOTAL_W, align: 'right' });
 
-  // ===== TABLE ROWS =====
-  doc.fillColor('#1e293b').fontSize(9).font('Helvetica');
-  let y = currentY + 38;
-
+  // ============================================================
+  // 6. FILAS DE PRODUCTOS (filas alternadas)
+  // ============================================================
+  y += 22;
   sale.items.forEach((item, index) => {
-    // Alternating row colors
-    if (index % 2 === 0) {
-      doc.rect(margin, y - 12, contentWidth, 24).fill('#f8fafc');
+    // Fila alternada con fondo gris claro
+    if (index % 2 === 1) {
+      doc.rect(MARGIN, y, CONTENT_W, 20).fill('#f5f5f5');
     }
 
-    // Product line
-    doc.fillColor('#1e293b').text(item.product.name, margin + 12, y, { width: 280 });
-    doc.text(String(item.quantity), 310, y, { width: 50, align: 'center' });
-    doc.text(formatCurrency(item.unitPrice), 370, y, { width: 70, align: 'right' });
-    doc.fillColor('#1e40af').font('Helvetica-Bold').text(formatCurrency(item.total), 450, y, { width: 85, align: 'right' });
-    doc.font('Helvetica');
+    doc.fillColor('#000000').fontSize(9).font('Helvetica');
+    doc.text(item.product.name, COL_PROD_X, y + 5, { width: COL_PROD_W });
+    doc.text(String(item.quantity), COL_QTY_X, y + 5, { width: COL_QTY_W, align: 'center' });
+    doc.text(formatCurrency(item.unitPrice), COL_PRICE_X, y + 5, { width: COL_PRICE_W, align: 'right' });
+    doc.text(formatCurrency(item.total), COL_TOTAL_X, y + 5, { width: COL_TOTAL_W, align: 'right' });
 
-    y += 24;
+    y += 20;
   });
 
-  // Table bottom line
-  doc.roundedRect(margin, y - 2, contentWidth, 3, 1.5).fill('#e2e8f0');
+  // Linea inferior de la tabla
+  doc.rect(MARGIN, y, CONTENT_W, 1).fill(DARK_HEADER);
 
-  // ===== TOTALS SECTION =====
-  const totalsY = y + 18;
-  const totalsX = 330;
-  const totalsWidth = 205;
-
-  // Totals background
-  doc.roundedRect(totalsX - 15, totalsY - 8, totalsWidth + 30, 110, 8).fill('#f8fafc').stroke('#e2e8f0');
+  // ============================================================
+  // 7. TOTALES (alineados con la columna TOTAL de la tabla)
+  // ============================================================
+  y += 15;
 
   // Subtotal
-  doc.fillColor('#64748b').fontSize(9).font('Helvetica').text('Subtotal:', totalsX, totalsY);
-  doc.fillColor('#1e293b').fontSize(9).font('Helvetica').text(formatCurrency(sale.subtotal), totalsX + 80, totalsY, { width: totalsWidth - 80, align: 'right' });
+  doc.fillColor('#333333').fontSize(9).font('Helvetica').text('Subtotal:', TOT_LABEL_LEFT, y, { width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT, align: 'right' });
+  doc.fillColor('#000000').fontSize(9).text(formatCurrency(sale.subtotal), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
 
   // IVA
-  doc.fillColor('#64748b').fontSize(9).font('Helvetica').text('IVA (19%):', totalsX, totalsY + 20);
-  doc.fillColor('#1e293b').fontSize(9).font('Helvetica').text(formatCurrency(sale.tax), totalsX + 80, totalsY + 20, { width: totalsWidth - 80, align: 'right' });
+  if (sale.tax > 0) {
+    y += 16;
+    doc.fillColor('#333333').fontSize(9).font('Helvetica').text('IVA (19%):', TOT_LABEL_LEFT, y, { width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT, align: 'right' });
+    doc.fillColor('#000000').fontSize(9).text(formatCurrency(sale.tax), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
+  }
 
-  // Discount
+  // Descuento
   if (sale.discount > 0) {
-    doc.fillColor('#64748b').fontSize(9).font('Helvetica').text('Descuento:', totalsX, totalsY + 40);
-    doc.fillColor('#dc2626').fontSize(9).font('Helvetica').text(`-${formatCurrency(sale.discount)}`, totalsX + 80, totalsY + 40, { width: totalsWidth - 80, align: 'right' });
+    y += 16;
+    doc.fillColor('#333333').fontSize(9).font('Helvetica').text('Descuento:', TOT_LABEL_LEFT, y, { width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT, align: 'right' });
+    doc.fillColor('#e74c3c').fontSize(9).text('-' + formatCurrency(sale.discount), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
   }
 
   // Delivery
   if (sale.deliveryFee > 0) {
-    const deliveryY = sale.discount > 0 ? totalsY + 60 : totalsY + 40;
-    doc.fillColor('#64748b').fontSize(9).font('Helvetica').text('Costo Delivery:', totalsX, deliveryY);
-    doc.fillColor('#1e293b').fontSize(9).font('Helvetica').text(formatCurrency(sale.deliveryFee), totalsX + 80, deliveryY, { width: totalsWidth - 80, align: 'right' });
+    y += 16;
+    doc.fillColor('#333333').fontSize(9).font('Helvetica').text('Delivery:', TOT_LABEL_LEFT, y, { width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT, align: 'right' });
+    doc.fillColor('#000000').fontSize(9).text(formatCurrency(sale.deliveryFee), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
   }
 
-  // TOTAL BOX - prominent
-  const totalBoxY = (sale.discount > 0 || sale.deliveryFee > 0) ? totalsY + 75 : totalsY + 55;
-  doc.roundedRect(totalsX - 15, totalBoxY - 5, totalsWidth + 30, 36, 8).fill('#1e40af');
-  doc.fillColor('#ffffff').fontSize(12).font('Helvetica-Bold').text('TOTAL A PAGAR:', totalsX, totalBoxY + 5);
-  doc.fontSize(15).text(formatCurrency(sale.total), totalsX + 80, totalBoxY + 3, { width: totalsWidth - 80, align: 'right' });
+  // TOTAL (linea arriba y abajo)
+  y += 16;
+  doc.rect(MARGIN, y, CONTENT_W, 1).fill(DARK_HEADER);
+  y += 10;
+  doc.fillColor('#000000').fontSize(11).font('Helvetica-Bold').text('TOTAL:', TOT_LABEL_LEFT, y, { width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT, align: 'right' });
+  doc.fontSize(12).text(formatCurrency(sale.total), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
+  y += 18;
+  doc.rect(MARGIN, y, CONTENT_W, 1).fill(DARK_HEADER);
 
-  // ===== PAYMENTS SECTION =====
-  const payY = totalBoxY + 50;
-  doc.fillColor('#1e40af').fontSize(11).font('Helvetica-Bold').text('💳 DETALLE DE PAGOS', margin, payY);
-  doc.rect(margin, payY + 16, contentWidth, 1).fill('#e2e8f0');
+  // ============================================================
+  // 8. DETALLE DE PAGOS (si hay mas de uno)
+  // ============================================================
+  if (sale.payments.length > 1) {
+    y += 20;
+    doc.fillColor('#000000').fontSize(9).font('Helvetica-Bold').text('Detalle de pagos:', MARGIN, y);
+    y += 14;
+    sale.payments.forEach((payment) => {
+      doc.fillColor('#333333').fontSize(9).font('Helvetica').text(paymentMethodLabel(payment.method) + ':', MARGIN, y);
+      doc.fillColor('#000000').fontSize(9).font('Helvetica-Bold').text(formatCurrency(payment.amount), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
+      y += 14;
+    });
+  }
 
-  let payRowY = payY + 26;
-  sale.payments.forEach((payment) => {
-    // Payment row with colored left border
-    doc.rect(margin, payRowY - 8, 5, 24).fill('#10b981');
-    doc.rect(margin + 5, payRowY - 8, contentWidth - 5, 24).fill('#f0fdf4').stroke('#bbf7d0');
-
-    doc.fillColor('#166534').fontSize(9).font('Helvetica-Bold').text(paymentMethodLabel(payment.method), margin + 15, payRowY + 2);
-    doc.fillColor('#059669').fontSize(11).font('Helvetica-Bold').text(formatCurrency(payment.amount), pageWidth - margin - 110, payRowY, { width: 110, align: 'right' });
-
-    if (payment.reference) {
-      doc.fillColor('#64748b').fontSize(7).font('Helvetica').text(`Ref: ${payment.reference}`, margin + 15, payRowY + 14);
-    }
-
-    payRowY += 30;
-  });
-
-  // Cash received and change section
+  // Efectivo recibido y cambio
   const cashReceived = (sale as any).cashReceived;
   const change = (sale as any).change;
   if (cashReceived && change > 0) {
-    const cashY = payRowY + 8;
-    doc.roundedRect(margin, cashY - 5, contentWidth, 45, 8).fill('#fef3c7').stroke('#f59e0b');
-    
-    doc.fillColor('#92400e').fontSize(9).font('Helvetica').text('💵 Efectivo recibido:', margin + 15, cashY + 5);
-    doc.fillColor('#92400e').fontSize(12).font('Helvetica-Bold').text(formatCurrency(cashReceived), margin + 130, cashY + 3);
-    
-    doc.fillColor('#92400e').fontSize(9).font('Helvetica').text('🔄 Cambio a devolver:', margin + 15, cashY + 24);
-    doc.fillColor('#dc2626').fontSize(14).font('Helvetica-Bold').text(formatCurrency(change), margin + 130, cashY + 20);
+    y += 8;
+    doc.fillColor('#333333').fontSize(9).font('Helvetica').text('Efectivo recibido:', MARGIN, y);
+    doc.fillColor('#000000').fontSize(9).font('Helvetica-Bold').text(formatCurrency(cashReceived), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
+    y += 14;
+    doc.fillColor('#333333').fontSize(9).font('Helvetica').text('Cambio:', MARGIN, y);
+    doc.fillColor('#e74c3c').fontSize(10).font('Helvetica-Bold').text(formatCurrency(change), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
+    y += 18;
   }
 
-  // ===== QR CODE PLACEHOLDER (decorative) =====
-  const qrY = payRowY + (cashReceived && change > 0 ? 60 : 20);
-  doc.roundedRect(margin, qrY, 80, 80, 6).fill('#ffffff').stroke('#e2e8f0');
-  doc.fillColor('#94a3b8').fontSize(7).font('Helvetica').text('Codigo QR', margin + 18, qrY + 38, { align: 'center', width: 44 });
-  doc.text('de validacion', margin + 15, qrY + 48, { align: 'center', width: 50 });
+  // ============================================================
+  // 9. FOOTER
+  // ============================================================
+  const footerY = PAGE_H - 60;
+  doc.rect(MARGIN, footerY, CONTENT_W, 1).fill(DARK_HEADER);
+  y = footerY + 18;
+  doc.fillColor('#27ae60').fontSize(10).font('Helvetica-Bold').text('Gracias por su compra!', MARGIN, y, { align: 'center', width: CONTENT_W });
+  y += 14;
+  doc.fillColor('#666666').fontSize(7).font('Helvetica').text('Comprobante generado automaticamente por TuCajero POS', MARGIN, y, { align: 'center', width: CONTENT_W });
 
-  // ===== FOOTER =====
-  const footerY = pageHeight - 70;
-  doc.rect(margin, footerY, contentWidth, 1).fill('#e2e8f0');
-
-  doc.fillColor('#64748b').fontSize(9).font('Helvetica').text('¡Gracias por su compra!', margin, footerY + 18, { align: 'center', width: contentWidth });
-  doc.fillColor('#94a3b8').fontSize(7).text('Este documento es un comprobante valido de compra • Documento generado automaticamente por TuCajero POS', margin, footerY + 32, { align: 'center', width: contentWidth });
-  doc.fillColor('#cbd5e1').fontSize(6).text(`Generado el ${new Date().toLocaleString('es-CO')} • ID: ${Date.now()}`, margin, footerY + 44, { align: 'center', width: contentWidth });
-
+  // Finalizar documento
   doc.end();
 
   return new Promise<string>((resolve, reject) => {

@@ -33,12 +33,16 @@ export function InventoryAlerts({
     (buckets.expiringSoon?.length ?? 0);
 
   return (
-    <section className="tc-section">
+    <section className="tc-section" style={{ maxWidth: '60%' }}>
       <header className="tc-section-header">
         <div>
-          <p className="tc-section-title">{compact ? es.inventory.dashboardTitle : es.inventory.alertsTitle}</p>
+          <p className="tc-section-title">
+            {compact ? es.inventory.dashboardTitle : es.inventory.alertsTitle}
+          </p>
           <p style={{ margin: '4px 0 0', color: '#6B7280' }}>
-            {totalAlerts > 0 ? `${totalAlerts} alertas activas en el inventario` : 'No hay alertas activas por ahora.'}
+            {totalAlerts > 0
+              ? `${totalAlerts} alertas activas en el inventario`
+              : 'No hay alertas activas por ahora.'}
           </p>
         </div>
         {showActions && (
@@ -53,13 +57,27 @@ export function InventoryAlerts({
         )}
       </header>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: compact ? 'repeat(auto-fit, minmax(180px, 1fr))' : 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: compact ? '12px' : '16px',
-      }}>
-        <AlertGroup title={es.inventory.critical} color="#DC2626" badgeVariant="danger" products={buckets.critical} emptyLabel="Sin productos críticos" />
-        <AlertGroup title={es.inventory.warning} color="#D97706" badgeVariant="warning" products={buckets.warning} emptyLabel="Sin productos en advertencia" />
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          gap: '16px',
+        }}
+      >
+        <AlertGroup
+          title={es.inventory.critical}
+          color="#DC2626"
+          badgeVariant="danger"
+          products={buckets.critical}
+          emptyLabel="Sin productos críticos"
+        />
+        <AlertGroup
+          title={es.inventory.warning}
+          color="#D97706"
+          badgeVariant="warning"
+          products={buckets.warning}
+          emptyLabel="Sin productos en advertencia"
+        />
         <AlertGroup
           title={es.inventory.expiredNow}
           color="#7C2D12"
@@ -92,18 +110,29 @@ function AlertGroup({
   emptyLabel: string;
 }): JSX.Element {
   return (
-    <article style={{
-      padding: '16px',
-      borderRadius: '12px',
-      background: '#F9FAFB',
-      border: '1px solid #E5E7EB',
-      display: 'grid',
-      gap: '12px',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'flex-start' }}>
+    <article
+      style={{
+        padding: '16px',
+        borderRadius: '12px',
+        background: '#F9FAFB',
+        border: '1px solid #E5E7EB',
+        display: 'grid',
+        gap: '12px',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: '8px',
+          alignItems: 'flex-start',
+        }}
+      >
         <div>
           <p className={`tc-badge tc-badge--${badgeVariant}`}>{title}</p>
-          <p style={{ margin: '8px 0 0', color: '#111827', fontSize: '18px', fontWeight: 700 }}>{products.length} productos</p>
+          <p style={{ margin: '8px 0 0', color: '#111827', fontSize: '18px', fontWeight: 700 }}>
+            {products.length} productos
+          </p>
         </div>
       </div>
 
@@ -124,28 +153,46 @@ function AlertGroup({
             const statusColor = getInventoryStatusColor(status);
 
             return (
-              <li key={product.id} style={{
-                padding: '12px',
-                borderRadius: '12px',
-                background: '#FFFFFF',
-                border: '1px solid #E5E7EB',
-                display: 'grid',
-                gap: '4px',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
+              <li
+                key={product.id}
+                style={{
+                  padding: '12px',
+                  borderRadius: '12px',
+                  background: '#FFFFFF',
+                  border: '1px solid #E5E7EB',
+                  display: 'grid',
+                  gap: '4px',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    alignItems: 'flex-start',
+                  }}
+                >
                   <strong style={{ color: '#111827' }}>{product.name}</strong>
-                  <span className="tc-badge" style={{ borderColor: `${statusColor}40`, color: statusColor }}>
+                  <span
+                    className="tc-badge"
+                    style={{ borderColor: `${statusColor}40`, color: statusColor }}
+                  >
                     {getInventoryStatusLabel(status)}
                   </span>
                 </div>
                 <p style={{ margin: 0, color: '#6B7280', fontSize: '14px' }}>
-                  Stock {product.stock} · Mínimo {product.minStock} · {formatCurrency(product.price)}
+                  Stock {product.stock} · Mínimo {product.minStock} ·{' '}
+                  {formatCurrency(product.price)}
                 </p>
-                <p style={{ margin: 0, color: '#6B7280', fontSize: '14px' }}>{formatDate(product.expiryDate)}</p>
+                <p style={{ margin: 0, color: '#6B7280', fontSize: '14px' }}>
+                  {formatDate(product.expiryDate)}
+                </p>
               </li>
             );
           })}
-          {products.length > 4 && <li style={{ margin: 0, color: '#6B7280' }}>+ {products.length - 4} más</li>}
+          {products.length > 4 && (
+            <li style={{ margin: 0, color: '#6B7280' }}>+ {products.length - 4} más</li>
+          )}
         </ul>
       )}
     </article>
