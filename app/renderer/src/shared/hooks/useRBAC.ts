@@ -50,6 +50,7 @@ const permissions: Record<UserRole, Permission[]> = {
     'inventory:view',
     'inventory:search',
     'reports:all',
+    'users:all',
     'cash-session:all',
     'cash-session:open',
     'cash-session:close-own',

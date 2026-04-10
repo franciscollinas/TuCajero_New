@@ -1,7 +1,13 @@
 import { ipcMain } from 'electron';
 
 import type { ApiResponse } from '../../renderer/src/shared/types/api.types';
-import type { CartItemInput, DailySummary, DashboardSummary, PaymentInput, SaleRecord } from '../../renderer/src/shared/types/sales.types';
+import type {
+  CartItemInput,
+  DailySummary,
+  DashboardSummary,
+  PaymentInput,
+  SaleRecord,
+} from '../../renderer/src/shared/types/sales.types';
 import { generateInvoicePDF } from '../services/invoice.service';
 import { SalesService } from '../services/sales.service';
 import { logger } from '../utils/logger';
@@ -32,7 +38,11 @@ export function registerSalesIpc(): void {
           deliveryFee,
           customerId,
         );
-        logger.info('sales:create-success', { saleId: result.id, saleNumber: result.saleNumber, userId });
+        logger.info('sales:create-success', {
+          saleId: result.id,
+          saleNumber: result.saleNumber,
+          userId,
+        });
         return { success: true, data: result };
       } catch (err) {
         logger.error('sales:create-error', { err, userId, cashSessionId });
@@ -41,14 +51,17 @@ export function registerSalesIpc(): void {
     },
   );
 
-  ipcMain.handle('sales:getById', async (_event, id: number): Promise<ApiResponse<SaleRecord | null>> => {
-    try {
-      const result = await salesService.getSaleById(id);
-      return { success: true, data: result };
-    } catch (err) {
-      return { success: false, error: toApiError(err) };
-    }
-  });
+  ipcMain.handle(
+    'sales:getById',
+    async (_event, id: number): Promise<ApiResponse<SaleRecord | null>> => {
+      try {
+        const result = await salesService.getSaleById(id);
+        return { success: true, data: result };
+      } catch (err) {
+        return { success: false, error: toApiError(err) };
+      }
+    },
+  );
 
   ipcMain.handle(
     'sales:getByNumber',
@@ -75,10 +88,25 @@ export function registerSalesIpc(): void {
   );
 
   ipcMain.handle(
+    'sales:getByUser',
+    async (_event, userId: number): Promise<ApiResponse<SaleRecord[]>> => {
+      try {
+        const result = await salesService.getSalesByUser(userId);
+        return { success: true, data: result };
+      } catch (err) {
+        return { success: false, error: toApiError(err) };
+      }
+    },
+  );
+
+  ipcMain.handle(
     'sales:getByDateRange',
     async (_event, startDate: string, endDate: string): Promise<ApiResponse<SaleRecord[]>> => {
       try {
-        const result = await salesService.getSalesByDateRange(new Date(startDate), new Date(endDate));
+        const result = await salesService.getSalesByDateRange(
+          new Date(startDate),
+          new Date(endDate),
+        );
         return { success: true, data: result };
       } catch (err) {
         return { success: false, error: toApiError(err) };
@@ -111,20 +139,23 @@ export function registerSalesIpc(): void {
     },
   );
 
-  ipcMain.handle('sales:generateInvoice', async (_event, saleId: number): Promise<ApiResponse<string>> => {
-    try {
-      const sale = await salesService.getSaleById(saleId);
-      if (!sale) {
-        throw new Error('Venta no encontrada.');
-      }
+  ipcMain.handle(
+    'sales:generateInvoice',
+    async (_event, saleId: number): Promise<ApiResponse<string>> => {
+      try {
+        const sale = await salesService.getSaleById(saleId);
+        if (!sale) {
+          throw new Error('Venta no encontrada.');
+        }
 
-      const filePath = await generateInvoicePDF(sale);
-      logger.info('sales:invoice-generated', { saleId, filePath });
-      return { success: true, data: filePath };
-    } catch (err) {
-      return { success: false, error: toApiError(err) };
-    }
-  });
+        const filePath = await generateInvoicePDF(sale);
+        logger.info('sales:invoice-generated', { saleId, filePath });
+        return { success: true, data: filePath };
+      } catch (err) {
+        return { success: false, error: toApiError(err) };
+      }
+    },
+  );
 
   ipcMain.handle('sales:getDashboardSummary', async (): Promise<ApiResponse<DashboardSummary>> => {
     try {

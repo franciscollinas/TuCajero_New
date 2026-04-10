@@ -395,6 +395,18 @@ export class SalesService {
     return sales.map((s: any) => mapSale(s));
   }
 
+  async getSalesByUser(userId: number): Promise<SaleRecord[]> {
+    const sales = await prisma.sale.findMany({
+      where: { userId },
+      include: SALE_INCLUDE,
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return sales.map((s: any) => mapSale(s));
+  }
+
   async getSalesByDateRange(startDate: Date, endDate: Date): Promise<SaleRecord[]> {
     const sales = await prisma.sale.findMany({
       where: {

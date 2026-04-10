@@ -3,6 +3,8 @@ import type {
   BackupInfo,
   BackupListResult,
   BackupSummaryInfo,
+  V1DatabaseInfo,
+  V1ImportResult,
 } from '../types/backup.types';
 
 export function createBackup(
@@ -32,4 +34,12 @@ export function restoreBackup(
 
 export function getBackupInfo(actorUserId: number): Promise<ApiResponse<BackupSummaryInfo>> {
   return window.api.invoke<BackupSummaryInfo>('backup:info', actorUserId);
+}
+
+export function checkV1Database(): Promise<ApiResponse<V1DatabaseInfo>> {
+  return window.api.invoke<V1DatabaseInfo>('backup:check-v1');
+}
+
+export function importFromV1(actorUserId: number): Promise<ApiResponse<V1ImportResult>> {
+  return window.api.invoke<V1ImportResult>('backup:import-v1', actorUserId);
 }

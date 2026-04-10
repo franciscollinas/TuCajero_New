@@ -16,10 +16,37 @@ const auditService = new AuditService();
 function getDatabasePath(): string {
   const databaseUrl = process.env.DATABASE_URL ?? '';
   const match = databaseUrl.match(/file:(.+)/);
-  if (!match) {
-    throw new AppError(ErrorCode.DATABASE_ERROR, 'No se pudo determinar la ruta de la base de datos.');
+  if (match && fs.existsSync(match[1])) {
+    return path.resolve(match[1]);
   }
-  return path.resolve(match[1]);
+  const possiblePaths = [
+    path.join(__dirname, '../../database/tucajero.db'),
+    path.join(__dirname, '../../../database/tucajero.db'),
+    path.join(
+      process.env.USERPROFILE || '',
+      'Documents',
+      'MPointOfSale',
+      'database',
+      'tucajero.db',
+    ),
+    path.join(
+      app.getPath('userData'),
+      '..',
+      '..',
+      '..',
+      'Documents',
+      'MPointOfSale',
+      'database',
+      'tucajero.db',
+    ),
+    'C:\\Users\\UserMaster\\Documents\\MPointOfSale\\database\\tucajero.db',
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      return p;
+    }
+  }
+  throw new AppError(ErrorCode.DATABASE_ERROR, 'No se encontró la base de datos actual.');
 }
 
 function getBackupDir(): string {
@@ -77,7 +104,10 @@ export class BackupService {
     }
 
     if (actor.role !== 'ADMIN') {
-      throw new AppError(ErrorCode.FORBIDDEN, 'Solo los administradores pueden gestionar copias de seguridad.');
+      throw new AppError(
+        ErrorCode.FORBIDDEN,
+        'Solo los administradores pueden gestionar copias de seguridad.',
+      );
     }
   }
 
@@ -108,7 +138,10 @@ export class BackupService {
 
       if (!isValidBackupFile(backupPath)) {
         fs.unlinkSync(backupPath);
-        throw new AppError(ErrorCode.DATABASE_ERROR, 'La copia de seguridad generada no es válida.');
+        throw new AppError(
+          ErrorCode.DATABASE_ERROR,
+          'La copia de seguridad generada no es válida.',
+        );
       }
 
       const fileSize = getFileSize(backupPath);
@@ -197,7 +230,10 @@ export class BackupService {
     };
   }
 
-  async deleteBackup(actorUserId: number, fileName: string): Promise<{ success: boolean; message: string }> {
+  async deleteBackup(
+    actorUserId: number,
+    fileName: string,
+  ): Promise<{ success: boolean; message: string }> {
     await this.assertBackupAccess(actorUserId);
 
     const safeFileName = this.validateBackupFileName(fileName);
@@ -213,7 +249,10 @@ export class BackupService {
     }
 
     if (!files.includes(safeFileName)) {
-      throw new AppError(ErrorCode.NOT_FOUND, `No se encontró la copia de seguridad: ${safeFileName}`);
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `No se encontró la copia de seguridad: ${safeFileName}`,
+      );
     }
 
     try {
@@ -233,7 +272,10 @@ export class BackupService {
     }
   }
 
-  async restoreBackup(actorUserId: number, fileName: string): Promise<{ success: boolean; message: string }> {
+  async restoreBackup(
+    actorUserId: number,
+    fileName: string,
+  ): Promise<{ success: boolean; message: string }> {
     await this.assertBackupAccess(actorUserId);
 
     const safeFileName = this.validateBackupFileName(fileName);
@@ -261,17 +303,26 @@ export class BackupService {
     }
 
     if (!backupExists) {
-      throw new AppError(ErrorCode.NOT_FOUND, `No se encontró la copia de seguridad: ${safeFileName}`);
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `No se encontró la copia de seguridad: ${safeFileName}`,
+      );
     }
 
     if (!isValidBackupFile(backupPath)) {
-      throw new AppError(ErrorCode.VALIDATION, 'El archivo de backup no es una base de datos SQLite válida.');
+      throw new AppError(
+        ErrorCode.VALIDATION,
+        'El archivo de backup no es una base de datos SQLite válida.',
+      );
     }
 
     try {
       await prisma.$disconnect();
 
-      const backupTarget = path.join(backupDir, `${safeFileName}.pre-restore-${toFileDate(new Date())}.db`);
+      const backupTarget = path.join(
+        backupDir,
+        `${safeFileName}.pre-restore-${toFileDate(new Date())}.db`,
+      );
       fs.copyFileSync(dbPath, backupTarget);
 
       fs.copyFileSync(backupPath, dbPath);
@@ -281,7 +332,10 @@ export class BackupService {
 
       if (!isValidBackupFile(dbPath)) {
         fs.copyFileSync(backupTarget, dbPath);
-        throw new AppError(ErrorCode.DATABASE_ERROR, 'La restauración falló: la base de datos resultante no es válida. Se revirtió el cambio.');
+        throw new AppError(
+          ErrorCode.DATABASE_ERROR,
+          'La restauración falló: la base de datos resultante no es válida. Se revirtió el cambio.',
+        );
       }
 
       await auditService.log({
@@ -376,5 +430,147 @@ export class BackupService {
       backupDir: getBackupDir(),
       lastBackup,
     };
+  }
+
+  async checkV1Database(): Promise<{ exists: boolean; path: string }> {
+    const v1Paths = [
+      path.join(process.env.LOCALAPPDATA || '', 'TuCajero', 'database', 'pos.db'),
+      path.join(process.env.APPDATA || '', 'TuCajero', 'database', 'pos.db'),
+      path.join(
+        process.env.USERPROFILE || '',
+        'AppData',
+        'Local',
+        'TuCajero',
+        'database',
+        'pos.db',
+      ),
+      'C:\\Users\\UserMaster\\AppData\\Local\\TuCajero\\database\\pos.db',
+    ];
+
+    for (const p of v1Paths) {
+      try {
+        if (fs.existsSync(p)) {
+          return { exists: true, path: p };
+        }
+      } catch {}
+    }
+
+    return { exists: false, path: '' };
+  }
+
+  async importFromV1(
+    actorUserId: number,
+  ): Promise<{ success: boolean; message: string; imported: number }> {
+    await this.assertBackupAccess(actorUserId);
+
+    const v1Info = await this.checkV1Database();
+    if (!v1Info.exists) {
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        'No se encontró la base de datos de la versión anterior.',
+      );
+    }
+
+    const v1DbPath = v1Info.path;
+
+    try {
+      const Database = require('better-sqlite3');
+      const v1Db = new Database(v1DbPath, { readonly: true });
+
+      let imported = 0;
+
+      // Import categories
+      const categorias = v1Db.prepare('SELECT * FROM categorias').all();
+      for (const cat of categorias) {
+        try {
+          await prisma.category.upsert({
+            where: { id: cat.id },
+            create: {
+              name: cat.nombre,
+              color: cat.color || '#3498db',
+            },
+            update: {
+              name: cat.nombre,
+              color: cat.color || '#3498db',
+            },
+          });
+          imported++;
+        } catch {}
+      }
+
+      // Import products
+      const productos = v1Db.prepare('SELECT * FROM productos').all();
+      for (const prod of productos) {
+        try {
+          await prisma.product.upsert({
+            where: { id: prod.id },
+            create: {
+              code: prod.codigo || `PROD-${prod.id}`,
+              name: prod.nombre,
+              price: prod.precio || 0,
+              cost: prod.costo || 0,
+              stock: prod.stock || 0,
+              minStock: prod.stock_minimo || 0,
+              isActive: prod.activo !== 0,
+              categoryId: prod.categoria_id,
+              expiryDate: prod.fecha_vencimiento ? new Date(prod.fecha_vencimiento) : null,
+            },
+            update: {
+              code: prod.codigo || `PROD-${prod.id}`,
+              name: prod.nombre,
+              price: prod.precio || 0,
+              cost: prod.costo || 0,
+              stock: prod.stock || 0,
+              minStock: prod.stock_minimo || 0,
+              isActive: prod.activo !== 0,
+              categoryId: prod.categoria_id,
+              expiryDate: prod.fecha_vencimiento ? new Date(prod.fecha_vencimiento) : null,
+            },
+          });
+          imported++;
+        } catch {}
+      }
+
+      // Import customers
+      const clientes = v1Db.prepare('SELECT * FROM clientes').all();
+      for (const cli of clientes) {
+        try {
+          await prisma.customer.upsert({
+            where: { id: cli.id },
+            create: {
+              name: cli.nombre,
+              phone: cli.telefono || '',
+              email: cli.email || '',
+              address: cli.direccion || '',
+              isActive: true,
+            },
+            update: {
+              name: cli.nombre,
+              phone: cli.telefono || '',
+              email: cli.email || '',
+              address: cli.direccion || '',
+            },
+          });
+          imported++;
+        } catch {}
+      }
+
+      v1Db.close();
+
+      await auditService.log({
+        userId: actorUserId,
+        action: 'migration:v1-import',
+        entity: 'Backup',
+        payload: { imported },
+      });
+
+      return { success: true, message: `Se importaron ${imported} registros.`, imported };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError(
+        ErrorCode.DATABASE_ERROR,
+        'Error al importar datos de la versión anterior.',
+      );
+    }
   }
 }

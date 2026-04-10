@@ -1,10 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { createBackup, deleteBackup, getBackupInfo, listBackups, restoreBackup } from '../../shared/api/backup.api';
+import {
+  checkV1Database,
+  createBackup,
+  deleteBackup,
+  getBackupInfo,
+  importFromV1,
+  listBackups,
+  restoreBackup,
+} from '../../shared/api/backup.api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { es } from '../../shared/i18n';
-import type { BackupMetadata, BackupSummaryInfo } from '../../shared/types/backup.types';
+import type {
+  BackupMetadata,
+  BackupSummaryInfo,
+  V1DatabaseInfo,
+} from '../../shared/types/backup.types';
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString('es-CO');
@@ -21,42 +33,90 @@ const DatabaseIcon = () => (
 
 const CloudUploadIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 16V4m0 0L8 8m4-4l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path
+      d="M12 16V4m0 0L8 8m4-4l4 4"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
 const RestoreIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M3 12a9 9 0 1018 0A9 9 0 003 12z" stroke="currentColor" strokeWidth="2" />
-    <path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path
+      d="M12 8v4l3 3"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
 const TrashIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path
+      d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
 const CheckCircleIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-    <path d="M8 12l3 3 5-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path
+      d="M8 12l3 3 5-6"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
 const XCircleIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-    <path d="M9 9l6 6m0-6l-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path
+      d="M9 9l6 6m0-6l-6 6"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
 const FileIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path
+      d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M14 2v6h6M16 13H8M16 17H8M10 9H8"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
@@ -69,14 +129,32 @@ const InfoIcon = () => (
 
 const ArrowLeftIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M19 12H5m7-7l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path
+      d="M19 12H5m7-7l-7 7 7 7"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
 const ShieldCheckIcon = () => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 2l7 4v5c0 5.25-3.5 9.74-7 11-3.5-1.26-7-5.75-7-11V6l7-4z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path
+      d="M12 2l7 4v5c0 5.25-3.5 9.74-7 11-3.5-1.26-7-5.75-7-11V6l7-4z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M9 12l2 2 4-4"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
@@ -89,6 +167,8 @@ export function BackupPage(): JSX.Element {
   const [actionInProgress, setActionInProgress] = useState<string>('');
   const [description, setDescription] = useState('');
   const [dbInfo, setDbInfo] = useState<BackupSummaryInfo | null>(null);
+  const [v1Info, setV1Info] = useState<V1DatabaseInfo | null>(null);
+  const [v1Loading, setV1Loading] = useState(true);
 
   const loadData = useCallback(async (): Promise<void> => {
     if (!user) return;
@@ -96,9 +176,10 @@ export function BackupPage(): JSX.Element {
     setLoading(true);
     setMessage('');
 
-    const [backupsRes, infoRes] = await Promise.all([
+    const [backupsRes, infoRes, v1Res] = await Promise.all([
       listBackups(user.id),
       getBackupInfo(user.id),
+      checkV1Database(),
     ]);
 
     if (backupsRes.success) {
@@ -112,6 +193,11 @@ export function BackupPage(): JSX.Element {
       setDbInfo(infoRes.data);
     }
 
+    if (v1Res.success) {
+      setV1Info(v1Res.data);
+    }
+
+    setV1Loading(false);
     setLoading(false);
   }, [user]);
 
@@ -172,6 +258,26 @@ export function BackupPage(): JSX.Element {
 
     if (response.success) {
       setMessage(es.backup.restoreSuccess);
+      setMessageType('success');
+    } else {
+      setMessage(response.error.message);
+      setMessageType('error');
+    }
+
+    setActionInProgress('');
+  };
+
+  const handleImportV1 = async (): Promise<void> => {
+    if (!user) return;
+    if (!confirm('¿Importar datos de TuCajero v1? Los datos existentes se fusionarán.')) return;
+
+    setActionInProgress('import-v1');
+    setMessage('');
+
+    const response = await importFromV1(user.id);
+
+    if (response.success) {
+      setMessage(es.backup.importSuccess.replace('{count}', String(response.data.imported)));
       setMessageType('success');
     } else {
       setMessage(response.error.message);
@@ -280,31 +386,62 @@ export function BackupPage(): JSX.Element {
 
       {/* Page Header */}
       <div style={{ marginBottom: '28px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+            gap: '16px',
+          }}
+        >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-              <div style={{
-                background: 'linear-gradient(135deg, #465fff 0%, #7c3aed 100%)',
-                borderRadius: '10px',
-                padding: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                boxShadow: '0 4px 14px rgba(70, 95, 255, 0.3)'
-              }}>
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}
+            >
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, #465fff 0%, #7c3aed 100%)',
+                  borderRadius: '10px',
+                  padding: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  boxShadow: '0 4px 14px rgba(70, 95, 255, 0.3)',
+                }}
+              >
                 <ShieldCheckIcon />
               </div>
               <div>
-                <p style={{ margin: 0, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: '11px', fontWeight: 700 }}>
+                <p
+                  style={{
+                    margin: 0,
+                    color: '#6b7280',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.14em',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                  }}
+                >
                   {es.backup.title}
                 </p>
-                <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>
+                <h1
+                  style={{
+                    margin: 0,
+                    fontSize: '26px',
+                    fontWeight: 700,
+                    color: '#111827',
+                    lineHeight: 1.2,
+                  }}
+                >
                   {es.backup.title}
                 </h1>
               </div>
             </div>
-            <p style={{ margin: '8px 0 0', color: '#6b7280', fontSize: '14px' }}>{es.backup.subtitle}</p>
+            <p style={{ margin: '8px 0 0', color: '#6b7280', fontSize: '14px' }}>
+              {es.backup.subtitle}
+            </p>
           </div>
           <div>
             <Link
@@ -322,7 +459,7 @@ export function BackupPage(): JSX.Element {
                 fontSize: '14px',
                 fontWeight: 600,
                 textDecoration: 'none',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               <ArrowLeftIcon />
@@ -334,7 +471,10 @@ export function BackupPage(): JSX.Element {
 
       {/* Message Notices */}
       {message ? (
-        <div className={`backup-notice backup-notice-${messageType === 'error' ? 'error' : messageType === 'success' ? 'success' : 'info'}`} style={{ marginBottom: '24px' }}>
+        <div
+          className={`backup-notice backup-notice-${messageType === 'error' ? 'error' : messageType === 'success' ? 'success' : 'info'}`}
+          style={{ marginBottom: '24px' }}
+        >
           {messageType === 'success' && <CheckCircleIcon />}
           {messageType === 'error' && <XCircleIcon />}
           {messageType === 'info' && <InfoIcon />}
@@ -342,91 +482,252 @@ export function BackupPage(): JSX.Element {
         </div>
       ) : null}
 
-      {/* Database Info Card */}
-      {dbInfo ? (
-        <div className="backup-card" style={{
-          background: 'linear-gradient(135deg, #fafaff 0%, #f0f4ff 100%)',
-          border: '1px solid #e0e7ff',
-          borderRadius: '14px',
-          padding: '22px',
-          marginBottom: '24px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-            <div style={{
-              background: 'linear-gradient(135deg, #465fff 0%, #6366f1 100%)',
-              borderRadius: '8px',
-              padding: '8px',
+      {/* V1 Migration Section */}
+      {v1Loading ? (
+        <div
+          className="backup-card"
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid #e5e7eb',
+            borderRadius: '14px',
+            padding: '22px',
+            marginBottom: '24px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+          }}
+        >
+          <div
+            style={{
               display: 'flex',
               alignItems: 'center',
-              color: '#ffffff'
-            }}>
+              gap: '10px',
+              color: '#6b7280',
+              fontSize: '14px',
+            }}
+          >
+            <span style={{ animation: 'pulse 1.5s infinite' }}>{es.backup.migrateLoading}</span>
+          </div>
+        </div>
+      ) : v1Info && v1Info.exists ? (
+        <div
+          className="backup-card"
+          style={{
+            background: 'linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%)',
+            border: '1px solid #fcd34d',
+            borderRadius: '14px',
+            padding: '22px',
+            marginBottom: '24px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                borderRadius: '8px',
+                padding: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                color: '#ffffff',
+              }}
+            >
               <DatabaseIcon />
             </div>
-            <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#111827' }}>{es.backup.databaseInfo}</h2>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#92400e' }}>
+                {es.backup.migrateTitle}
+              </h2>
+              <p style={{ margin: 0, fontSize: '13px', color: '#a16207' }}>
+                {es.backup.migrateSubtitle}
+              </p>
+            </div>
           </div>
-          <div style={{ display: 'grid', gap: '12px' }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
+          <div
+            style={{
               padding: '12px 14px',
               backgroundColor: '#ffffff',
               borderRadius: '10px',
-              border: '1px solid #e5e7eb'
-            }}>
-              <span style={{ fontWeight: 600, color: '#374151', fontSize: '13px' }}>{es.backup.databasePath}</span>
-              <span style={{ color: '#6b7280', fontSize: '13px', fontFamily: 'ui-monospace, monospace', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dbInfo.databasePath}</span>
+              border: '1px solid #fcd34d',
+              marginBottom: '14px',
+            }}
+          >
+            <div
+              style={{ fontWeight: 600, color: '#92400e', fontSize: '13px', marginBottom: '4px' }}
+            >
+              {es.backup.migratePath}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-              <div style={{
+            <div
+              style={{
+                color: '#78350f',
+                fontSize: '12px',
+                fontFamily: 'ui-monospace, monospace',
+                wordBreak: 'break-all',
+              }}
+            >
+              {v1Info.path}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="backup-btn-primary"
+            onClick={() => void handleImportV1()}
+            disabled={actionInProgress === 'import-v1'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '11px 20px',
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: actionInProgress === 'import-v1' ? 'not-allowed' : 'pointer',
+              opacity: actionInProgress === 'import-v1' ? 0.7 : 1,
+              boxShadow: '0 2px 8px rgba(245, 158, 11, 0.25)',
+            }}
+          >
+            <CloudUploadIcon />
+            {actionInProgress === 'import-v1' ? es.backup.importing : es.backup.migrateButton}
+          </button>
+        </div>
+      ) : null}
+
+      {/* Database Info Card */}
+      {dbInfo ? (
+        <div
+          className="backup-card"
+          style={{
+            background: 'linear-gradient(135deg, #fafaff 0%, #f0f4ff 100%)',
+            border: '1px solid #e0e7ff',
+            borderRadius: '14px',
+            padding: '22px',
+            marginBottom: '24px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #465fff 0%, #6366f1 100%)',
+                borderRadius: '8px',
+                padding: '8px',
                 display: 'flex',
-                justifyContent: 'space-between',
                 alignItems: 'center',
+                color: '#ffffff',
+              }}
+            >
+              <DatabaseIcon />
+            </div>
+            <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#111827' }}>
+              {es.backup.databaseInfo}
+            </h2>
+          </div>
+          <div style={{ display: 'grid', gap: '12px' }}>
+            <div
+              style={{
                 padding: '12px 14px',
                 backgroundColor: '#ffffff',
                 borderRadius: '10px',
-                border: '1px solid #e5e7eb'
-              }}>
-                <span style={{ fontWeight: 600, color: '#374151', fontSize: '13px' }}>{es.backup.databaseSize}</span>
-                <span style={{ color: '#465fff', fontSize: '14px', fontWeight: 700 }}>{dbInfo.databaseSizeFormatted}</span>
+                border: '1px solid #e5e7eb',
+              }}
+            >
+              <div
+                style={{ fontWeight: 600, color: '#374151', fontSize: '13px', marginBottom: '4px' }}
+              >
+                {es.backup.databasePath}
               </div>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '12px 14px',
-                backgroundColor: '#ffffff',
-                borderRadius: '10px',
-                border: '1px solid #e5e7eb'
-              }}>
-                <span style={{ fontWeight: 600, color: '#374151', fontSize: '13px' }}>{es.backup.totalBackups}</span>
-                <span style={{ color: '#12b76a', fontSize: '14px', fontWeight: 700 }}>{dbInfo.backupCount}</span>
+              <div
+                style={{
+                  color: '#6b7280',
+                  fontSize: '13px',
+                  fontFamily: 'ui-monospace, monospace',
+                  wordBreak: 'break-all',
+                }}
+              >
+                {dbInfo.databasePath}
               </div>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '12px 14px',
-                backgroundColor: '#ffffff',
-                borderRadius: '10px',
-                border: '1px solid #e5e7eb'
-              }}>
-                <span style={{ fontWeight: 600, color: '#374151', fontSize: '13px' }}>{es.backup.totalSize}</span>
-                <span style={{ color: '#f79009', fontSize: '14px', fontWeight: 700 }}>{dbInfo.backupTotalSizeFormatted}</span>
-              </div>
-              {dbInfo.lastBackup ? (
-                <div style={{
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '12px',
+              }}
+            >
+              <div
+                style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '12px 14px',
                   backgroundColor: '#ffffff',
                   borderRadius: '10px',
-                  border: '1px solid #e5e7eb'
-                }}>
-                  <span style={{ fontWeight: 600, color: '#374151', fontSize: '13px' }}>{es.backup.lastBackup}</span>
-                  <span style={{ color: '#6b7280', fontSize: '13px' }}>{formatDate(dbInfo.lastBackup.createdAt)}</span>
+                  border: '1px solid #e5e7eb',
+                }}
+              >
+                <span style={{ fontWeight: 600, color: '#374151', fontSize: '13px' }}>
+                  {es.backup.databaseSize}
+                </span>
+                <span style={{ color: '#465fff', fontSize: '14px', fontWeight: 700 }}>
+                  {dbInfo.databaseSizeFormatted}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 14px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '10px',
+                  border: '1px solid #e5e7eb',
+                }}
+              >
+                <span style={{ fontWeight: 600, color: '#374151', fontSize: '13px' }}>
+                  {es.backup.totalBackups}
+                </span>
+                <span style={{ color: '#12b76a', fontSize: '14px', fontWeight: 700 }}>
+                  {dbInfo.backupCount}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 14px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '10px',
+                  border: '1px solid #e5e7eb',
+                }}
+              >
+                <span style={{ fontWeight: 600, color: '#374151', fontSize: '13px' }}>
+                  {es.backup.totalSize}
+                </span>
+                <span style={{ color: '#f79009', fontSize: '14px', fontWeight: 700 }}>
+                  {dbInfo.backupTotalSizeFormatted}
+                </span>
+              </div>
+              {dbInfo.lastBackup ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '12px 14px',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '10px',
+                    border: '1px solid #e5e7eb',
+                  }}
+                >
+                  <span style={{ fontWeight: 600, color: '#374151', fontSize: '13px' }}>
+                    {es.backup.lastBackup}
+                  </span>
+                  <span style={{ color: '#6b7280', fontSize: '13px' }}>
+                    {formatDate(dbInfo.lastBackup.createdAt)}
+                  </span>
                 </div>
               ) : null}
             </div>
@@ -435,26 +736,33 @@ export function BackupPage(): JSX.Element {
       ) : null}
 
       {/* Create Backup Section */}
-      <div className="backup-card" style={{
-        backgroundColor: '#ffffff',
-        border: '1px solid #e5e7eb',
-        borderRadius: '14px',
-        padding: '22px',
-        marginBottom: '24px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
-      }}>
+      <div
+        className="backup-card"
+        style={{
+          backgroundColor: '#ffffff',
+          border: '1px solid #e5e7eb',
+          borderRadius: '14px',
+          padding: '22px',
+          marginBottom: '24px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #12b76a 0%, #0ea5e9 100%)',
-            borderRadius: '8px',
-            padding: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            color: '#ffffff'
-          }}>
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #12b76a 0%, #0ea5e9 100%)',
+              borderRadius: '8px',
+              padding: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              color: '#ffffff',
+            }}
+          >
             <CloudUploadIcon />
           </div>
-          <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#111827' }}>{es.backup.createBackup}</h2>
+          <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#111827' }}>
+            {es.backup.createBackup}
+          </h2>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <input
@@ -472,7 +780,7 @@ export function BackupPage(): JSX.Element {
               fontSize: '14px',
               color: '#111827',
               backgroundColor: '#fafafa',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
             }}
           />
           <button
@@ -496,7 +804,7 @@ export function BackupPage(): JSX.Element {
               opacity: actionInProgress.length > 0 ? 0.7 : 1,
               boxShadow: '0 2px 8px rgba(70, 95, 255, 0.25)',
               alignSelf: 'flex-start',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
             }}
           >
             <CloudUploadIcon />
@@ -506,48 +814,61 @@ export function BackupPage(): JSX.Element {
       </div>
 
       {/* Backup List Section */}
-      <div className="backup-card" style={{
-        backgroundColor: '#ffffff',
-        border: '1px solid #e5e7eb',
-        borderRadius: '14px',
-        padding: '22px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
-      }}>
+      <div
+        className="backup-card"
+        style={{
+          backgroundColor: '#ffffff',
+          border: '1px solid #e5e7eb',
+          borderRadius: '14px',
+          padding: '22px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #f79009 0%, #f59e0b 100%)',
-            borderRadius: '8px',
-            padding: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            color: '#ffffff'
-          }}>
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #f79009 0%, #f59e0b 100%)',
+              borderRadius: '8px',
+              padding: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              color: '#ffffff',
+            }}
+          >
             <FileIcon />
           </div>
-          <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#111827' }}>{es.backup.backupList}</h2>
+          <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#111827' }}>
+            {es.backup.backupList}
+          </h2>
         </div>
 
         {loading ? (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '40px',
-            color: '#9ca3af',
-            fontSize: '14px'
-          }}>
-            <span style={{ animation: 'pulse 1.5s infinite', marginRight: '8px' }}>{es.common.loading}</span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '40px',
+              color: '#9ca3af',
+              fontSize: '14px',
+            }}
+          >
+            <span style={{ animation: 'pulse 1.5s infinite', marginRight: '8px' }}>
+              {es.common.loading}
+            </span>
           </div>
         ) : backups.length === 0 ? (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '48px 20px',
-            color: '#9ca3af',
-            textAlign: 'center'
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '48px 20px',
+              color: '#9ca3af',
+              textAlign: 'center',
+            }}
+          >
             <div style={{ marginBottom: '12px', color: '#d1d5db' }}>
               <FileIcon />
             </div>
@@ -555,84 +876,125 @@ export function BackupPage(): JSX.Element {
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              fontSize: '14px'
-            }}>
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                fontSize: '14px',
+              }}
+            >
               <thead>
                 <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
-                  <th style={{
-                    textAlign: 'left',
-                    padding: '12px 16px',
-                    fontWeight: 700,
-                    color: '#374151',
-                    fontSize: '12px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em'
-                  }}>{es.backup.fileName}</th>
-                  <th style={{
-                    textAlign: 'left',
-                    padding: '12px 16px',
-                    fontWeight: 700,
-                    color: '#374151',
-                    fontSize: '12px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em'
-                  }}>{es.backup.createdAt}</th>
-                  <th style={{
-                    textAlign: 'left',
-                    padding: '12px 16px',
-                    fontWeight: 700,
-                    color: '#374151',
-                    fontSize: '12px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em'
-                  }}>{es.backup.backupSize}</th>
-                  <th style={{
-                    textAlign: 'left',
-                    padding: '12px 16px',
-                    fontWeight: 700,
-                    color: '#374151',
-                    fontSize: '12px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em'
-                  }}>{es.inventory.status}</th>
-                  <th style={{
-                    textAlign: 'left',
-                    padding: '12px 16px',
-                    fontWeight: 700,
-                    color: '#374151',
-                    fontSize: '12px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em'
-                  }}>{es.backup.actions}</th>
+                  <th
+                    style={{
+                      textAlign: 'left',
+                      padding: '12px 16px',
+                      fontWeight: 700,
+                      color: '#374151',
+                      fontSize: '12px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                    }}
+                  >
+                    {es.backup.fileName}
+                  </th>
+                  <th
+                    style={{
+                      textAlign: 'left',
+                      padding: '12px 16px',
+                      fontWeight: 700,
+                      color: '#374151',
+                      fontSize: '12px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                    }}
+                  >
+                    {es.backup.createdAt}
+                  </th>
+                  <th
+                    style={{
+                      textAlign: 'left',
+                      padding: '12px 16px',
+                      fontWeight: 700,
+                      color: '#374151',
+                      fontSize: '12px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                    }}
+                  >
+                    {es.backup.backupSize}
+                  </th>
+                  <th
+                    style={{
+                      textAlign: 'left',
+                      padding: '12px 16px',
+                      fontWeight: 700,
+                      color: '#374151',
+                      fontSize: '12px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                    }}
+                  >
+                    {es.inventory.status}
+                  </th>
+                  <th
+                    style={{
+                      textAlign: 'left',
+                      padding: '12px 16px',
+                      fontWeight: 700,
+                      color: '#374151',
+                      fontSize: '12px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                    }}
+                  >
+                    {es.backup.actions}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {backups.map((backup) => (
-                  <tr key={backup.fileName} className="backup-table-row backup-row-hover" style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <tr
+                    key={backup.fileName}
+                    className="backup-table-row backup-row-hover"
+                    style={{ borderBottom: '1px solid #f3f4f6' }}
+                  >
                     <td style={{ padding: '14px 16px' }}>
-                      <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '6px 12px',
-                        backgroundColor: '#f9fafb',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        fontSize: '13px',
-                        fontWeight: 500,
-                        color: '#374151'
-                      }}>
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '6px 12px',
+                          backgroundColor: '#f9fafb',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          color: '#374151',
+                        }}
+                      >
                         <FileIcon />
                         {backup.fileName}
                       </div>
                     </td>
-                    <td style={{ padding: '14px 16px', color: '#6b7280', fontSize: '13px' }}>{formatDate(backup.createdAt)}</td>
-                    <td style={{ padding: '14px 16px', color: '#6b7280', fontSize: '13px', fontWeight: 500 }}>{backup.fileSizeFormatted}</td>
+                    <td style={{ padding: '14px 16px', color: '#6b7280', fontSize: '13px' }}>
+                      {formatDate(backup.createdAt)}
+                    </td>
+                    <td
+                      style={{
+                        padding: '14px 16px',
+                        color: '#6b7280',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {backup.fileSizeFormatted}
+                    </td>
                     <td style={{ padding: '14px 16px' }}>
-                      <span className={`backup-badge ${backup.isValid ? 'backup-badge-success' : 'backup-badge-danger'}`}>
+                      <span
+                        className={`backup-badge ${backup.isValid ? 'backup-badge-success' : 'backup-badge-danger'}`}
+                      >
                         {backup.isValid ? <CheckCircleIcon /> : <XCircleIcon />}
                         {backup.isValid ? es.backup.backupValid : es.backup.backupInvalid}
                       </span>
@@ -655,13 +1017,17 @@ export function BackupPage(): JSX.Element {
                             borderRadius: '8px',
                             fontSize: '13px',
                             fontWeight: 600,
-                            cursor: actionInProgress.startsWith('restore:') ? 'not-allowed' : 'pointer',
+                            cursor: actionInProgress.startsWith('restore:')
+                              ? 'not-allowed'
+                              : 'pointer',
                             opacity: actionInProgress.startsWith('restore:') ? 0.6 : 1,
-                            transition: 'all 0.2s ease'
+                            transition: 'all 0.2s ease',
                           }}
                         >
                           <RestoreIcon />
-                          {actionInProgress === `restore:${backup.fileName}` ? es.backup.restoring : es.backup.restore}
+                          {actionInProgress === `restore:${backup.fileName}`
+                            ? es.backup.restoring
+                            : es.backup.restore}
                         </button>
                         <button
                           type="button"
@@ -679,13 +1045,17 @@ export function BackupPage(): JSX.Element {
                             borderRadius: '8px',
                             fontSize: '13px',
                             fontWeight: 600,
-                            cursor: actionInProgress.startsWith('delete:') ? 'not-allowed' : 'pointer',
+                            cursor: actionInProgress.startsWith('delete:')
+                              ? 'not-allowed'
+                              : 'pointer',
                             opacity: actionInProgress.startsWith('delete:') ? 0.6 : 1,
-                            transition: 'all 0.2s ease'
+                            transition: 'all 0.2s ease',
                           }}
                         >
                           <TrashIcon />
-                          {actionInProgress === `delete:${backup.fileName}` ? es.backup.deleting : es.backup.delete}
+                          {actionInProgress === `delete:${backup.fileName}`
+                            ? es.backup.deleting
+                            : es.backup.delete}
                         </button>
                       </div>
                     </td>

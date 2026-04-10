@@ -1,0 +1,15 @@
+{
+  "name": "tu-cajero-licencia-generator",
+  "version": "1.0.0",
+  "description": "Generador de licencias TuCajero",
+  "main": "licencia-generador.js",
+  "scripts": {
+    "start": "node licencia-generador.js"
+  },
+  "dependencies": {
+    "systeminformation": "^5.22.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

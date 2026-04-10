@@ -41,6 +41,7 @@ function mapUser(user: {
   fullName: string;
   role: string;
   active: boolean;
+  hourlyRate: any;
   createdAt: Date;
   updatedAt: Date;
 }): UserRecord {
@@ -50,6 +51,7 @@ function mapUser(user: {
     fullName: user.fullName,
     role: user.role as UserRole,
     active: user.active,
+    hourlyRate: user.hourlyRate ? Number(user.hourlyRate) : undefined,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };

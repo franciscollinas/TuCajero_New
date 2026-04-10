@@ -1,7 +1,7 @@
 /* ===== TailAdmin Premium Design System for TuCajero ===== */
 
 /* --- Font import --- */
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 /* --- CSS Variables (TailAdmin Premium palette) --- */
 :root {
@@ -77,7 +77,7 @@
   --shadow-md: 0 4px 8px rgba(16, 24, 40, 0.06), 0 2px 4px rgba(16, 24, 40, 0.06);
   --shadow-card-hover: 0 12px 16px rgba(16, 24, 40, 0.08), 0 4px 6px rgba(16, 24, 40, 0.06);
   --shadow-lg: 0 12px 16px rgba(16, 24, 40, 0.08), 0 4px 6px rgba(16, 24, 40, 0.03);
-  --shadow-xl: 0 20px 24px rgba(16, 24, 40, 0.10), 0 8px 12px rgba(16, 24, 40, 0.06);
+  --shadow-xl: 0 20px 24px rgba(16, 24, 40, 0.1), 0 8px 12px rgba(16, 24, 40, 0.06);
   --shadow-dropdown: 0 12px 16px rgba(16, 24, 40, 0.08), 0 4px 6px rgba(16, 24, 40, 0.03);
   --shadow-modal: 0 24px 48px rgba(16, 24, 40, 0.12), 0 8px 16px rgba(16, 24, 40, 0.08);
 
@@ -141,13 +141,17 @@
 }
 
 /* --- Global reset & base --- */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   width: 100%;
 }
@@ -163,52 +167,105 @@ body {
 
 /* ===== Animations ===== */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideInRight {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* ===== Utility Animations ===== */
-.animate-fadeIn { animation: fadeIn var(--transition-slower); }
-.animate-slideUp { animation: slideUp var(--transition-slower); }
-.animate-slideDown { animation: slideDown var(--transition-slower); }
-.animate-slideInRight { animation: slideInRight var(--transition-slower); }
-.animate-scaleIn { animation: scaleIn var(--transition-slower); }
-.animate-pulse { animation: pulse 2s ease-in-out infinite; }
+.animate-fadeIn {
+  animation: fadeIn var(--transition-slower);
+}
+.animate-slideUp {
+  animation: slideUp var(--transition-slower);
+}
+.animate-slideDown {
+  animation: slideDown var(--transition-slower);
+}
+.animate-slideInRight {
+  animation: slideInRight var(--transition-slower);
+}
+.animate-scaleIn {
+  animation: scaleIn var(--transition-slower);
+}
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
 
 /* ===== Layout Shell ===== */
 .tc-layout {
@@ -454,15 +511,35 @@ body {
   opacity: 1;
 }
 
-.tc-metric-card--brand::before { background: var(--gradient-primary); opacity: 1; }
-.tc-metric-card--success::before { background: var(--gradient-success); opacity: 1; }
-.tc-metric-card--warning::before { background: var(--gradient-warning); opacity: 1; }
-.tc-metric-card--danger::before { background: var(--gradient-danger); opacity: 1; }
+.tc-metric-card--brand::before {
+  background: var(--gradient-primary);
+  opacity: 1;
+}
+.tc-metric-card--success::before {
+  background: var(--gradient-success);
+  opacity: 1;
+}
+.tc-metric-card--warning::before {
+  background: var(--gradient-warning);
+  opacity: 1;
+}
+.tc-metric-card--danger::before {
+  background: var(--gradient-danger);
+  opacity: 1;
+}
 
-.tc-metric-card--brand { background: var(--gradient-card-brand); }
-.tc-metric-card--success { background: var(--gradient-card-success); }
-.tc-metric-card--warning { background: var(--gradient-card-warning); }
-.tc-metric-card--danger { background: var(--gradient-card-danger); }
+.tc-metric-card--brand {
+  background: var(--gradient-card-brand);
+}
+.tc-metric-card--success {
+  background: var(--gradient-card-success);
+}
+.tc-metric-card--warning {
+  background: var(--gradient-card-warning);
+}
+.tc-metric-card--danger {
+  background: var(--gradient-card-danger);
+}
 
 .tc-metric-icon {
   width: 56px;
@@ -479,12 +556,26 @@ body {
   transform: scale(1.05);
 }
 
-.tc-metric-icon--brand { background: var(--brand-100); color: var(--brand-600); }
-.tc-metric-icon--success { background: var(--success-100); color: var(--success-600); }
-.tc-metric-icon--warning { background: var(--warning-100); color: var(--warning-500); }
-.tc-metric-icon--danger { background: var(--danger-100); color: var(--danger-600); }
+.tc-metric-icon--brand {
+  background: var(--brand-100);
+  color: var(--brand-600);
+}
+.tc-metric-icon--success {
+  background: var(--success-100);
+  color: var(--success-600);
+}
+.tc-metric-icon--warning {
+  background: var(--warning-100);
+  color: var(--warning-500);
+}
+.tc-metric-icon--danger {
+  background: var(--danger-100);
+  color: var(--danger-600);
+}
 
-.tc-metric-content { flex: 1; }
+.tc-metric-content {
+  flex: 1;
+}
 
 .tc-metric-label {
   font-size: var(--text-sm);
@@ -517,9 +608,15 @@ body {
   font-weight: 600;
 }
 
-.tc-metric-trend--up { color: var(--success-600); }
-.tc-metric-trend--down { color: var(--danger-600); }
-.tc-metric-trend--neutral { color: var(--gray-500); }
+.tc-metric-trend--up {
+  color: var(--success-600);
+}
+.tc-metric-trend--down {
+  color: var(--danger-600);
+}
+.tc-metric-trend--neutral {
+  color: var(--gray-500);
+}
 
 /* Section Card */
 .tc-section {
@@ -576,7 +673,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
   opacity: 0;
   transition: opacity var(--transition-base);
 }
@@ -799,9 +896,15 @@ body {
   transition: width var(--transition-slow);
 }
 
-.tc-progress-bar__fill--success { background: var(--gradient-success); }
-.tc-progress-bar__fill--warning { background: var(--gradient-warning); }
-.tc-progress-bar__fill--danger { background: var(--gradient-danger); }
+.tc-progress-bar__fill--success {
+  background: var(--gradient-success);
+}
+.tc-progress-bar__fill--warning {
+  background: var(--gradient-warning);
+}
+.tc-progress-bar__fill--danger {
+  background: var(--gradient-danger);
+}
 
 /* ===== Skeleton Loading ===== */
 .tc-skeleton {
@@ -837,11 +940,26 @@ body {
   font-weight: 600;
 }
 
-.tc-badge--success { background: var(--success-100); color: var(--success-600); }
-.tc-badge--warning { background: var(--warning-100); color: var(--warning-500); }
-.tc-badge--danger { background: var(--danger-100); color: var(--danger-600); }
-.tc-badge--brand { background: var(--brand-100); color: var(--brand-600); }
-.tc-badge--neutral { background: var(--gray-100); color: var(--gray-600); }
+.tc-badge--success {
+  background: var(--success-100);
+  color: var(--success-600);
+}
+.tc-badge--warning {
+  background: var(--warning-100);
+  color: var(--warning-500);
+}
+.tc-badge--danger {
+  background: var(--danger-100);
+  color: var(--danger-600);
+}
+.tc-badge--brand {
+  background: var(--brand-100);
+  color: var(--brand-600);
+}
+.tc-badge--neutral {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
 
 /* ===== Notices ===== */
 .tc-notice {
@@ -851,15 +969,43 @@ body {
   font-size: var(--text-sm);
 }
 
-.tc-notice--info { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
-.tc-notice--success { background: var(--success-50); border-color: var(--success-100); color: var(--success-600); }
-.tc-notice--error { background: var(--danger-50); border-color: var(--danger-100); color: var(--danger-600); }
+.tc-notice--info {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+.tc-notice--success {
+  background: var(--success-50);
+  border-color: var(--success-100);
+  color: var(--success-600);
+}
+.tc-notice--error {
+  background: var(--danger-50);
+  border-color: var(--danger-100);
+  color: var(--danger-600);
+}
 
 /* ===== Grid Helpers ===== */
-.tc-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-4); }
-.tc-grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4); }
-.tc-grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-4); }
-.tc-grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4); }
+.tc-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+}
+.tc-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+.tc-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+}
+.tc-grid-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
 
 /* ===== Page Shell (for pages without sidebar) ===== */
 .tc-page-standalone {
@@ -911,7 +1057,17 @@ body {
 }
 
 /* ===== Scrollbar ===== */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--gray-400); }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-400);
+}

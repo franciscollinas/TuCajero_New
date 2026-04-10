@@ -113,22 +113,27 @@ export function Layout({ children }: LayoutProps): JSX.Element {
     },
     {
       label: 'Administración',
-      items: can('audit:view')
-        ? [
-            { icon: reportsIcon, label: es.reports.title, path: REPORTS },
-            { icon: auditIcon, label: es.audit.title, path: AUDIT },
-            { icon: usersIcon, label: es.users.title, path: USERS },
-            { icon: backupIcon, label: es.backup.title, path: BACKUP },
-            { icon: licenseIcon, label: es.license.title, path: LICENSE },
-            { icon: printerIcon, label: es.settings.printer.title, path: PRINTER },
-            { icon: settingsIcon, label: 'Configuración', path: SETTINGS },
-          ]
-        : [
-            { icon: backupIcon, label: es.backup.title, path: BACKUP },
-            { icon: licenseIcon, label: es.license.title, path: LICENSE },
-            { icon: printerIcon, label: es.settings.printer.title, path: PRINTER },
-            { icon: settingsIcon, label: 'Configuración', path: SETTINGS },
-          ],
+      items:
+        can('audit:view') || can('users:all') || can('reports:all')
+          ? can('audit:view')
+            ? [
+                { icon: reportsIcon, label: es.reports.title, path: REPORTS },
+                { icon: auditIcon, label: es.audit.title, path: AUDIT },
+                { icon: usersIcon, label: es.users.title, path: USERS },
+                { icon: backupIcon, label: es.backup.title, path: BACKUP },
+                { icon: licenseIcon, label: es.license.title, path: LICENSE },
+                { icon: printerIcon, label: es.settings.printer.title, path: PRINTER },
+                { icon: settingsIcon, label: 'Configuración', path: SETTINGS },
+              ]
+            : [
+                { icon: usersIcon, label: es.users.title, path: USERS },
+                { icon: reportsIcon, label: es.reports.title, path: REPORTS },
+                { icon: backupIcon, label: es.backup.title, path: BACKUP },
+                { icon: licenseIcon, label: es.license.title, path: LICENSE },
+                { icon: printerIcon, label: es.settings.printer.title, path: PRINTER },
+                { icon: settingsIcon, label: 'Configuración', path: SETTINGS },
+              ]
+          : [],
     },
   ];
 
@@ -145,34 +150,43 @@ export function Layout({ children }: LayoutProps): JSX.Element {
         </div>
 
         <nav className="tc-nav">
-          {navGroups.map((group) => (
-            <div key={group.label}>
-              <div className="tc-nav-group-label">{group.label}</div>
-              {group.items.map((item) => {
-                if (item.permission && !can(item.permission as Permission)) return null;
-                const isActive = location.pathname === item.path;
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`tc-nav-item ${isActive ? 'tc-nav-item-active' : ''}`}
-                  >
-                    {item.icon}
-                    <span className="tc-nav-item-text">{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
+          {navGroups
+            .filter((g) => g.items.length > 0)
+            .map((group) => (
+              <div key={group.label}>
+                <div className="tc-nav-group-label">{group.label}</div>
+                {group.items.map((item) => {
+                  if (item.permission && !can(item.permission as Permission)) return null;
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`tc-nav-item ${isActive ? 'tc-nav-item-active' : ''}`}
+                    >
+                      {item.icon}
+                      <span className="tc-nav-item-text">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
         </nav>
 
         <div className="tc-sidebar-user">
           <div className="tc-user-avatar">{initials}</div>
           <div className="tc-user-info">
             <div className="tc-user-name">{user?.fullName ?? ''}</div>
-            <div className="tc-user-role">{user?.role === 'ADMIN' ? 'Administrador' : 'Cajero'}</div>
+            <div className="tc-user-role">
+              {user?.role === 'ADMIN' ? 'Administrador' : 'Cajero'}
+            </div>
           </div>
-          <button type="button" onClick={handleLogout} className="tc-btn tc-btn--ghost" title={es.auth.logout}>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="tc-btn tc-btn--ghost"
+            title={es.auth.logout}
+          >
             {logoutIcon}
           </button>
         </div>
@@ -180,39 +194,81 @@ export function Layout({ children }: LayoutProps): JSX.Element {
 
       {/* Content */}
       <div className="tc-content">
-        <header className="tc-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 var(--space-6)', gap: 'var(--space-4)' }}>
+        <header
+          className="tc-header"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 var(--space-6)',
+            gap: 'var(--space-4)',
+          }}
+        >
           {/* Left: Logo + Name + Breadcrumb + Company Info */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-4)',
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
             {/* Logo + Name */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flex: '0 0 auto' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-3)',
+                flex: '0 0 auto',
+              }}
+            >
               {config?.logo ? (
                 <img
                   src={config.logo}
                   alt="Logo"
-                  style={{ height: '44px', width: '44px', borderRadius: 'var(--radius-lg)', objectFit: 'cover', border: '2px solid var(--gray-100)' }}
+                  style={{
+                    height: '44px',
+                    width: '44px',
+                    borderRadius: 'var(--radius-lg)',
+                    objectFit: 'cover',
+                    border: '2px solid var(--gray-100)',
+                  }}
                 />
               ) : (
-                <div style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 'var(--radius-lg)',
-                  background: 'var(--gradient-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  fontSize: '20px',
-                  fontWeight: 800,
-                  flexShrink: 0,
-                }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 'var(--radius-lg)',
+                    background: 'var(--gradient-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontSize: '20px',
+                    fontWeight: 800,
+                    flexShrink: 0,
+                  }}
+                >
                   {config?.businessName?.[0] ?? 'T'}
                 </div>
               )}
               <div style={{ minWidth: 0 }}>
-                <h1 className="tc-header-title" style={{ fontSize: 'var(--text-lg)', margin: 0, lineHeight: 1.2 }}>
+                <h1
+                  className="tc-header-title"
+                  style={{ fontSize: 'var(--text-lg)', margin: 0, lineHeight: 1.2 }}
+                >
                   {config?.businessName || 'TuCajero'}
                 </h1>
-                <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--gray-400)', fontWeight: 500 }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 'var(--text-xs)',
+                    color: 'var(--gray-400)',
+                    fontWeight: 500,
+                  }}
+                >
                   {pageTitle(location.pathname)}
                 </p>
               </div>
@@ -222,28 +278,116 @@ export function Layout({ children }: LayoutProps): JSX.Element {
             <div style={{ width: 1, height: 32, background: 'var(--gray-200)', flexShrink: 0 }} />
 
             {/* Company Info */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flexWrap: 'wrap', minWidth: 0 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-4)',
+                flexWrap: 'wrap',
+                minWidth: 0,
+              }}
+            >
               {config?.nit && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2.5"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
-                  <span>NIT: <strong style={{ color: 'var(--gray-700)' }}>{config.nit}</strong></span>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '12px',
+                    color: 'var(--gray-500)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="var(--gray-400)"
+                    strokeWidth="2.5"
+                  >
+                    <rect x="2" y="5" width="20" height="14" rx="2" />
+                    <line x1="2" y1="10" x2="22" y2="10" />
+                  </svg>
+                  <span>
+                    NIT: <strong style={{ color: 'var(--gray-700)' }}>{config.nit}</strong>
+                  </span>
                 </div>
               )}
               {config?.phone && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></svg>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '12px',
+                    color: 'var(--gray-500)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="var(--gray-400)"
+                    strokeWidth="2.5"
+                  >
+                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
+                  </svg>
                   <span>{config.phone}</span>
                 </div>
               )}
               {config?.email && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '12px',
+                    color: 'var(--gray-500)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="var(--gray-400)"
+                    strokeWidth="2.5"
+                  >
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
                   <span>{config.email}</span>
                 </div>
               )}
               {config?.address && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--gray-500)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '12px',
+                    color: 'var(--gray-500)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: 220,
+                  }}
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="var(--gray-400)"
+                    strokeWidth="2.5"
+                  >
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
                   <span>{config.address}</span>
                 </div>
               )}
@@ -253,10 +397,19 @@ export function Layout({ children }: LayoutProps): JSX.Element {
           {/* Right: Date/Time */}
           <div style={{ flex: '0 0 auto', textAlign: 'right' }}>
             <span style={{ fontSize: '12px', color: 'var(--gray-500)', display: 'block' }}>
-              {currentTime.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+              {currentTime.toLocaleDateString('es-CO', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}
             </span>
             <span style={{ fontWeight: 700, color: 'var(--gray-700)', fontSize: '15px' }}>
-              {currentTime.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              {currentTime.toLocaleTimeString('es-CO', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              })}
             </span>
           </div>
         </header>
@@ -292,7 +445,16 @@ function pageTitle(path: string): string {
 /* ─── SVG Icons (inline, consistent) ─── */
 
 const dashboardIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <rect x="3" y="3" width="7" height="9" rx="1" />
     <rect x="14" y="3" width="7" height="5" rx="1" />
     <rect x="14" y="12" width="7" height="9" rx="1" />
@@ -301,7 +463,16 @@ const dashboardIcon = (
 );
 
 const salesIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
     <line x1="3" y1="6" x2="21" y2="6" />
     <path d="M16 10a4 4 0 01-8 0" />
@@ -309,14 +480,32 @@ const salesIcon = (
 );
 
 const historyIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <circle cx="12" cy="12" r="10" />
     <polyline points="12 6 12 12 16 14" />
   </svg>
 );
 
 const cashIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <rect x="2" y="6" width="20" height="12" rx="2" />
     <circle cx="12" cy="12" r="3" />
     <path d="M6 12h.01M18 12h.01" />
@@ -324,7 +513,16 @@ const cashIcon = (
 );
 
 const inventoryIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
     <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
     <line x1="12" y1="22.08" x2="12" y2="12" />
@@ -332,7 +530,16 @@ const inventoryIcon = (
 );
 
 const alertIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
     <line x1="12" y1="9" x2="12" y2="13" />
     <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -340,7 +547,16 @@ const alertIcon = (
 );
 
 const importIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
     <polyline points="7 10 12 15 17 10" />
     <line x1="12" y1="15" x2="12" y2="3" />
@@ -348,7 +564,16 @@ const importIcon = (
 );
 
 const reportsIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <line x1="18" y1="20" x2="18" y2="10" />
     <line x1="12" y1="20" x2="12" y2="4" />
     <line x1="6" y1="20" x2="6" y2="14" />
@@ -356,7 +581,16 @@ const reportsIcon = (
 );
 
 const auditIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
     <polyline points="14 2 14 8 20 8" />
     <line x1="16" y1="13" x2="8" y2="13" />
@@ -365,7 +599,16 @@ const auditIcon = (
 );
 
 const usersIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
     <circle cx="9" cy="7" r="4" />
     <path d="M23 21v-2a4 4 0 00-3-3.87" />
@@ -374,7 +617,16 @@ const usersIcon = (
 );
 
 const backupIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
     <polyline points="17 21 17 13 7 13 7 21" />
     <polyline points="7 3 7 8 15 8" />
@@ -382,14 +634,32 @@ const backupIcon = (
 );
 
 const licenseIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
     <path d="M7 11V7a5 5 0 0110 0v4" />
   </svg>
 );
 
 const printerIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <polyline points="6 9 6 2 18 2 18 9" />
     <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
     <rect x="6" y="14" width="12" height="8" />
@@ -397,14 +667,32 @@ const printerIcon = (
 );
 
 const settingsIcon = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <circle cx="12" cy="12" r="3" />
     <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
   </svg>
 );
 
 const logoutIcon = (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
     <polyline points="16 17 21 12 16 7" />
     <line x1="21" y1="12" x2="9" y2="12" />

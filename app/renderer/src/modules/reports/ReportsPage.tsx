@@ -491,23 +491,24 @@ export function ReportsPage(): JSX.Element {
   const salesByDayData = useMemo(() => {
     if (!data || data.sales.length === 0) return [];
 
-    const dayMap = new Map<string, number>();
+    const dayMap = new Map<string, { date: Date; total: number }>();
     data.sales
       .filter((sale) => !sale.isCredit)
       .forEach((sale) => {
         const date = new Date(sale.createdAt);
         const dayKey = date.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' });
-        dayMap.set(dayKey, (dayMap.get(dayKey) || 0) + sale.total);
+        const existing = dayMap.get(dayKey);
+        if (existing) {
+          existing.total += sale.total;
+        } else {
+          dayMap.set(dayKey, { date, total: sale.total });
+        }
       });
 
     const sortedData = Array.from(dayMap.entries())
       .slice(0, 7)
-      .map(([day, total]) => ({ day, total }))
-      .sort((a, b) => {
-        const dateA = new Date(a.day.replace(/(\w+)\s+(\d+)/, '$2/$1'));
-        const dateB = new Date(b.day.replace(/(\w+)\s+(\d+)/, '$2/$1'));
-        return dateA.getTime() - dateB.getTime();
-      });
+      .map(([day, data]) => ({ day, total: data.total, sortDate: data.date.getTime() }))
+      .sort((a, b) => a.sortDate - b.sortDate);
 
     return sortedData;
   }, [data]);

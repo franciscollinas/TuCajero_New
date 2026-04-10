@@ -53,7 +53,8 @@ export const es = {
     subtitle: 'Controla stock, vencimientos y carga masiva desde una sola vista.',
     overview: 'Consulta productos, ajusta stock y revisa alertas semáforo desde un solo módulo.',
     dashboardTitle: 'Inventario y alertas',
-    dashboardSubtitle: 'Visibilidad rápida del semáforo de stock y de los productos próximos a vencer.',
+    dashboardSubtitle:
+      'Visibilidad rápida del semáforo de stock y de los productos próximos a vencer.',
     addProduct: 'Agregar producto',
     editProduct: 'Editar producto',
     deleteProduct: 'Eliminar producto',
@@ -200,8 +201,10 @@ export const es = {
     createPlaceholder: 'Ej: respaldo antes de actualización',
     createSuccess: 'Copia de seguridad creada correctamente.',
     restoreBackup: 'Restaurar copia',
-    restoreConfirm: '¿Estás seguro de restaurar "{fileName}"? La base de datos actual será reemplazada.',
-    restoreWarning: 'Esta acción no se puede deshacer. Se creará un respaldo de la base de datos actual antes de restaurar.',
+    restoreConfirm:
+      '¿Estás seguro de restaurar "{fileName}"? La base de datos actual será reemplazada.',
+    restoreWarning:
+      'Esta acción no se puede deshacer. Se creará un respaldo de la base de datos actual antes de restaurar.',
     restoreSuccess: 'Base de datos restaurada correctamente. La aplicación se reiniciará en breve.',
     deleteBackup: 'Eliminar copia',
     deleteConfirm: '¿Eliminar "{fileName}"? Esta acción no se puede deshacer.',
@@ -226,6 +229,16 @@ export const es = {
     restoring: 'Restaurando...',
     deleting: 'Eliminando...',
     fileName: 'Archivo',
+    migrateTitle: 'Migrar desde versión anterior',
+    migrateSubtitle: 'Importar datos de TuCajero v1',
+    migrateNotFound: 'No se encontró la base de datos de la versión anterior.',
+    migrateFound: 'Base de datos encontrada',
+    migratePath: 'Ruta',
+    migrateButton: 'Importar datos',
+    migrateSuccess: 'Importación completada: {count} registros importados.',
+    migrateLoading: 'Verificando...',
+    importing: 'Importando...',
+    importSuccess: 'Importación completada: {count} registros importados.',
   },
   license: {
     title: 'Licencia',
@@ -250,7 +263,8 @@ export const es = {
     generateButton: 'Generar licencia',
     generateSuccess: 'Licencia generada y guardada.',
     lockTitle: 'Licencia no válida',
-    lockMessage: 'TuCajero no cuenta con una licencia válida para este equipo. Contacta al administrador para obtener una clave de activación.',
+    lockMessage:
+      'TuCajero no cuenta con una licencia válida para este equipo. Contacta al administrador para obtener una clave de activación.',
     lockFingerprint: 'Fingerprint de este equipo',
     lockEnterLicense: 'Ingresa la licencia',
     lockActivate: 'Activar',
@@ -304,7 +318,8 @@ export const es = {
       paperWidth: 'Ancho de papel',
       connectionString: 'Cadena de conexión',
       connectionPlaceholder: 'Ej: tcp://192.168.1.100:9100 o printer:EPSON TM-T20',
-      connectionHelp: 'USB: /dev/usb/lp0 | TCP/IP: tcp://ip:9100 | Windows: printer:NombreImpresora',
+      connectionHelp:
+        'USB: /dev/usb/lp0 | TCP/IP: tcp://ip:9100 | Windows: printer:NombreImpresora',
       characterSet: 'Juego de caracteres',
       save: 'Guardar configuración',
       test: 'Probar impresora',
@@ -371,7 +386,8 @@ export const es = {
     sessionActive: 'Sesión activa',
     noSession: 'Sin sesión',
     cashControl: 'Control de caja',
-    fromHere: 'Desde aquí puedes abrir la caja, revisarla o pasar al flujo de cierre cuando corresponda.',
+    fromHere:
+      'Desde aquí puedes abrir la caja, revisarla o pasar al flujo de cierre cuando corresponda.',
     inventoryQuickLink: 'Ir a inventario',
   },
   demo: {
