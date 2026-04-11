@@ -445,6 +445,7 @@ export class BackupService {
         'pos.db',
       ),
       'C:\\Users\\UserMaster\\AppData\\Local\\TuCajero\\database\\pos.db',
+      'C:\\Users\\UserMaster\\Documents\\Proyectos\\TuCajeroPOS\\tucajero\\tucajero.db',
     ];
 
     for (const p of v1Paths) {

@@ -6,6 +6,7 @@ import { useConfig } from '../../shared/context/ConfigContext';
 import { useRBAC } from '../../shared/hooks/useRBAC';
 import type { Permission } from '../../shared/hooks/useRBAC';
 import { es } from '../../shared/i18n';
+import { AboutModal } from './AboutModal';
 
 interface LayoutProps {
   children: ReactNode;
@@ -39,6 +40,7 @@ export function Layout({ children }: LayoutProps): JSX.Element {
   const { config } = useConfig();
   const { can } = useRBAC();
   const location = useLocation();
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   const handleLogout = async (): Promise<void> => {
     await logout();
@@ -133,6 +135,7 @@ export function Layout({ children }: LayoutProps): JSX.Element {
 
   return (
     <div className="tc-layout">
+      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
       {/* Sidebar */}
       <aside className="tc-sidebar">
         <div className="tc-sidebar-header">
@@ -175,6 +178,25 @@ export function Layout({ children }: LayoutProps): JSX.Element {
               {user?.role === 'ADMIN' ? 'Administrador' : 'Cajero'}
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setAboutOpen(true)}
+            className="tc-btn tc-btn--ghost"
+            title="Acerca de"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+          </button>
           <button
             type="button"
             onClick={handleLogout}
