@@ -1,0 +1,9 @@
+# Ignore generated installer
+*.exe
+*.msi
+
+# Keep source files
+!*.txt
+!*.nsh
+!*.md
+!*.ico

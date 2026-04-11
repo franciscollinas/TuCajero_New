@@ -1,0 +1,35 @@
+LICENCIA DE USO - TuCajero
+
+Copyright © 2026 TuCajero. Todos los derechos reservados.
+
+1. PERMISO DE USO
+Se concede al usuario final una licencia de uso no exclusiva, intransferible y 
+permanente para instalar y utilizar el software TuCajero en un solo equipo de 
+trabajo, sujeto a los términos y condiciones de esta licencia.
+
+2. RESTRICCIONES
+- No se permite la copia, modificación o distribución del software.
+- No se permite la ingeniería inversa, desensamblado o decompilación.
+- No se permite el uso del software para fines ilegales o no autorizados.
+
+3. GARANTÍA
+El software se proporciona "TAL CUAL", sin garantía de ningún tipo, expresa o 
+implícita, incluyendo pero no limitado a garantías de comerciabilidad, idoneidad 
+para un propósito particular y no infracción.
+
+4. RESPONSABILIDAD
+En ningún caso los autores o titulares del copyright serán responsables por 
+daños directos, indirectos, incidentales o consecuentes derivados del uso o 
+incapacidad de uso del software.
+
+5. ACTUALIZACIONES
+El titular de la licencia podrá recibir actualizaciones del software según la 
+política de actualizaciones vigente en cada momento.
+
+6. TERMINACIÓN
+Esta licencia se terminará automáticamente si el usuario incumple cualquiera de 
+los términos y condiciones establecidos. Al terminar la licencia, el usuario 
+deberá destruir todas las copias del software en su posesión.
+
+Al instalar y utilizar TuCajero, usted acepta estar vinculado por los términos 
+de esta licencia.
