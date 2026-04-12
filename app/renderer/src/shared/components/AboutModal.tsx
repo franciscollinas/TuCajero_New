@@ -6,7 +6,10 @@ interface AboutModalProps {
   onClose: () => void;
 }
 
-export const AboutModal = memo(function AboutModal({ open, onClose }: AboutModalProps): JSX.Element | null {
+export const AboutModal = memo(function AboutModal({
+  open,
+  onClose,
+}: AboutModalProps): JSX.Element | null {
   if (!open) return null;
 
   return (
@@ -96,7 +99,7 @@ export const AboutModal = memo(function AboutModal({ open, onClose }: AboutModal
 
           <h2 style={{ margin: 0, fontSize: 'var(--text-2xl)', fontWeight: 800 }}>TuCajero</h2>
           <p style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)', opacity: 0.85 }}>
-            Sistema Punto de Venta para Farmacias
+            Sistema Punto de Venta para Pequeños Negocios
           </p>
           <p style={{ margin: '2px 0 0', fontSize: 'var(--text-xs)', opacity: 0.7 }}>
             Versión 1.0.0
@@ -116,13 +119,36 @@ export const AboutModal = memo(function AboutModal({ open, onClose }: AboutModal
               textAlign: 'center',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                marginBottom: 6,
+              }}
+            >
               <Award size={16} style={{ color: 'var(--brand-500)' }} />
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--gray-600)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <span
+                style={{
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 700,
+                  color: 'var(--gray-600)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
                 Diseñado y Desarrollado por
               </span>
             </div>
-            <p style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--gray-800)' }}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 'var(--text-sm)',
+                fontWeight: 700,
+                color: 'var(--gray-800)',
+              }}
+            >
               Ing. Francisco Llinas Pisciotti
             </p>
             <p style={{ margin: '2px 0 0', fontSize: 'var(--text-xs)', color: 'var(--gray-500)' }}>
@@ -132,22 +158,66 @@ export const AboutModal = memo(function AboutModal({ open, onClose }: AboutModal
 
           {/* Info items */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', fontSize: 'var(--text-sm)', color: 'var(--gray-600)' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-3)',
+                fontSize: 'var(--text-sm)',
+                color: 'var(--gray-600)',
+              }}
+            >
               <Info size={16} style={{ color: 'var(--brand-400)', flexShrink: 0 }} />
               <span>Electron + React + TypeScript</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', fontSize: 'var(--text-sm)', color: 'var(--gray-600)' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand-400)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                <path d="M2 17l10 5 10-5"/>
-                <path d="M2 12l10 5 10-5"/>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-3)',
+                fontSize: 'var(--text-sm)',
+                color: 'var(--gray-600)',
+              }}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--brand-400)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ flexShrink: 0 }}
+              >
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
               </svg>
               <span>Prisma + SQLite — Base de datos local</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', fontSize: 'var(--text-sm)', color: 'var(--gray-600)' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand-400)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0110 0v4"/>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-3)',
+                fontSize: 'var(--text-sm)',
+                color: 'var(--gray-600)',
+              }}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--brand-400)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ flexShrink: 0 }}
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0110 0v4" />
               </svg>
               <span>Sistema de licencia y respaldo incluido</span>
             </div>

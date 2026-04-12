@@ -94,10 +94,26 @@ export function SettingsPage(): JSX.Element {
     <div className="animate-fadeIn">
       {/* Page Header */}
       <div style={{ marginBottom: 'var(--space-6)' }}>
-        <p style={{ margin: 0, color: 'var(--brand-600)', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: '12px', fontWeight: 700 }}>
+        <p
+          style={{
+            margin: 0,
+            color: 'var(--brand-600)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.14em',
+            fontSize: '12px',
+            fontWeight: 700,
+          }}
+        >
           {es.settings?.title ?? 'Configuración'}
         </p>
-        <h1 style={{ margin: '6px 0 0', fontSize: 'var(--text-3xl)', color: 'var(--gray-900)', fontWeight: 800 }}>
+        <h1
+          style={{
+            margin: '6px 0 0',
+            fontSize: 'var(--text-3xl)',
+            color: 'var(--gray-900)',
+            fontWeight: 800,
+          }}
+        >
           {es.settings?.business?.title ?? 'Datos del Negocio'}
         </h1>
         <p style={{ margin: '8px 0 0', color: 'var(--gray-500)' }}>
@@ -105,18 +121,46 @@ export function SettingsPage(): JSX.Element {
         </p>
       </div>
 
-      {message && <section className={noticeClass} style={{ marginBottom: 'var(--space-5)' }}>{message}</section>}
+      {message && (
+        <section className={noticeClass} style={{ marginBottom: 'var(--space-5)' }}>
+          {message}
+        </section>
+      )}
 
       {loading ? (
-        <div className="tc-section" style={{ textAlign: 'center', padding: 'var(--space-12)', color: 'var(--gray-400)' }}>
+        <div
+          className="tc-section"
+          style={{ textAlign: 'center', padding: 'var(--space-12)', color: 'var(--gray-400)' }}
+        >
           {es.common.loading}
         </div>
       ) : (
         <div className="tc-section animate-slideUp" style={{ animationDelay: '0.1s' }}>
           {/* Logo Section */}
-          <div style={{ marginBottom: 'var(--space-8)', paddingBottom: 'var(--space-6)', borderBottom: '1px solid var(--gray-100)' }}>
-            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--gray-900)', marginBottom: 'var(--space-4)' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-600)" strokeWidth="2.5" style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }}>
+          <div
+            style={{
+              marginBottom: 'var(--space-8)',
+              paddingBottom: 'var(--space-6)',
+              borderBottom: '1px solid var(--gray-100)',
+            }}
+          >
+            <h2
+              style={{
+                fontSize: 'var(--text-lg)',
+                fontWeight: 700,
+                color: 'var(--gray-900)',
+                marginBottom: 'var(--space-4)',
+              }}
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--brand-600)"
+                strokeWidth="2.5"
+                style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }}
+              >
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <polyline points="21 15 16 10 5 21" />
@@ -124,25 +168,46 @@ export function SettingsPage(): JSX.Element {
               Logo del Negocio
             </h2>
 
-            <div style={{ display: 'flex', gap: 'var(--space-6)', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              {/* Logo Preview */}
-              <div style={{
-                width: 160,
-                height: 160,
-                borderRadius: 'var(--radius-2xl)',
-                border: '2px dashed var(--gray-200)',
+            <div
+              style={{
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: config.logo ? '#fff' : 'var(--gray-50)',
-                overflow: 'hidden',
-                flexShrink: 0,
-              }}>
+                gap: 'var(--space-6)',
+                alignItems: 'flex-start',
+                flexWrap: 'wrap',
+              }}
+            >
+              {/* Logo Preview */}
+              <div
+                style={{
+                  width: 160,
+                  height: 160,
+                  borderRadius: 'var(--radius-2xl)',
+                  border: '2px dashed var(--gray-200)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: config.logo ? '#fff' : 'var(--gray-50)',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                }}
+              >
                 {config.logo ? (
-                  <img src={config.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  <img
+                    src={config.logo}
+                    alt="Logo"
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
                 ) : (
                   <div style={{ textAlign: 'center', color: 'var(--gray-400)' }}>
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ display: 'block', margin: '0 auto 8px' }}>
+                    <svg
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      style={{ display: 'block', margin: '0 auto 8px' }}
+                    >
                       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                       <circle cx="8.5" cy="8.5" r="1.5" />
                       <polyline points="21 15 16 10 5 21" />
@@ -167,7 +232,14 @@ export function SettingsPage(): JSX.Element {
                   className="tc-btn tc-btn--primary"
                   style={{ minHeight: '44px' }}
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                     <polyline points="17 8 12 3 7 8" />
                     <line x1="12" y1="3" x2="12" y2="15" />
@@ -184,7 +256,14 @@ export function SettingsPage(): JSX.Element {
                     className="tc-btn tc-btn--danger"
                     style={{ minHeight: '40px', marginTop: 'var(--space-2)' }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
                       <polyline points="3 6 5 6 21 6" />
                       <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
                     </svg>
@@ -197,15 +276,36 @@ export function SettingsPage(): JSX.Element {
 
           {/* Business Info Form */}
           <div>
-            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--gray-900)', marginBottom: 'var(--space-5)' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-600)" strokeWidth="2.5" style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }}>
+            <h2
+              style={{
+                fontSize: 'var(--text-lg)',
+                fontWeight: 700,
+                color: 'var(--gray-900)',
+                marginBottom: 'var(--space-5)',
+              }}
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--brand-600)"
+                strokeWidth="2.5"
+                style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }}
+              >
                 <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                 <polyline points="9 22 9 12 15 12 15 22" />
               </svg>
               Información del Negocio
             </h2>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-5)' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: 'var(--space-5)',
+              }}
+            >
               <div className="tc-field">
                 <label className="tc-label">Nombre del Negocio</label>
                 <input
@@ -243,7 +343,7 @@ export function SettingsPage(): JSX.Element {
                   type="email"
                   value={config.email}
                   onChange={(e) => setConfig((prev) => ({ ...prev, email: e.target.value }))}
-                  placeholder="Ej: contacto@farmacia.com"
+                  placeholder="Ej: contacto@tu-negocio.com"
                 />
               </div>
 
@@ -259,7 +359,15 @@ export function SettingsPage(): JSX.Element {
             </div>
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-6)', paddingTop: 'var(--space-5)', borderTop: '1px solid var(--gray-100)' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 'var(--space-3)',
+                marginTop: 'var(--space-6)',
+                paddingTop: 'var(--space-5)',
+                borderTop: '1px solid var(--gray-100)',
+              }}
+            >
               <button
                 type="button"
                 onClick={() => void handleSave()}
@@ -269,14 +377,29 @@ export function SettingsPage(): JSX.Element {
               >
                 {saving ? (
                   <>
-                    <svg className="animate-pulse" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <svg
+                      className="animate-pulse"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
                       <circle cx="12" cy="12" r="10" />
                     </svg>
                     Guardando...
                   </>
                 ) : (
                   <>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
                       <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
                       <polyline points="17 21 17 13 7 13 7 21" />
                       <polyline points="7 3 7 8 15 8" />
@@ -285,8 +408,19 @@ export function SettingsPage(): JSX.Element {
                   </>
                 )}
               </button>
-              <Link to="/dashboard" className="tc-btn tc-btn--secondary" style={{ minHeight: '48px' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <Link
+                to="/dashboard"
+                className="tc-btn tc-btn--secondary"
+                style={{ minHeight: '48px' }}
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
                   <rect x="3" y="3" width="7" height="9" rx="1" />
                   <rect x="14" y="3" width="7" height="5" rx="1" />
                   <rect x="14" y="12" width="7" height="9" rx="1" />

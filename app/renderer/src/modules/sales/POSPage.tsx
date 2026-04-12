@@ -24,6 +24,7 @@ import {
   X,
   Package,
   RefreshCw,
+  DollarSign,
 } from 'lucide-react';
 
 import { getAllProducts } from '../../shared/api/inventory.api';
@@ -153,6 +154,7 @@ export function POSPage(): JSX.Element {
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [globalDiscount, setGlobalDiscount] = useState(0);
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
   const [payments, setPayments] = useState<SalePayment[]>([]);
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
   const [cashReceived, setCashReceived] = useState<number>(0);
@@ -290,7 +292,12 @@ export function POSPage(): JSX.Element {
     [cart],
   );
 
-  const total = subtotal + tax + deliveryFee - globalDiscount;
+  const calculatedDiscount = useMemo(
+    () => (discountType === 'percentage' ? (subtotal * globalDiscount) / 100 : globalDiscount),
+    [subtotal, globalDiscount, discountType],
+  );
+
+  const total = subtotal + tax + deliveryFee - calculatedDiscount;
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const remaining = total - totalPaid;
 
@@ -1121,7 +1128,7 @@ export function POSPage(): JSX.Element {
                   {globalDiscount > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-600)' }}>
-                        Descuento
+                        Descuento ({discountType === 'percentage' ? `${globalDiscount}%` : 'FIJO'})
                       </span>
                       <span
                         style={{
@@ -1130,7 +1137,7 @@ export function POSPage(): JSX.Element {
                           color: 'var(--success-600)',
                         }}
                       >
-                        -{formatCurrency(globalDiscount)}
+                        -{formatCurrency(calculatedDiscount)}
                       </span>
                     </div>
                   )}
@@ -1222,21 +1229,35 @@ export function POSPage(): JSX.Element {
                     }}
                   />
                 </div>
-                <div style={{ position: 'relative' }}>
-                  <Percent
-                    style={{
-                      position: 'absolute',
-                      left: 'var(--space-2)',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: 'var(--gray-400)',
-                      pointerEvents: 'none',
-                    }}
-                    size={12}
-                  />
+                <div style={{ position: 'relative', display: 'flex', gap: 'var(--space-1)' }}>
+                  {discountType === 'percentage' ? (
+                    <Percent
+                      style={{
+                        position: 'absolute',
+                        left: 'var(--space-2)',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--gray-400)',
+                        pointerEvents: 'none',
+                      }}
+                      size={12}
+                    />
+                  ) : (
+                    <DollarSign
+                      style={{
+                        position: 'absolute',
+                        left: 'var(--space-2)',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--gray-400)',
+                        pointerEvents: 'none',
+                      }}
+                      size={12}
+                    />
+                  )}
                   <input
                     type="number"
-                    placeholder="Descuento"
+                    placeholder={discountType === 'percentage' ? '%' : '$'}
                     value={globalDiscount || ''}
                     onChange={(e) => setGlobalDiscount(Number(e.target.value))}
                     className="tc-input"
@@ -1245,8 +1266,27 @@ export function POSPage(): JSX.Element {
                       minHeight: '34px',
                       fontSize: 'var(--text-xs)',
                       background: '#fff',
+                      width: '70px',
                     }}
                   />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDiscountType(discountType === 'percentage' ? 'fixed' : 'percentage')
+                    }
+                    style={{
+                      minHeight: '34px',
+                      padding: '0 var(--space-2)',
+                      border: '1px solid var(--gray-300)',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--gray-100)',
+                      cursor: 'pointer',
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {discountType === 'percentage' ? '%' : '$'}
+                  </button>
                 </div>
               </div>
 
