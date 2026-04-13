@@ -252,6 +252,18 @@ export function POSPage(): JSX.Element {
     };
   }, [user]);
 
+  const refreshProducts = async (): Promise<void> => {
+    if (!user) return;
+    try {
+      const productsResponse = await getAllProducts();
+      if (productsResponse.success) {
+        setProducts(productsResponse.data.filter((p) => p.isActive));
+      }
+    } catch {
+      // Silent fail — products will refresh on next navigation
+    }
+  };
+
   const filteredProducts = useMemo(() => {
     if (!searchTerm) return products;
     const term = searchTerm.toLowerCase();
@@ -386,6 +398,7 @@ export function POSPage(): JSX.Element {
         setCashReceived(0);
         setShowCashInput(false);
         setShowPaymentMethods(false);
+        void refreshProducts();
       } else {
         setMessageType('error');
         setMessage(response.error.message);
@@ -456,6 +469,7 @@ export function POSPage(): JSX.Element {
         setSelectedCustomerId(null);
         setCashReceived(0);
         setShowCashInput(false);
+        void refreshProducts();
       } else {
         setMessageType('error');
         setMessage(response.error.message);
