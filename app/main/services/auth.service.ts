@@ -166,8 +166,10 @@ export class AuthService {
       include: { user: true },
     });
 
-    await prisma.session.deleteMany({
+    // Mark session as closed instead of deleting — preserves historical data
+    await prisma.session.updateMany({
       where: { token },
+      data: { closedAt: new Date() },
     });
 
     if (session?.user) {
