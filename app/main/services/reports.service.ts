@@ -20,75 +20,38 @@ import type {
 } from '../../renderer/src/shared/types/reports.types';
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
+import { assertRoleAccess } from '../utils/prisma-helpers';
+import { startOfDay, endOfDay, toFileDate, toIsoDate } from '../utils/date';
 import { AuditService } from './audit.service';
 
 const auditService = new AuditService();
 
-function startOfDay(value: Date): Date {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-
-function endOfDay(value: Date): Date {
-  const date = new Date(value);
-  date.setHours(23, 59, 59, 999);
-  return date;
-}
-
-function toIsoDate(value: Date): string {
-  return value.toISOString().slice(0, 10);
-}
-
-function toFileDate(value: Date): string {
-  return value.toISOString().replace(/[:.]/g, '-');
-}
-
-function toInventoryStatus(row: {
-  stock: number;
-  minStock: number;
-  criticalStock: number;
-  expiryDate: Date | null;
-}): InventoryReportRow['status'] {
-  if (row.expiryDate) {
-    const now = new Date();
-    const expiry = row.expiryDate;
-    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-
-    if (expiry.getTime() < now.getTime()) {
-      return 'expired';
-    }
-
-    if (expiry.getTime() - now.getTime() <= thirtyDays) {
-      return 'expiring';
-    }
-  }
-
-  if (row.stock <= row.criticalStock) {
-    return 'critical';
-  }
-
-  if (row.stock <= row.minStock) {
-    return 'warning';
-  }
-
-  return 'ok';
-}
-
 export class ReportsService {
   private async assertReportsAccess(actorUserId: number): Promise<void> {
-    const actor = await prisma.user.findUnique({
-      where: { id: actorUserId },
-      select: { active: true, role: true },
-    });
+    await assertRoleAccess(
+      actorUserId,
+      ['ADMIN', 'SUPERVISOR'],
+      'No tienes permisos para consultar reportes.',
+    );
+  }
 
-    if (!actor || !actor.active) {
-      throw new AppError(ErrorCode.UNAUTHORIZED, 'Usuario invÃ¡lido o inactivo.');
-    }
+  private toInventoryStatus(row: {
+    stock: number;
+    minStock: number;
+    criticalStock: number;
+    expiryDate: Date | null;
+  }): InventoryReportRow['status'] {
+    if (row.expiryDate) {
+      const now = new Date();
+      const expiry = row.expiryDate;
+      const thirtyDays = 30 * 24 * 60 * 60 * 1000;
 
-    if (!['ADMIN', 'SUPERVISOR'].includes(actor.role)) {
-      throw new AppError(ErrorCode.FORBIDDEN, 'No tienes permisos para consultar reportes.');
+      if (expiry.getTime() < now.getTime()) return 'expired';
+      if (expiry.getTime() - now.getTime() <= thirtyDays) return 'expiring';
     }
+    if (row.stock <= row.criticalStock) return 'critical';
+    if (row.stock <= row.minStock) return 'warning';
+    return 'ok';
   }
 
   private resolveRange(input: ReportDateRange): {
@@ -273,7 +236,7 @@ export class ReportsService {
       stockValue: product.stock * Number(product.cost),
       expiryDate: product.expiryDate ? product.expiryDate.toISOString() : null,
       location: product.location,
-      status: toInventoryStatus(product),
+      status: this.toInventoryStatus(product),
     }));
   }
 

@@ -10,6 +10,7 @@ import type {
 } from '../../renderer/src/shared/types/sales.types';
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
+import { toNumber } from '../utils/prisma-helpers';
 import { AuditService } from './audit.service';
 import { ConfigService } from './config.service';
 
@@ -48,10 +49,6 @@ type SaleWithRelations = Prisma.SaleGetPayload<{
     customer: true;
   };
 }>;
-
-function toNumber(value: Prisma.Decimal | null): number | null {
-  return value === null ? null : Number(value);
-}
 
 function mapPaymentMethod(method: string): PaymentMethod {
   const allowed: PaymentMethod[] = [
@@ -365,7 +362,7 @@ export class SalesService {
       },
     });
 
-    return mapSale(sale as any);
+    return mapSale(sale as unknown as SaleWithRelations);
   }
 
   async getSaleById(id: number): Promise<SaleRecord | null> {
@@ -374,7 +371,7 @@ export class SalesService {
       include: SALE_INCLUDE,
     });
 
-    return sale ? mapSale(sale as any) : null;
+    return sale ? mapSale(sale as unknown as SaleWithRelations) : null;
   }
 
   async getSaleByNumber(saleNumber: string): Promise<SaleRecord | null> {
@@ -383,7 +380,7 @@ export class SalesService {
       include: SALE_INCLUDE,
     });
 
-    return sale ? mapSale(sale as any) : null;
+    return sale ? mapSale(sale as unknown as SaleWithRelations) : null;
   }
 
   async getSalesByCashRegister(cashSessionId: number): Promise<SaleRecord[]> {
@@ -395,7 +392,7 @@ export class SalesService {
       },
     });
 
-    return sales.map((s: any) => mapSale(s));
+    return sales.map((s) => mapSale(s as unknown as SaleWithRelations));
   }
 
   async getSalesByUser(userId: number): Promise<SaleRecord[]> {
@@ -407,7 +404,7 @@ export class SalesService {
       },
     });
 
-    return sales.map((s: any) => mapSale(s));
+    return sales.map((s) => mapSale(s as unknown as SaleWithRelations));
   }
 
   async getSalesByDateRange(startDate: Date, endDate: Date): Promise<SaleRecord[]> {

@@ -8,7 +8,6 @@ import { AuditPage } from './modules/audit/AuditPage';
 import { BackupPage } from './modules/backup/BackupPage';
 import { CashRegisterPage } from './modules/cash/CashRegisterPage';
 import { DashboardPage } from './modules/dashboard/DashboardPage';
-import { DemoPage } from './modules/demo/DemoPage';
 import { InventoryBulkImportPage } from './modules/inventory/InventoryBulkImportPage';
 import { InventoryPage } from './modules/inventory/InventoryPage';
 import { LicensePage } from './modules/license/LicensePage';
@@ -204,14 +203,6 @@ export default function App(): JSX.Element {
             element={
               <ProtectedRoute roles={['ADMIN', 'CASHIER', 'SUPERVISOR']}>
                 <LayoutRoute><CustomersPage /></LayoutRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/demo"
-            element={
-              <ProtectedRoute>
-                <LayoutRoute><DemoPage /></LayoutRoute>
               </ProtectedRoute>
             }
           />

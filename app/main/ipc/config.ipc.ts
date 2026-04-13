@@ -32,16 +32,13 @@ export function registerConfigIpc(): void {
     'config:update',
     async (_event, userId: number, data: Partial<BusinessConfig>): Promise<ApiResponse<BusinessConfig>> => {
       try {
-        console.log('[CONFIG] update called, userId:', userId, 'data keys:', Object.keys(data));
         const result = await configService.updateConfig(userId, data);
-        console.log('[CONFIG] update success');
+        logger.info('config:update-success', { userId });
         return { success: true, data: result };
       } catch (err) {
-        console.error('[CONFIG] update FAILED:', err);
-        logger.error('config:update-failed', { 
-          userId, 
-          error: err instanceof Error ? err.message : String(err), 
-          stack: err instanceof Error ? err.stack : 'N/A' 
+        logger.error('config:update-error', {
+          userId,
+          error: err instanceof Error ? err.message : String(err),
         });
         return { success: false, error: toApiError(err) };
       }

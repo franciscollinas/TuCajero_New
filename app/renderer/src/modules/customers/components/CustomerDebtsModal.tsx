@@ -45,22 +45,16 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
   const loadDebts = async () => {
     setIsLoading(true);
     setError(null);
-    console.log('Cargando deudas para cliente:', customer.id, customer.fullName);
     try {
       const resp = await getCustomerDebts(customer.id);
-      console.log('Respuesta de deudas:', resp);
       if (resp.success) {
         setDebts(resp.data);
-        console.log('Deudas cargadas:', resp.data.length, 'deudas');
-        resp.data.forEach((d: any, i: number) => {
-          console.log(`Deuda ${i + 1}: balance=${d.balance}, customerId=${d.customerId}`);
-        });
       } else {
         setError(resp.error.message);
       }
-    } catch (err: any) {
-      console.error('Error cargando deudas:', err);
-      setError(err.message || 'Error inesperado');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error desconocido';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -90,8 +84,9 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
       } else {
         alert('Error al pagar la deuda: ' + resp.error?.message);
       }
-    } catch (err: any) {
-      alert('Error inesperado: ' + err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error inesperado';
+      alert('Error inesperado: ' + message);
     } finally {
       setIsPaying(false);
     }
@@ -279,7 +274,7 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              {debts.map((debt: any) => (
+              {debts.map((debt) => (
                 <div
                   key={debt.id}
                   style={{
@@ -531,7 +526,7 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
                             marginTop: 'var(--space-2)',
                           }}
                         >
-                          {debt.payments.map((p: any) => (
+                          {debt.payments.map((p) => (
                             <div
                               key={p.id}
                               style={{

@@ -3,13 +3,10 @@ import { Prisma } from '@prisma/client';
 import type { CashCloseSummary, CashRegister } from '../../renderer/src/shared/types/cash.types';
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
+import { toNumber } from '../utils/prisma-helpers';
 import { AuditService } from './audit.service';
 
 const auditService = new AuditService();
-
-function toNumber(value: Prisma.Decimal | null): number | null {
-  return value ? Number(value) : null;
-}
 
 function mapCashSession(session: {
   id: number;

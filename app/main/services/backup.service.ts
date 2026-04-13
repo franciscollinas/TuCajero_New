@@ -9,6 +9,8 @@ import type {
 } from '../../renderer/src/shared/types/backup.types';
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
+import { logger } from '../utils/logger';
+import { toFileDate } from '../utils/date';
 import { AuditService } from './audit.service';
 
 const auditService = new AuditService();
@@ -57,10 +59,6 @@ function ensureBackupDir(): string {
   const dir = getBackupDir();
   fs.mkdirSync(dir, { recursive: true });
   return dir;
-}
-
-function toFileDate(value: Date): string {
-  return value.toISOString().replace(/[:.]/g, '-');
 }
 
 function getFileSize(filePath: string): number {
@@ -453,7 +451,9 @@ export class BackupService {
         if (fs.existsSync(p)) {
           return { exists: true, path: p };
         }
-      } catch {}
+      } catch {
+        // Path check failed — continue to next candidate
+      }
     }
 
     return { exists: false, path: '' };
@@ -475,13 +475,21 @@ export class BackupService {
     const v1DbPath = v1Info.path;
 
     try {
-      const Database = require('better-sqlite3');
-      const v1Db = new Database(v1DbPath, { readonly: true });
+      // Dynamic import — better-sqlite3 is optional and may not be installed
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const DatabaseModule = await import('better-sqlite3');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Database = (DatabaseModule as any).default;
+      if (!Database) {
+        throw new AppError(ErrorCode.DATABASE_ERROR, 'better-sqlite3 no está instalado.');
+      }
+      interface V1Database { prepare: (sql: string) => { all: () => unknown[] }; close: () => void }
+      const v1Db = new Database(v1DbPath, { readonly: true }) as V1Database;
 
       let imported = 0;
 
       // Import categories
-      const categorias = v1Db.prepare('SELECT * FROM categorias').all();
+      const categorias = v1Db.prepare('SELECT * FROM categorias').all() as Array<{ id: number; nombre: string; color?: string }>;
       for (const cat of categorias) {
         try {
           await prisma.category.upsert({
@@ -496,11 +504,22 @@ export class BackupService {
             },
           });
           imported++;
-        } catch {}
+        } catch (error) {
+          logger.warn('V1 import: skipped category', { id: cat.id, error: error instanceof Error ? error.message : String(error) });
+        }
       }
 
       // Import products
-      const productos = v1Db.prepare('SELECT * FROM productos').all();
+      const productos = v1Db.prepare('SELECT * FROM productos').all() as Array<{
+        id: number; codigo?: string; nombre: string; precio?: number; costo?: number;
+        stock?: number; stock_minimo?: number; activo?: number; categoria_id?: number;
+        fecha_vencimiento?: string;
+      }>;
+
+      // Get default category ID
+      const defaultCategory = await prisma.category.findFirst({ where: { name: 'General' } });
+      const defaultCategoryId = defaultCategory?.id ?? 0;
+
       for (const prod of productos) {
         try {
           await prisma.product.upsert({
@@ -513,7 +532,7 @@ export class BackupService {
               stock: prod.stock || 0,
               minStock: prod.stock_minimo || 0,
               isActive: prod.activo !== 0,
-              categoryId: prod.categoria_id,
+              categoryId: prod.categoria_id ?? defaultCategoryId,
               expiryDate: prod.fecha_vencimiento ? new Date(prod.fecha_vencimiento) : null,
             },
             update: {
@@ -524,16 +543,20 @@ export class BackupService {
               stock: prod.stock || 0,
               minStock: prod.stock_minimo || 0,
               isActive: prod.activo !== 0,
-              categoryId: prod.categoria_id,
+              categoryId: prod.categoria_id ?? defaultCategoryId,
               expiryDate: prod.fecha_vencimiento ? new Date(prod.fecha_vencimiento) : null,
             },
           });
           imported++;
-        } catch {}
+        } catch (error) {
+          logger.warn('V1 import: skipped product', { id: prod.id, error: error instanceof Error ? error.message : String(error) });
+        }
       }
 
       // Import customers
-      const clientes = v1Db.prepare('SELECT * FROM clientes').all();
+      const clientes = v1Db.prepare('SELECT * FROM clientes').all() as Array<{
+        id: number; nombre: string; telefono?: string; email?: string; direccion?: string;
+      }>;
       for (const cli of clientes) {
         try {
           await prisma.customer.upsert({
@@ -553,7 +576,9 @@ export class BackupService {
             },
           });
           imported++;
-        } catch {}
+        } catch (error) {
+          logger.warn('V1 import: skipped customer', { id: cli.id, error: error instanceof Error ? error.message : String(error) });
+        }
       }
 
       v1Db.close();

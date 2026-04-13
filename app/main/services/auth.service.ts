@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import type { AuthSession, AuthUser, UserRole } from '../../renderer/src/shared/types/auth.types';
 import { prisma } from '../repositories/prisma';
 import { ErrorCode, AppError } from '../utils/errors';
+import { validatePassword } from '../utils/password';
 import { AuditService } from './audit.service';
 
 const auditService = new AuditService();
@@ -213,18 +214,7 @@ export class AuthService {
   }
 
   private validatePasswordStrength(password: string): void {
-    if (password.length < 8) {
-      throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe tener al menos 8 caracteres.');
-    }
-    if (!/[A-Z]/.test(password)) {
-      throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe contener al menos una letra mayúscula.');
-    }
-    if (!/[a-z]/.test(password)) {
-      throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe contener al menos una letra minúscula.');
-    }
-    if (!/[0-9]/.test(password)) {
-      throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe contener al menos un número.');
-    }
+    validatePassword(password);
   }
 
   async unlockAccount(userId: number, actorUserId: number): Promise<void> {

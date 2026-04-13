@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 
 import type { UserRole } from '../../renderer/src/shared/types/auth.types';
 import type {
@@ -9,31 +10,12 @@ import type {
 } from '../../renderer/src/shared/types/user.types';
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
+import { assertRoleAccess } from '../utils/prisma-helpers';
+import { validatePassword } from '../utils/password';
 import { AuditService } from './audit.service';
 import { BCRYPT_ROUNDS } from './auth.service';
 
 const auditService = new AuditService();
-
-function validatePassword(password: string): void {
-  if (password.length < 8) {
-    throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe tener al menos 8 caracteres.');
-  }
-  if (!/[A-Z]/.test(password)) {
-    throw new AppError(
-      ErrorCode.VALIDATION,
-      'La contraseña debe contener al menos una letra mayúscula.',
-    );
-  }
-  if (!/[a-z]/.test(password)) {
-    throw new AppError(
-      ErrorCode.VALIDATION,
-      'La contraseña debe contener al menos una letra minúscula.',
-    );
-  }
-  if (!/[0-9]/.test(password)) {
-    throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe contener al menos un número.');
-  }
-}
 
 function mapUser(user: {
   id: number;
@@ -41,7 +23,7 @@ function mapUser(user: {
   fullName: string;
   role: string;
   active: boolean;
-  hourlyRate: any;
+  hourlyRate: Prisma.Decimal | null;
   createdAt: Date;
   updatedAt: Date;
 }): UserRecord {
@@ -59,18 +41,11 @@ function mapUser(user: {
 
 export class UsersService {
   private async assertAdmin(userId: number): Promise<void> {
-    const actor = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true, active: true },
-    });
-
-    if (!actor || !actor.active) {
-      throw new AppError(ErrorCode.UNAUTHORIZED, 'Usuario inválido.');
-    }
-
-    if (actor.role !== 'ADMIN') {
-      throw new AppError(ErrorCode.FORBIDDEN, 'No tienes permisos para administrar usuarios.');
-    }
+    await assertRoleAccess(
+      userId,
+      ['ADMIN'],
+      'No tienes permisos para administrar usuarios.',
+    );
   }
 
   async listUsers(actorUserId: number): Promise<UserRecord[]> {
@@ -126,17 +101,9 @@ export class UsersService {
   }
 
   async updateUser(id: number, data: UpdateUserInput): Promise<UserRecord> {
-    console.log('==== UPDATE USER SERVICE ====');
-    console.log('id:', id, 'data:', JSON.stringify(data));
-
     await this.assertAdmin(data.actorUserId);
-    console.log('admin check passed');
 
-    const existing = await prisma.user.findUnique({
-      where: { id },
-    });
-    console.log('existing:', existing?.fullName, existing?.hourlyRate);
-
+    const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing) {
       throw new AppError(ErrorCode.NOT_FOUND, 'Usuario no encontrado.');
     }
@@ -147,7 +114,7 @@ export class UsersService {
       nextPassword = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
     }
 
-    const newData: any = {
+    const newData: Prisma.UserUpdateArgs['data'] = {
       fullName: data.fullName?.trim(),
       role: data.role,
     };
@@ -155,13 +122,10 @@ export class UsersService {
     if (data.active !== undefined) newData.active = data.active;
     if (data.hourlyRate) newData.hourlyRate = data.hourlyRate;
 
-    console.log('--- update data:', newData);
-
     const user = await prisma.user.update({
       where: { id },
       data: newData,
     });
-    console.log('--- updated user:', user);
 
     await auditService.log({
       userId: data.actorUserId,

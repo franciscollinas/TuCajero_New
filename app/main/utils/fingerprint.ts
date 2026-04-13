@@ -1,7 +1,8 @@
 import { createHmac, createHash } from 'crypto';
 import si from 'systeminformation';
 
-const LICENSE_SECRET = 'TuCajero-Licence-2026-PrivateKey';
+// License signing key — set via env var in production; fallback for dev only
+const LICENSE_SECRET = process.env.LICENSE_SECRET ?? 'TuCajero-Licence-2026-PrivateKey';
 
 export interface HardwareFingerprint {
   cpuInfo: string;

@@ -62,8 +62,9 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, onClose, 
       }
       onSaved();
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Error al guardar el cliente');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al guardar el cliente';
+      setError(message);
     } finally {
       setIsLoading(false);
     }

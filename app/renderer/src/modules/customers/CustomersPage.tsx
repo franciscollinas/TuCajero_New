@@ -39,8 +39,9 @@ const CustomersPage: React.FC = () => {
       } else {
         setError(response.error.message);
       }
-    } catch (err: any) {
-      setError(err.message || 'Error inesperado');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error inesperado';
+      setError(message);
     } finally {
       setIsLoading(false);
     }

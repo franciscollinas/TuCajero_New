@@ -81,6 +81,9 @@ export interface SaleRecord {
   payments: SalePayment[];
   user: SaleUser;
   cashSession: SaleCashSession | null;
+  // Optional fields used only in invoice printing
+  cashReceived?: number;
+  change?: number;
 }
 
 export interface DailySummary {

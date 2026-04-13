@@ -390,9 +390,10 @@ export function POSPage(): JSX.Element {
         setMessageType('error');
         setMessage(response.error.message);
       }
-    } catch (err: any) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al procesar';
       setMessageType('error');
-      setMessage(err.message || 'Error al procesar');
+      setMessage(message);
     } finally {
       setLoading(false);
     }
@@ -459,9 +460,10 @@ export function POSPage(): JSX.Element {
         setMessageType('error');
         setMessage(response.error.message);
       }
-    } catch (err: any) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al procesar';
       setMessageType('error');
-      setMessage(err.message || 'Error al procesar');
+      setMessage(message);
     } finally {
       setLoading(false);
     }

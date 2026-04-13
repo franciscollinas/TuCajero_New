@@ -21,6 +21,7 @@ export interface Debt {
   dueDate: string | null;
   createdAt: string;
   updatedAt: string;
+  payments?: DebtPayment[];
 }
 
 export interface DebtPayment {

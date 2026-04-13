@@ -42,13 +42,12 @@ export function registerUsersIpc(): void {
   ipcMain.handle(
     'users:update',
     async (_event, id: number, data: UpdateUserInput): Promise<ApiResponse<UserRecord>> => {
-      console.log('>>> IPC users:update', id, data);
       try {
         const result = await usersService.updateUser(id, data);
-        console.log('<<< IPC result:', result);
+        logger.info('users:update-success', { userId: id });
         return { success: true, data: result };
       } catch (err) {
-        console.log('<<< IPC error:', err);
+        logger.error('users:update-error', { err, userId: id });
         return { success: false, error: toApiError(err) };
       }
     },

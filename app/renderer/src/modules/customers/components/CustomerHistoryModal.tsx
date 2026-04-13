@@ -10,8 +10,35 @@ interface CustomerHistoryModalProps {
   customer: Customer;
 }
 
+interface SerializedHistorySale {
+  id: number;
+  saleNumber: string;
+  total: number;
+  subtotal: number;
+  tax: number;
+  discount: number;
+  status: string;
+  createdAt: string;
+  items: Array<{
+    id: number;
+    quantity: number;
+    unitPrice: number;
+    subtotal: number;
+    discount: number;
+    total: number;
+    productName?: string;
+    product?: { name: string };
+  }>;
+  payments: Array<{
+    id: number;
+    method: string;
+    amount: number;
+  }>;
+  debt?: { balance: number; amount: number; status: string } | null;
+}
+
 const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ isOpen, onClose, customer }) => {
-  const [sales, setSales] = useState<any[]>([]);
+  const [sales, setSales] = useState<SerializedHistorySale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,8 +58,9 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ isOpen, onC
       } else {
         setError(resp.error.message);
       }
-    } catch (err: any) {
-      setError(err.message || 'Error inesperado');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error inesperado';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -124,7 +152,7 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ isOpen, onC
                         <Package size={14} /> Detalle de Artículos
                       </h4>
                       <div className="space-y-2 bg-gray-50/50 rounded-xl p-3 border border-gray-50">
-                        {sale.items.map((item: any, idx: number) => (
+                        {sale.items.map((item, idx: number) => (
                           <div key={idx} className="flex justify-between items-center text-sm">
                             <span className="text-gray-600 font-medium">
                               <span className="text-brand-600 font-bold mr-1">{item.quantity}x</span> {item.productName || item.product?.name}
@@ -142,7 +170,7 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ isOpen, onC
                             <DollarSign size={14} /> Distribución de Pago
                           </h4>
                           <div className="flex flex-wrap gap-2">
-                            {sale.payments.map((p: any) => (
+                            {sale.payments.map((p) => (
                               <div key={p.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold ${
                                 p.method === 'credito'
                                   ? 'bg-amber-50 border-amber-100 text-amber-700'

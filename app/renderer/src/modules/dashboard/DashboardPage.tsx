@@ -77,7 +77,13 @@ function formatDate(dateStr: string): string {
   });
 }
 
-const CustomBarTooltip = memo(function CustomBarTooltip({ active, payload }: any) {
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: { payload: { name?: string; ventas?: number; ingresos?: number; value?: number }; name?: string; value?: number }[];
+}
+
+const CustomBarTooltip = memo(function CustomBarTooltip(props: ChartTooltipProps) {
+  const { active, payload } = props;
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -102,11 +108,11 @@ const CustomBarTooltip = memo(function CustomBarTooltip({ active, payload }: any
           {data.name}
         </p>
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-500)', marginBottom: '2px' }}>
-          Ventas: <strong style={{ color: 'var(--brand-600)' }}>{data.ventas}</strong>
+          Ventas: <strong style={{ color: 'var(--brand-600)' }}>{data.ventas ?? 0}</strong>
         </p>
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-500)' }}>
           Ingresos:{' '}
-          <strong style={{ color: 'var(--success-600)' }}>{formatCurrency(data.ingresos)}</strong>
+          <strong style={{ color: 'var(--success-600)' }}>{formatCurrency(data.ingresos ?? 0)}</strong>
         </p>
       </div>
     );
@@ -114,7 +120,8 @@ const CustomBarTooltip = memo(function CustomBarTooltip({ active, payload }: any
   return null;
 });
 
-const CustomPieTooltip = memo(function CustomPieTooltip({ active, payload }: any) {
+const CustomPieTooltip = memo(function CustomPieTooltip(props: ChartTooltipProps) {
+  const { active, payload } = props;
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -131,7 +138,7 @@ const CustomPieTooltip = memo(function CustomPieTooltip({ active, payload }: any
           {data.name}
         </p>
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-500)' }}>
-          {formatCurrency(data.value)}
+          {formatCurrency(data.value ?? 0)}
         </p>
       </div>
     );
@@ -680,7 +687,7 @@ export function DashboardPage(): JSX.Element {
                 nameKey="name"
                 stroke="none"
               >
-                {(summary?.topCategories ?? []).map((_: any, index: number) => (
+                {(summary?.topCategories ?? []).map((_cat, index: number) => (
                   <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                 ))}
               </Pie>

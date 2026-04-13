@@ -216,9 +216,9 @@ export async function generateInvoicePDF(sale: SaleRecord, config?: BusinessConf
   }
 
   // Efectivo recibido y cambio
-  const cashReceived = (sale as any).cashReceived;
-  const change = (sale as any).change;
-  if (cashReceived && change > 0) {
+  const cashReceived = sale.cashReceived;
+  const change = sale.change;
+  if (cashReceived && change && change > 0) {
     y += 8;
     doc.fillColor('#333333').fontSize(9).font('Helvetica').text('Efectivo recibido:', MARGIN, y);
     doc.fillColor('#000000').fontSize(9).font('Helvetica-Bold').text(formatCurrency(cashReceived), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
