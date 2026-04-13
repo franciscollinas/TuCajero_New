@@ -1,5 +1,39 @@
 import type { UserRole } from './auth.types';
 
+export type PayrollPeriod = 'daily' | 'weekly' | 'monthly';
+
+export interface PayrollDayEntry {
+  date: string;       // YYYY-MM-DD
+  dayName: string;    // e.g. "Lunes"
+  loginCount: number;
+  workedSeconds: number;
+  workedHours: number;
+  hourlyRate: number;
+  payAmount: number;
+}
+
+export interface PayrollUserSummary {
+  userId: number;
+  fullName: string;
+  username: string;
+  hourlyRate: number;
+  period: PayrollPeriod;
+  periodStart: string;  // YYYY-MM-DD
+  periodEnd: string;    // YYYY-MM-DD
+  days: PayrollDayEntry[];
+  totalDays: number;
+  totalWorkedSeconds: number;
+  totalWorkedHours: number;
+  totalPayAmount: number;
+}
+
+export interface PayrollAllUsersResult {
+  users: PayrollUserSummary[];
+  grandTotalPay: number;
+  grandTotalHours: number;
+  generatedAt: string;
+}
+
 export interface UserStats {
   id: number;
   username: string;

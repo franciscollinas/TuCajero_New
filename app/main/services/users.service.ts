@@ -7,6 +7,10 @@ import type {
   UpdateUserInput,
   UserRecord,
   UserStats,
+  PayrollPeriod,
+  PayrollDayEntry,
+  PayrollUserSummary,
+  PayrollAllUsersResult,
 } from '../../renderer/src/shared/types/user.types';
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
@@ -221,4 +225,138 @@ export class UsersService {
     const stats = await Promise.all(users.map((u) => this.getUserStats(u.id)));
     return stats;
   }
+
+  // ─── Payroll Report ────────────────────────────────────────────────
+
+  async getPayrollReport(
+    actorUserId: number,
+    period: PayrollPeriod = 'weekly',
+    targetUserId?: number,
+  ): Promise<PayrollAllUsersResult> {
+    await assertRoleAccess(
+      actorUserId,
+      ['ADMIN'],
+      'No tienes permisos para consultar nómina.',
+    );
+
+    const now = new Date();
+    let periodStart: Date;
+    let periodEnd: Date = endOfDay(now);
+
+    if (period === 'daily') {
+      periodStart = startOfDay(now);
+    } else if (period === 'weekly') {
+      const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon
+      const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      periodStart = startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday));
+    } else {
+      periodStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    }
+
+    // Get all cashier users
+    const cashiers = await prisma.user.findMany({
+      where: targetUserId ? { id: targetUserId } : { role: 'CASHIER' },
+      orderBy: { fullName: 'asc' },
+    });
+
+    const DAY_NAMES_ES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+    const userSummaries: PayrollUserSummary[] = [];
+    let grandTotalPay = 0;
+    let grandTotalHours = 0;
+
+    for (const cashier of cashiers) {
+      const hourlyRate = cashier.hourlyRate ? Number(cashier.hourlyRate) : 15000;
+
+      // Get all sessions for this cashier in the period
+      const sessions = await prisma.session.findMany({
+        where: {
+          userId: cashier.id,
+          createdAt: { gte: periodStart, lte: periodEnd },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      // Group sessions by date
+      const sessionsByDate = new Map<string, typeof sessions>();
+      for (const session of sessions) {
+        const dateKey = session.createdAt.toISOString().slice(0, 10);
+        if (!sessionsByDate.has(dateKey)) {
+          sessionsByDate.set(dateKey, []);
+        }
+        sessionsByDate.get(dateKey)!.push(session);
+      }
+
+      // Build daily entries
+      const days: PayrollDayEntry[] = [];
+      let totalWorkedSeconds = 0;
+
+      for (const [dateStr, daySessions] of sessionsByDate) {
+        let daySeconds = 0;
+        for (const s of daySessions) {
+          const start = s.createdAt.getTime();
+          const end = s.expiresAt.getTime();
+          daySeconds += (end - start) / 1000;
+        }
+
+        const workedHours = daySeconds / 3600;
+        const dayDate = new Date(dateStr + 'T12:00:00');
+        const dayName = DAY_NAMES_ES[dayDate.getDay()];
+
+        days.push({
+          date: dateStr,
+          dayName,
+          loginCount: daySessions.length,
+          workedSeconds: daySeconds,
+          workedHours: Math.round(workedHours * 100) / 100,
+          hourlyRate,
+          payAmount: Math.round(hourlyRate * workedHours),
+        });
+
+        totalWorkedSeconds += daySeconds;
+      }
+
+      const totalHours = totalWorkedSeconds / 3600;
+      const totalPay = Math.round(hourlyRate * totalHours);
+
+      userSummaries.push({
+        userId: cashier.id,
+        fullName: cashier.fullName,
+        username: cashier.username,
+        hourlyRate,
+        period,
+        periodStart: periodStart.toISOString().slice(0, 10),
+        periodEnd: periodEnd.toISOString().slice(0, 10),
+        days,
+        totalDays: days.length,
+        totalWorkedSeconds,
+        totalWorkedHours: Math.round(totalHours * 100) / 100,
+        totalPayAmount: totalPay,
+      });
+
+      grandTotalPay += totalPay;
+      grandTotalHours += totalHours;
+    }
+
+    return {
+      users: userSummaries,
+      grandTotalPay,
+      grandTotalHours: Math.round(grandTotalHours * 100) / 100,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+}
+
+// ─── Date helpers (local) ────────────────────────────────────────────
+
+function startOfDay(value: Date): Date {
+  const d = new Date(value);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function endOfDay(value: Date): Date {
+  const d = new Date(value);
+  d.setHours(23, 59, 59, 999);
+  return d;
 }

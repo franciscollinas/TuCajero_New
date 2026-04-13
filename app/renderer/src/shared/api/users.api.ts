@@ -1,5 +1,12 @@
 import type { ApiResponse } from '../types/api.types';
-import type { CreateUserInput, UpdateUserInput, UserRecord, UserStats } from '../types/user.types';
+import type {
+  CreateUserInput,
+  UpdateUserInput,
+  UserRecord,
+  UserStats,
+  PayrollPeriod,
+  PayrollAllUsersResult,
+} from '../types/user.types';
 
 export function getUsers(actorUserId: number): Promise<ApiResponse<UserRecord[]>> {
   return window.api.invoke<UserRecord[]>('users:list', actorUserId);
@@ -27,4 +34,12 @@ export function getUserStats(userId: number): Promise<ApiResponse<UserStats>> {
 
 export function getAllUserStats(): Promise<ApiResponse<UserStats[]>> {
   return window.api.invoke<UserStats[]>('users:getAllStats');
+}
+
+export function getPayrollReport(
+  actorUserId: number,
+  period: PayrollPeriod = 'weekly',
+  targetUserId?: number,
+): Promise<ApiResponse<PayrollAllUsersResult>> {
+  return window.api.invoke<PayrollAllUsersResult>('users:getPayrollReport', actorUserId, period, targetUserId);
 }

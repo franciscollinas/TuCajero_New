@@ -5,6 +5,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recha
 import {
   createUser,
   getAllUserStats,
+  getPayrollReport,
   getUsers,
   toggleUserActive,
   updateUser,
@@ -17,6 +18,9 @@ import type {
   UpdateUserInput,
   UserRecord,
   UserStats,
+  PayrollPeriod,
+  PayrollUserSummary,
+  PayrollAllUsersResult,
 } from '../../shared/types/user.types';
 
 // SVG Icons as components for reusability
@@ -412,6 +416,13 @@ export function UsersPage(): JSX.Element {
   const [userStats, setUserStats] = useState<UserStats[]>([]);
   const [_statsLoading, setStatsLoading] = useState(true);
 
+  // Payroll state
+  const [activeTab, setActiveTab] = useState<'users' | 'payroll'>('users');
+  const [payrollPeriod, setPayrollPeriod] = useState<PayrollPeriod>('weekly');
+  const [payrollData, setPayrollData] = useState<PayrollAllUsersResult | null>(null);
+  const [payrollLoading, setPayrollLoading] = useState(false);
+  const [selectedPayrollUser, setSelectedPayrollUser] = useState<PayrollUserSummary | null>(null);
+
   useEffect((): (() => void) | void => {
     if (!user) {
       return;
@@ -483,6 +494,20 @@ export function UsersPage(): JSX.Element {
     '#14b8a6',
     '#f97316',
   ];
+
+  const loadPayroll = async (period: PayrollPeriod): Promise<void> => {
+    if (!user) return;
+    setPayrollLoading(true);
+    setSelectedPayrollUser(null);
+    try {
+      const resp = await getPayrollReport(user.id, period);
+      if (resp.success) {
+        setPayrollData(resp.data);
+      }
+    } finally {
+      setPayrollLoading(false);
+    }
+  };
 
   const handleCreate = async (data: Omit<CreateUserInput, 'actorUserId'>): Promise<void> => {
     if (!user) {
@@ -663,15 +688,78 @@ export function UsersPage(): JSX.Element {
           </div>
         )}
 
-        {/* Stats Cards and Pie Chart */}
+        {/* Tab Switcher */}
         <div
+          className="animate-slideUp"
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 'var(--space-4)',
-            marginBottom: 'var(--space-5)',
+            display: 'flex',
+            gap: 'var(--space-2)',
+            marginTop: 'var(--space-5)',
+            marginBottom: 'var(--space-2)',
           }}
         >
+          <button
+            type="button"
+            onClick={() => setActiveTab('users')}
+            style={{
+              padding: 'var(--space-2) var(--space-4)',
+              borderRadius: 'var(--radius-lg)',
+              border: 'none',
+              background: activeTab === 'users' ? 'var(--brand-500)' : 'var(--gray-100)',
+              color: activeTab === 'users' ? '#fff' : 'var(--gray-600)',
+              fontWeight: 700,
+              fontSize: 'var(--text-sm)',
+              cursor: 'pointer',
+              transition: 'all var(--transition-fast)',
+            }}
+          >
+            👥 {es.users.title}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('payroll');
+              void loadPayroll(payrollPeriod);
+            }}
+            style={{
+              padding: 'var(--space-2) var(--space-4)',
+              borderRadius: 'var(--radius-lg)',
+              border: 'none',
+              background: activeTab === 'payroll' ? 'var(--brand-500)' : 'var(--gray-100)',
+              color: activeTab === 'payroll' ? '#fff' : 'var(--gray-600)',
+              fontWeight: 700,
+              fontSize: 'var(--text-sm)',
+              cursor: 'pointer',
+              transition: 'all var(--transition-fast)',
+            }}
+          >
+            💰 Nómina
+          </button>
+        </div>
+
+        {activeTab === 'payroll' ? (
+          <PayrollSection
+            data={payrollData}
+            loading={payrollLoading}
+            period={payrollPeriod}
+            onPeriodChange={(period) => {
+              setPayrollPeriod(period);
+              void loadPayroll(period);
+            }}
+            selectedUser={selectedPayrollUser}
+            onUserSelect={setSelectedPayrollUser}
+          />
+        ) : (
+          <>
+            {/* Stats Cards and Pie Chart */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 'var(--space-4)',
+                marginBottom: 'var(--space-5)',
+              }}
+            >
           {/* Total Hours Worked Card */}
           <div
             style={{
@@ -1261,6 +1349,246 @@ export function UsersPage(): JSX.Element {
             )}
           </div>
         </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Payroll Section Component ──────────────────────────────────────────────
+
+interface PayrollSectionProps {
+  data: PayrollAllUsersResult | null;
+  loading: boolean;
+  period: PayrollPeriod;
+  onPeriodChange: (period: PayrollPeriod) => void;
+  selectedUser: PayrollUserSummary | null;
+  onUserSelect: (user: PayrollUserSummary | null) => void;
+}
+
+function PayrollSection({
+  data,
+  loading,
+  period,
+  onPeriodChange,
+  selectedUser,
+  onUserSelect,
+}: PayrollSectionProps): JSX.Element {
+  if (loading) {
+    return (
+      <div style={{ padding: 'var(--space-12)', textAlign: 'center', color: 'var(--gray-500)' }}>
+        <div style={{ width: '32px', height: '32px', border: '3px solid var(--brand-100)', borderTopColor: 'var(--brand-500)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto var(--space-3)' }} />
+        <p style={{ margin: 0 }}>{es.common.loading}</p>
+      </div>
+    );
+  }
+
+  if (!data || data.users.length === 0) {
+    return (
+      <div style={{ padding: 'var(--space-12)', textAlign: 'center', color: 'var(--gray-500)' }}>
+        <p style={{ margin: 0 }}>No hay datos de nómina disponibles.</p>
+      </div>
+    );
+  }
+
+  const periodLabel = period === 'daily' ? 'Hoy' : period === 'weekly' ? 'Esta Semana' : 'Este Mes';
+
+  if (selectedUser) {
+    return (
+      <UserPayrollDetail user={selectedUser} onBack={() => onUserSelect(null)} />
+    );
+  }
+
+  return (
+    <div className="animate-slideUp" style={{ display: 'grid', gap: 'var(--space-5)' }}>
+      {/* Period selector + grand totals */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-4)' }}>
+        <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', padding: 'var(--space-5)', boxShadow: 'var(--shadow-sm)' }}>
+          <p style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--gray-600)' }}>Período</p>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
+            {(['daily', 'weekly', 'monthly'] as PayrollPeriod[]).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => onPeriodChange(p)}
+                style={{
+                  padding: 'var(--space-1) var(--space-3)',
+                  borderRadius: 'var(--radius-md)',
+                  border: period === p ? '2px solid var(--brand-500)' : '1px solid var(--border-light)',
+                  background: period === p ? 'var(--brand-50)' : 'var(--bg-card)',
+                  color: period === p ? 'var(--brand-600)' : 'var(--gray-600)',
+                  fontWeight: 700,
+                  fontSize: 'var(--text-xs)',
+                  cursor: 'pointer',
+                }}
+              >
+                {p === 'daily' ? 'Día' : p === 'weekly' ? 'Semana' : 'Mes'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', padding: 'var(--space-5)', boxShadow: 'var(--shadow-sm)' }}>
+          <p style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--gray-600)' }}>Horas Totales ({periodLabel})</p>
+          <p style={{ margin: 'var(--space-2) 0 0', fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--brand-600)' }}>{data.grandTotalHours}h</p>
+        </div>
+
+        <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', padding: 'var(--space-5)', boxShadow: 'var(--shadow-sm)' }}>
+          <p style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--gray-600)' }}>Total a Pagar ({periodLabel})</p>
+          <p style={{ margin: 'var(--space-2) 0 0', fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--success-600)' }}>
+            ${data.grandTotalPay.toLocaleString('es-CO')}
+          </p>
+        </div>
+      </div>
+
+      {/* Per-user cards */}
+      {data.users.map((u) => (
+        <article
+          key={u.userId}
+          style={{
+            background: 'var(--bg-card)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--border-light)',
+            boxShadow: 'var(--shadow-sm)',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Card header */}
+          <div style={{ padding: 'var(--space-4) var(--space-5)', background: 'linear-gradient(135deg, var(--gray-25) 0%, var(--bg-card) 100%)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-lg)', background: 'var(--gradient-primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 'var(--text-lg)' }}>
+                {u.fullName.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--gray-900)' }}>{u.fullName}</h3>
+                <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--gray-500)' }}>Tarifa: ${u.hourlyRate.toLocaleString('es-CO')}/h</p>
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--gray-500)' }}>{u.totalWorkedHours}h / {u.totalDays} días</p>
+              <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--text-lg)', fontWeight: 800, color: 'var(--success-600)' }}>${u.totalPayAmount.toLocaleString('es-CO')}</p>
+            </div>
+          </div>
+
+          {/* Daily breakdown table */}
+          {u.days.length > 0 && (
+            <div style={{ padding: 'var(--space-4) var(--space-5)' }}>
+              <table className="tc-table" style={{ fontSize: 'var(--text-sm)' }}>
+                <thead>
+                  <tr>
+                    <th>Día</th>
+                    <th>Fecha</th>
+                    <th>Logins</th>
+                    <th>Horas</th>
+                    <th>Pago</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {u.days.map((d) => (
+                    <tr key={d.date}>
+                      <td>{d.dayName}</td>
+                      <td>{d.date}</td>
+                      <td>{d.loginCount}</td>
+                      <td style={{ fontWeight: 700 }}>{d.workedHours}h</td>
+                      <td style={{ fontWeight: 700, color: 'var(--success-600)' }}>${d.payAmount.toLocaleString('es-CO')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* View detail button */}
+          <div style={{ padding: 'var(--space-3) var(--space-5)', borderTop: '1px solid var(--border-light)', textAlign: 'right' }}>
+            <button
+              type="button"
+              onClick={() => onUserSelect(u)}
+              style={{ padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--brand-200)', background: 'var(--brand-50)', color: 'var(--brand-600)', fontWeight: 700, fontSize: 'var(--text-xs)', cursor: 'pointer' }}
+            >
+              Ver Detalle →
+            </button>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+// ─── User Payroll Detail (expanded view) ─────────────────────────────────────
+
+function UserPayrollDetail({ user: u, onBack }: { user: PayrollUserSummary; onBack: () => void }): JSX.Element {
+  return (
+    <div className="animate-slideUp" style={{ display: 'grid', gap: 'var(--space-5)' }}>
+      <button
+        type="button"
+        onClick={onBack}
+        style={{ alignSelf: 'flex-start', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)', background: 'var(--bg-card)', color: 'var(--gray-700)', fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer' }}
+      >
+        ← Volver
+      </button>
+
+      {/* Summary */}
+      <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: 'var(--radius-xl)', background: 'var(--gradient-primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 'var(--text-2xl)' }}>
+            {u.fullName.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--gray-900)' }}>{u.fullName}</h2>
+            <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--gray-500)' }}>
+              {u.periodStart} → {u.periodEnd}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
+          {[
+            { label: 'Tarifa/hora', value: `$${u.hourlyRate.toLocaleString('es-CO')}`, color: 'var(--gray-900)' },
+            { label: 'Días trabajados', value: `${u.totalDays}`, color: 'var(--brand-600)' },
+            { label: 'Horas totales', value: `${u.totalWorkedHours}h`, color: 'var(--brand-600)' },
+            { label: 'Total a pagar', value: `$${u.totalPayAmount.toLocaleString('es-CO')}`, color: 'var(--success-600)' },
+          ].map((item) => (
+            <div key={item.label} style={{ textAlign: 'center', padding: 'var(--space-3)', background: 'var(--gray-50)', borderRadius: 'var(--radius-md)' }}>
+              <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--gray-500)', fontWeight: 600 }}>{item.label}</p>
+              <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--text-lg)', fontWeight: 800, color: item.color }}>{item.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Full daily table */}
+        {u.days.length > 0 && (
+          <table className="tc-table" style={{ fontSize: 'var(--text-sm)' }}>
+            <thead>
+              <tr>
+                <th>Día</th>
+                <th>Fecha</th>
+                <th>Logins</th>
+                <th>Horas trabajadas</th>
+                <th>Tarifa/h</th>
+                <th>Pago del día</th>
+              </tr>
+            </thead>
+            <tbody>
+              {u.days.map((d) => (
+                <tr key={d.date}>
+                  <td>{d.dayName}</td>
+                  <td>{d.date}</td>
+                  <td>{d.loginCount}</td>
+                  <td style={{ fontWeight: 700 }}>{d.workedHours}h</td>
+                  <td>${d.hourlyRate.toLocaleString('es-CO')}</td>
+                  <td style={{ fontWeight: 700, color: 'var(--success-600)' }}>${d.payAmount.toLocaleString('es-CO')}</td>
+                </tr>
+              ))}
+              <tr style={{ borderTop: '2px solid var(--brand-200)' }}>
+                <td colSpan={3} style={{ fontWeight: 800, color: 'var(--gray-900)', textAlign: 'right' }}>TOTALES</td>
+                <td style={{ fontWeight: 800, color: 'var(--brand-600)' }}>{u.totalWorkedHours}h</td>
+                <td></td>
+                <td style={{ fontWeight: 800, color: 'var(--success-600)' }}>${u.totalPayAmount.toLocaleString('es-CO')}</td>
+              </tr>
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

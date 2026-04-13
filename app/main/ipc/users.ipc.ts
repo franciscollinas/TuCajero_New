@@ -6,6 +6,8 @@ import type {
   UpdateUserInput,
   UserRecord,
   UserStats,
+  PayrollPeriod,
+  PayrollAllUsersResult,
 } from '../../renderer/src/shared/types/user.types';
 import { toApiError } from '../utils/errors';
 import { logger } from '../utils/logger';
@@ -90,4 +92,21 @@ export function registerUsersIpc(): void {
       return { success: false, error: toApiError(err) };
     }
   });
+
+  ipcMain.handle(
+    'users:getPayrollReport',
+    async (
+      _event,
+      actorUserId: number,
+      period: PayrollPeriod = 'weekly',
+      targetUserId?: number,
+    ): Promise<ApiResponse<PayrollAllUsersResult>> => {
+      try {
+        const result = await usersService.getPayrollReport(actorUserId, period, targetUserId);
+        return { success: true, data: result };
+      } catch (err) {
+        return { success: false, error: toApiError(err) };
+      }
+    },
+  );
 }
