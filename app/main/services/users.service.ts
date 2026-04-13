@@ -185,17 +185,35 @@ export class UsersService {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 
-    const sessions = await prisma.session.findMany({
-      where: { userId, createdAt: { gte: startOfMonth } },
-      select: { createdAt: true, expiresAt: true },
+    // Calculate worked hours from audit logs (auth:login / auth:logout pairs)
+    // Sessions are deleted on logout so we can't use them for historical stats
+    const auditLogs = await prisma.auditLog.findMany({
+      where: {
+        userId,
+        action: { in: ['auth:login', 'auth:logout'] },
+        createdAt: { gte: startOfMonth },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { action: true, createdAt: true },
     });
 
     let totalWorkedSeconds = 0;
-    sessions.forEach((s) => {
-      const start = s.createdAt.getTime();
-      const end = s.expiresAt.getTime();
-      totalWorkedSeconds += (end - start) / 1000;
-    });
+    let loginTime: Date | null = null;
+
+    for (const log of auditLogs) {
+      if (log.action === 'auth:login') {
+        loginTime = log.createdAt;
+      } else if (log.action === 'auth:logout' && loginTime) {
+        const sessionSeconds = (log.createdAt.getTime() - loginTime.getTime()) / 1000;
+        totalWorkedSeconds += Math.max(0, sessionSeconds);
+        loginTime = null;
+      }
+    }
+
+    // If user is still logged in (no matching logout), count time until now
+    if (loginTime) {
+      totalWorkedSeconds += (Date.now() - loginTime.getTime()) / 1000;
+    }
 
     const salesResult = await prisma.sale.aggregate({
       where: { userId, status: 'COMPLETED', createdAt: { gte: startOfMonth }, debt: null },

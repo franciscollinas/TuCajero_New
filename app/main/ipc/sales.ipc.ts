@@ -13,6 +13,7 @@ import { SalesService } from '../services/sales.service';
 import { ConfigService } from '../services/config.service';
 import { logger } from '../utils/logger';
 import { toApiError } from '../utils/errors';
+import { cache } from '../utils/cache';
 
 const salesService = new SalesService();
 const configService = new ConfigService();
@@ -45,6 +46,10 @@ export function registerSalesIpc(): void {
           saleNumber: result.saleNumber,
           userId,
         });
+        // Invalidate inventory cache so POS shows updated stock
+        Array.from(cache['store'].keys())
+          .filter((k) => k.startsWith('inventory:'))
+          .forEach((k) => cache.invalidate(k));
         return { success: true, data: result };
       } catch (err) {
         logger.error('sales:create-error', { err, userId, cashSessionId });
