@@ -18,6 +18,16 @@ export function registerConfigIpc(): void {
     }
   });
 
+  ipcMain.handle('config:getIvaRate', async (): Promise<ApiResponse<number>> => {
+    try {
+      const result = await configService.getIvaRate();
+      return { success: true, data: result };
+    } catch (err) {
+      logger.error('config:getIvaRate-failed', { error: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : 'N/A' });
+      return { success: false, error: toApiError(err) };
+    }
+  });
+
   ipcMain.handle(
     'config:update',
     async (_event, userId: number, data: Partial<BusinessConfig>): Promise<ApiResponse<BusinessConfig>> => {

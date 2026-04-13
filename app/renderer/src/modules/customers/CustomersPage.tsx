@@ -10,8 +10,6 @@ import {
   Activity,
   Phone,
   MapPin,
-  Trash2,
-  Mail,
 } from 'lucide-react';
 import { searchCustomers } from '../../shared/api/customers.api';
 import type { Customer } from '../../shared/types/customers.types';

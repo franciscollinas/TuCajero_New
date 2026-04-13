@@ -15,3 +15,11 @@ export async function validateSession(token: string): Promise<ApiResponse<AuthUs
 export async function logout(token: string): Promise<ApiResponse<void>> {
   return window.api.invoke<void>('auth:logout', token);
 }
+
+export async function unlockAccount(userId: number, actorUserId: number): Promise<ApiResponse<void>> {
+  return window.api.invoke<void>('auth:unlockAccount', userId, actorUserId);
+}
+
+export async function getLoginStatus(userId: number): Promise<ApiResponse<{ failedAttempts: number; isLocked: boolean; lockedUntil: string | null }>> {
+  return window.api.invoke('auth:getLoginStatus', userId);
+}

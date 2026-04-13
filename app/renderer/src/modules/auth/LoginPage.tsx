@@ -10,18 +10,22 @@ export function LoginPage(): JSX.Element {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLocked, setIsLocked] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     setLoading(true);
     setError('');
+    setIsLocked(false);
 
     try {
       await login(username, password);
       navigate('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : es.errors.unknown);
+      const msg = err instanceof Error ? err.message : es.errors.unknown;
+      setError(msg);
+      setIsLocked(msg.includes('bloqueada') || msg.includes('bloqueado'));
     } finally {
       setLoading(false);
     }
@@ -100,7 +104,27 @@ export function LoginPage(): JSX.Element {
           </div>
 
           {error && (
-            <div className="tc-notice tc-notice--error">{error}</div>
+            <div
+              className="tc-notice tc-notice--error"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: isLocked ? '14px 16px' : '12px 16px',
+                background: isLocked ? '#fef2f2' : undefined,
+                border: isLocked ? '1px solid #fca5a5' : undefined,
+                borderRadius: '12px',
+              }}
+            >
+              {isLocked && (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  <circle cx="12" cy="16" r="1" />
+                </svg>
+              )}
+              <span>{error}</span>
+            </div>
           )}
 
           <button type="submit" className="tc-btn tc-btn--primary" style={{ minHeight: '48px', fontSize: '15px' }} disabled={loading}>

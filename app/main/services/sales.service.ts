@@ -11,8 +11,10 @@ import type {
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
 import { AuditService } from './audit.service';
+import { ConfigService } from './config.service';
 
 const auditService = new AuditService();
+const configService = new ConfigService();
 
 const SALE_INCLUDE = {
   items: { include: { product: { include: { category: true } } } },
@@ -208,6 +210,7 @@ export class SalesService {
     }
 
     const saleNumber = await buildSaleNumber();
+    const defaultTaxRate = await configService.getIvaRate();
 
     const sale = await prisma.$transaction(async (tx) => {
       // Re-fetch products INSIDE the transaction to prevent race conditions
@@ -272,7 +275,7 @@ export class SalesService {
                 productId: item.productId,
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
-                taxRate: product ? Number(product.taxRate) : 0.19,
+                taxRate: product ? Number(product.taxRate) : defaultTaxRate,
                 subtotal: lineSubtotal,
                 discount: item.discount,
                 total: lineSubtotal - item.discount,

@@ -16,8 +16,10 @@ import type {
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
 import { AuditService } from './audit.service';
+import { ConfigService } from './config.service';
 
 const auditService = new AuditService();
+const configService = new ConfigService();
 
 function mapStockMovement(movement: {
   id: number;
@@ -237,7 +239,7 @@ export class InventoryService {
         stock: data.stock,
         minStock: data.minStock ?? 5,
         criticalStock: data.criticalStock ?? 2,
-        taxRate: data.taxRate ?? 0.19,
+        taxRate: data.taxRate ?? await configService.getIvaRate(),
         suggestedPurchaseQty: data.suggestedPurchaseQty ?? null,
         expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
         location: data.location ?? null,

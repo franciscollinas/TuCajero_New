@@ -1,5 +1,5 @@
-import { useState, memo } from 'react';
-import { X, Info, Award, Github, Mail } from 'lucide-react';
+import { memo } from 'react';
+import { X, Info, Award } from 'lucide-react';
 
 interface AboutModalProps {
   open: boolean;

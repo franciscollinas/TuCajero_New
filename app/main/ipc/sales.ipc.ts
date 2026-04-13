@@ -10,10 +10,12 @@ import type {
 } from '../../renderer/src/shared/types/sales.types';
 import { generateInvoicePDF } from '../services/invoice.service';
 import { SalesService } from '../services/sales.service';
+import { ConfigService } from '../services/config.service';
 import { logger } from '../utils/logger';
 import { toApiError } from '../utils/errors';
 
 const salesService = new SalesService();
+const configService = new ConfigService();
 
 export function registerSalesIpc(): void {
   ipcMain.handle(
@@ -148,8 +150,9 @@ export function registerSalesIpc(): void {
           throw new Error('Venta no encontrada.');
         }
 
-        const filePath = await generateInvoicePDF(sale);
-        logger.info('sales:invoice-generated', { saleId, filePath });
+        const config = await configService.getConfig();
+        const filePath = await generateInvoicePDF(sale, config);
+        logger.info('sales:invoice-generated', { saleId, filePath, businessName: config.businessName });
         return { success: true, data: filePath };
       } catch (err) {
         return { success: false, error: toApiError(err) };

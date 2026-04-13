@@ -7,9 +7,7 @@ import {
   Trash2,
   CreditCard,
   History,
-  Barcode,
   PlusCircle,
-  MinusCircle,
   Truck,
   Tag,
   CheckCircle2,
@@ -18,11 +16,9 @@ import {
   Banknote,
   Navigation,
   Percent,
-  Calculator,
   ArrowRight,
   ScanLine,
   X,
-  Package,
   RefreshCw,
   DollarSign,
 } from 'lucide-react';
@@ -32,6 +28,7 @@ import { getAllCustomers } from '../../shared/api/customers.api';
 import { getActiveCashRegister } from '../../shared/api/cash.api';
 import { createSale, generateInvoice } from '../../shared/api/sales.api';
 import { useAuth } from '../../shared/context/AuthContext';
+import { useConfig } from '../../shared/context/ConfigContext';
 import { useBarcodeScanner } from '../../shared/hooks/useBarcodeScanner';
 import { formatCurrency } from '../../shared/utils/formatters';
 import type { Product } from '../../shared/types/inventory.types';
@@ -41,7 +38,6 @@ import type {
   PaymentInput,
   PaymentMethod,
   CartItemInput,
-  SalePayment,
 } from '../../shared/types/sales.types';
 
 interface CartItem {
@@ -141,6 +137,7 @@ const ProductCard = memo(function ProductCard({
 
 export function POSPage(): JSX.Element {
   const { user } = useAuth();
+  const { config } = useConfig();
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -155,7 +152,7 @@ export function POSPage(): JSX.Element {
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
-  const [payments, setPayments] = useState<SalePayment[]>([]);
+  const [payments, setPayments] = useState<PaymentInput[]>([]);
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
   const [cashReceived, setCashReceived] = useState<number>(0);
   const [showCashInput, setShowCashInput] = useState(false);
@@ -176,20 +173,6 @@ export function POSPage(): JSX.Element {
       return [...prev, { product, quantity: 1, unitPrice: product.price, discount: 0 }];
     });
   }, []);
-
-  const updateQty = (id: number, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((item) => {
-          if (item.product.id === id) {
-            const newQty = Math.max(0, item.quantity + delta);
-            return { ...item, quantity: newQty };
-          }
-          return item;
-        })
-        .filter((item) => item.quantity > 0),
-    );
-  };
 
   const removeFromCart = (id: number) => {
     setCart((prev) => prev.filter((item) => item.product.id !== id));
@@ -286,10 +269,10 @@ export function POSPage(): JSX.Element {
     () =>
       cart.reduce(
         (sum, item) =>
-          sum + (item.quantity * item.unitPrice - item.discount) * (item.product.taxRate ?? 0.19),
+          sum + (item.quantity * item.unitPrice - item.discount) * (item.product.taxRate ?? config?.ivaRate ?? 0.19),
         0,
       ),
-    [cart],
+    [cart, config?.ivaRate],
   );
 
   const calculatedDiscount = useMemo(
@@ -316,7 +299,7 @@ export function POSPage(): JSX.Element {
     }
 
     // For cash payments, ask how much the customer is paying with
-    if (method === 'efectivo' || method === 'mixto') {
+    if (method === 'efectivo') {
       setSelectedMethod(method);
       setShowCashInput(true);
       return;
@@ -348,22 +331,6 @@ export function POSPage(): JSX.Element {
 
     // Process sale with cash payment
     const finalPayments = [...payments, { method: selectedMethod!, amount: remaining }];
-    await processCompleteSale(finalPayments, false);
-  };
-
-  const quickPay = async (method: PaymentMethod) => {
-    if (remaining <= 0.1 || cart.length === 0) return;
-    if (method === 'credito' && !selectedCustomerId) {
-      setMessageType('error');
-      setMessage('Seleccione un cliente para fiar.');
-      return;
-    }
-    // Para crédito: procesar venta a crédito directamente
-    if (method === 'credito') {
-      await processCreditSale();
-      return;
-    }
-    const finalPayments = [...payments, { method, amount: remaining }];
     await processCompleteSale(finalPayments, false);
   };
 
@@ -431,7 +398,7 @@ export function POSPage(): JSX.Element {
     }
   };
 
-  const processCompleteSale = async (finalPayments: SalePayment[], isCreditSale = false) => {
+  const processCompleteSale = async (finalPayments: PaymentInput[], isCreditSale = false) => {
     if (!user || !activeCash) return;
     if (cart.length === 0) return;
 
@@ -446,7 +413,7 @@ export function POSPage(): JSX.Element {
 
       // Calculate total cash received from cash payments
       const cashPayment = finalPayments.find(
-        (p) => p.method === 'efectivo' || p.method === 'mixto',
+        (p) => p.method === 'efectivo',
       );
       const actualCashReceived = cashPayment
         ? cashReceived > 0
@@ -469,8 +436,11 @@ export function POSPage(): JSX.Element {
         // NO generar factura para ventas a crédito hasta que se paguen
         if (!isCreditSale) {
           const invoiceResp = await generateInvoice(response.data.id);
-          if (invoiceResp.success && window.api?.openInvoice) {
-            await window.api.openInvoice(invoiceResp.data);
+          if (invoiceResp.success) {
+            const winApi = window.api as Record<string, unknown>;
+            if (typeof winApi.openInvoice === 'function') {
+              await (winApi.openInvoice as (path: string) => Promise<void>)(invoiceResp.data);
+            }
           }
         }
 

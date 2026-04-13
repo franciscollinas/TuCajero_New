@@ -410,7 +410,7 @@ export function UsersPage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [userStats, setUserStats] = useState<UserStats[]>([]);
-  const [statsLoading, setStatsLoading] = useState(true);
+  const [_statsLoading, setStatsLoading] = useState(true);
 
   useEffect((): (() => void) | void => {
     if (!user) {
@@ -774,7 +774,7 @@ export function UsersPage(): JSX.Element {
                       <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number) => `$${value.toLocaleString('es-CO')}`} />
+                  <Tooltip formatter={(value) => `$${Number(value).toLocaleString('es-CO')}`} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>

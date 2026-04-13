@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 
 import type { SaleRecord } from '../../renderer/src/shared/types/sales.types';
+import type { BusinessConfig } from './config.service';
 
 // ============================================================
 // UTILIDADES
@@ -34,9 +35,13 @@ function paymentMethodLabel(method: string): string {
 // GENERADOR DE FACTURA PDF
 // ============================================================
 
-export async function generateInvoicePDF(sale: SaleRecord): Promise<string> {
+export async function generateInvoicePDF(sale: SaleRecord, config?: BusinessConfig): Promise<string> {
   const fileName = `Factura_${sale.saleNumber}.pdf`;
   const filePath = path.join(app.getPath('downloads'), fileName);
+
+  // Calcular tasa de IVA efectiva desde los items
+  const effectiveTaxRate = sale.subtotal > 0 ? sale.tax / sale.subtotal : 0;
+  const taxRatePercent = (effectiveTaxRate * 100).toFixed(0);
 
   // Crear documento A4 sin margenes (nosotros manejamos los margenes manualmente)
   const doc = new PDFDocument({ size: 'A4', margin: 0 });
@@ -71,15 +76,27 @@ export async function generateInvoicePDF(sale: SaleRecord): Promise<string> {
   let y = 40; // cursor vertical inicial
 
   // ============================================================
-  // 1. HEADER CENTRADO
+  // 1. HEADER CENTRADO — datos del negocio (config) o genérico
   // ============================================================
-  doc.fillColor('#000000').fontSize(18).font('Helvetica-Bold').text('TU CAJERO', MARGIN, y, { align: 'center', width: CONTENT_W });
+  const businessName = config?.businessName || 'TU CAJERO';
+  const businessAddress = config?.address || '';
+  const businessPhone = config?.phone || '';
+  const businessNit = config?.nit || '';
+
+  doc.fillColor('#000000').fontSize(18).font('Helvetica-Bold').text(businessName.toUpperCase(), MARGIN, y, { align: 'center', width: CONTENT_W });
   y += 20;
-  doc.fontSize(9).font('Helvetica').fillColor('#333333').text('Calle 123 #45-67, Bogota D.C.', MARGIN, y, { align: 'center', width: CONTENT_W });
-  y += 14;
-  doc.text('Tel: (601) 234-5678', MARGIN, y, { align: 'center', width: CONTENT_W });
-  y += 14;
-  doc.text('NIT: 900.123.456-7', MARGIN, y, { align: 'center', width: CONTENT_W });
+  if (businessAddress) {
+    doc.fontSize(9).font('Helvetica').fillColor('#333333').text(businessAddress, MARGIN, y, { align: 'center', width: CONTENT_W });
+    y += 14;
+  }
+  if (businessPhone) {
+    doc.fontSize(9).font('Helvetica').fillColor('#333333').text(`Tel: ${businessPhone}`, MARGIN, y, { align: 'center', width: CONTENT_W });
+    y += 14;
+  }
+  if (businessNit) {
+    doc.fontSize(9).font('Helvetica').fillColor('#333333').text(`NIT: ${businessNit}`, MARGIN, y, { align: 'center', width: CONTENT_W });
+    y += 14;
+  }
 
   // ============================================================
   // 2. LINEA DE INFORMACION DE LA FACTURA
@@ -157,7 +174,7 @@ export async function generateInvoicePDF(sale: SaleRecord): Promise<string> {
   // IVA
   if (sale.tax > 0) {
     y += 16;
-    doc.fillColor('#333333').fontSize(9).font('Helvetica').text('IVA (19%):', TOT_LABEL_LEFT, y, { width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT, align: 'right' });
+    doc.fillColor('#333333').fontSize(9).font('Helvetica').text(`IVA (${taxRatePercent}%):`, TOT_LABEL_LEFT, y, { width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT, align: 'right' });
     doc.fillColor('#000000').fontSize(9).text(formatCurrency(sale.tax), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
   }
 

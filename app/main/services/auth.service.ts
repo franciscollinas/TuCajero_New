@@ -11,6 +11,10 @@ const auditService = new AuditService();
 const SESSION_EXPIRY_MS = 8 * 60 * 60 * 1000;
 export const BCRYPT_ROUNDS = 12;
 
+// Security: account lockout settings
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+
 function mapUser(user: {
   id: number;
   username: string;
@@ -34,13 +38,77 @@ export class AuthService {
     });
 
     if (!user || !user.active) {
-      throw new AppError(ErrorCode.INVALID_CREDENTIALS, 'Usuario inválido.');
+      throw new AppError(ErrorCode.INVALID_CREDENTIALS, 'Credenciales inválidas.');
+    }
+
+    // Check if account is currently locked
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+      throw new AppError(
+        ErrorCode.ACCOUNT_LOCKED,
+        `Cuenta bloqueada. Intente de nuevo en ${minutesLeft} minuto(s).`,
+      );
+    }
+
+    // Check if account has exceeded attempts but lock has expired — reset it
+    if (user.failedLoginAttempts >= MAX_FAILED_ATTEMPTS && (!user.lockedUntil || user.lockedUntil <= new Date())) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null },
+      });
     }
 
     const validPassword = await bcrypt.compare(password, user.password);
 
     if (!validPassword) {
-      throw new AppError(ErrorCode.INVALID_CREDENTIALS, 'Contraseña incorrecta.');
+      // Increment failed attempts
+      const newAttempts = user.failedLoginAttempts + 1;
+
+      if (newAttempts >= MAX_FAILED_ATTEMPTS) {
+        // Lock the account
+        const lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS);
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { failedLoginAttempts: newAttempts, lockedUntil },
+        });
+
+        await auditService.log({
+          userId: user.id,
+          action: 'auth:account-locked',
+          entity: 'User',
+          entityId: user.id,
+          payload: {
+            username: user.username,
+            attempts: newAttempts,
+            lockedUntil: lockedUntil.toISOString(),
+          },
+        });
+
+        throw new AppError(
+          ErrorCode.ACCOUNT_LOCKED,
+          `Demasiados intentos fallidos. Cuenta bloqueada por ${LOCKOUT_DURATION_MS / 60000} minutos.`,
+        );
+      }
+
+      // Update failed attempts count (not yet locked)
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: newAttempts },
+      });
+
+      const remaining = MAX_FAILED_ATTEMPTS - newAttempts;
+      throw new AppError(
+        ErrorCode.TOO_MANY_ATTEMPTS,
+        `Credenciales inválidas. Quedan ${remaining} intento(s) antes del bloqueo.`,
+      );
+    }
+
+    // Successful login — reset failed attempts and unlock
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null },
+      });
     }
 
     const token = randomBytes(32).toString('hex');
@@ -60,6 +128,7 @@ export class AuthService {
       entity: 'Session',
       payload: {
         username: user.username,
+        previousFailedAttempts: user.failedLoginAttempts,
         expiresAt: expiresAt.toISOString(),
       },
     });
@@ -156,5 +225,47 @@ export class AuthService {
     if (!/[0-9]/.test(password)) {
       throw new AppError(ErrorCode.VALIDATION, 'La contraseña debe contener al menos un número.');
     }
+  }
+
+  async unlockAccount(userId: number, actorUserId: number): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new AppError(ErrorCode.NOT_FOUND, 'Usuario no encontrado.');
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
+
+    await auditService.log({
+      userId: actorUserId,
+      action: 'auth:account-unlocked',
+      entity: 'User',
+      entityId: userId,
+      payload: {
+        targetUsername: user.username,
+        previousAttempts: user.failedLoginAttempts,
+      },
+    });
+  }
+
+  async getLoginStatus(userId: number): Promise<{ failedAttempts: number; isLocked: boolean; lockedUntil: string | null }> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { failedLoginAttempts: true, lockedUntil: true },
+    });
+
+    if (!user) {
+      throw new AppError(ErrorCode.NOT_FOUND, 'Usuario no encontrado.');
+    }
+
+    const isLocked = !!(user.lockedUntil && user.lockedUntil > new Date());
+
+    return {
+      failedAttempts: user.failedLoginAttempts,
+      isLocked,
+      lockedUntil: isLocked ? user.lockedUntil!.toISOString() : null,
+    };
   }
 }

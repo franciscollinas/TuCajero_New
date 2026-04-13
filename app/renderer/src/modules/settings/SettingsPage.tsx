@@ -17,6 +17,7 @@ export function SettingsPage(): JSX.Element {
     phone: '',
     nit: '',
     logo: '',
+    ivaRate: 0.19,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -354,6 +355,23 @@ export function SettingsPage(): JSX.Element {
                   value={config.phone}
                   onChange={(e) => setConfig((prev) => ({ ...prev, phone: e.target.value }))}
                   placeholder="Ej: (601) 234-5678"
+                />
+              </div>
+
+              <div className="tc-field">
+                <label className="tc-label">Tasa IVA (% — ej. 19 para 19%)</label>
+                <input
+                  className="tc-input"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  value={(config.ivaRate ?? 0.19) * 100}
+                  onChange={(e) => {
+                    const pct = Number(e.target.value);
+                    setConfig((prev) => ({ ...prev, ivaRate: Number.isFinite(pct) ? pct / 100 : 0.19 }));
+                  }}
+                  placeholder="Ej: 19"
                 />
               </div>
             </div>

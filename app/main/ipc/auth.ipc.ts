@@ -11,10 +11,11 @@ import { toApiError } from '../utils/errors';
 
 const authService = new AuthService();
 
-// Rate limiting: track login attempts per username
+// Rate limiting: in-memory circuit breaker (resets on app restart)
+// Complements the persistent database-level lockout in AuthService.
 const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOGIN_LOCKOUT_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_LOGIN_ATTEMPTS = 10; // Higher threshold — DB lockout kicks in at 5
+const LOGIN_LOCKOUT_MS = 10 * 60 * 1000; // 10 minutes
 
 function checkRateLimit(username: string): { allowed: boolean; retryAfter?: number } {
   const now = Date.now();
@@ -116,6 +117,31 @@ export function registerAuthIpc(): void {
         await authService.changePassword(userId, currentPassword, newPassword);
         logger.info('auth:password-changed', { userId });
         return { success: true, data: null };
+      } catch (err) {
+        return { success: false, error: toApiError(err) };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    'auth:unlockAccount',
+    async (_event, userId: number, actorUserId: number): Promise<ApiResponse<null>> => {
+      try {
+        await authService.unlockAccount(userId, actorUserId);
+        logger.info('auth:account-unlocked', { userId, actorUserId });
+        return { success: true, data: null };
+      } catch (err) {
+        return { success: false, error: toApiError(err) };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    'auth:getLoginStatus',
+    async (_event, userId: number): Promise<ApiResponse<{ failedAttempts: number; isLocked: boolean; lockedUntil: string | null }>> => {
+      try {
+        const result = await authService.getLoginStatus(userId);
+        return { success: true, data: result };
       } catch (err) {
         return { success: false, error: toApiError(err) };
       }

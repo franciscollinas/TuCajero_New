@@ -11,6 +11,7 @@ export interface BusinessConfig {
   phone: string;
   nit: string;
   logo: string; // base64 data URL
+  ivaRate: number; // IVA rate as decimal (e.g., 0.19 for 19%)
 }
 
 const CONFIG_KEYS: (keyof BusinessConfig)[] = [
@@ -20,6 +21,7 @@ const CONFIG_KEYS: (keyof BusinessConfig)[] = [
   'phone',
   'nit',
   'logo',
+  'ivaRate',
 ];
 
 export class ConfigService {
@@ -40,7 +42,15 @@ export class ConfigService {
       phone: map.phone ?? '',
       nit: map.nit ?? '',
       logo: map.logo ?? '',
+      ivaRate: map.ivaRate ? Number(map.ivaRate) : 0.19,
     };
+  }
+
+  async getIvaRate(): Promise<number> {
+    const config = await prisma.config.findUnique({
+      where: { key: 'ivaRate' },
+    });
+    return config ? Number(config.value) : 0.19;
   }
 
   async updateConfig(userId: number, data: Partial<BusinessConfig>): Promise<BusinessConfig> {

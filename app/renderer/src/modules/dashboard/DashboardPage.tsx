@@ -5,14 +5,11 @@ import {
   AlertTriangle,
   Package,
   ShoppingCart,
-  Shield,
   Calendar,
   BarChart3,
   PieChart,
   List,
   Clock,
-  User,
-  CreditCard,
   Lock,
   Unlock,
 } from 'lucide-react';
@@ -53,10 +50,6 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   credito: 'Crédito',
 };
 
-function getPaymentMethodsBadge(payments: SalePayment[]): string {
-  return payments.map((p) => PAYMENT_METHOD_LABELS[p.method] || p.method).join(', ');
-}
-
 function getProductsSummary(sale: SaleRecord): string {
   const items = sale.items ?? [];
   if (items.length === 0) return '—';
@@ -69,7 +62,7 @@ function getCustomerInfo(sale: SaleRecord): { name: string; phone: string } {
   const customer = sale.customer;
   if (!customer) return { name: 'Consumidor Final', phone: '—' };
   return {
-    name: customer.fullName || customer.name || 'Consumidor Final',
+    name: customer.name || 'Consumidor Final',
     phone: customer.phone || '—',
   };
 }
