@@ -6,6 +6,7 @@ import {
   cancelSale,
   generateInvoice,
   getSalesByCashRegister,
+  getSalesByDateRange,
   getSalesByUser,
 } from '../../shared/api/sales.api';
 import { useAuth } from '../../shared/context/AuthContext';
@@ -271,25 +272,45 @@ export function SalesHistoryPage(): JSX.Element {
 
     const loadSales = async (): Promise<void> => {
       setLoading(true);
-      // Primero intentar cargar por usuario (persiste sin caja activa)
-      const salesResponse = await getSalesByUser(user.id);
-      if (!cancelled) {
-        if (salesResponse.success) {
-          setSales(salesResponse.data);
-        } else {
-          // Fallback: intentar por caja activa
-          const cashResponse = await getActiveCashRegister(user.id);
-          if (cashResponse.success && cashResponse.data) {
-            const cashSales = await getSalesByCashRegister(cashResponse.data.id);
-            if (cashSales.success) setSales(cashSales.data);
-            else setMessage(cashSales.error.message);
+      // Admin sees ALL sales; cashiers only see their own
+      if (user.role === 'ADMIN') {
+        // Load all sales from last 90 days for admin
+        const endDate = new Date();
+        const startDate = new Date(endDate);
+        startDate.setDate(startDate.getDate() - 90);
+
+        const dateRangeResponse = await getSalesByDateRange(
+          startDate.toISOString().split('T')[0],
+          endDate.toISOString().split('T')[0],
+        );
+        if (!cancelled) {
+          if (dateRangeResponse.success) {
+            setSales(dateRangeResponse.data);
           } else {
-            setMessage(salesResponse.error.message);
+            setMessage(dateRangeResponse.error.message);
             setSales([]);
           }
         }
-        setLoading(false);
+      } else {
+        const salesResponse = await getSalesByUser(user.id);
+        if (!cancelled) {
+          if (salesResponse.success) {
+            setSales(salesResponse.data);
+          } else {
+            // Fallback: intentar por caja activa
+            const cashResponse = await getActiveCashRegister(user.id);
+            if (cashResponse.success && cashResponse.data) {
+              const cashSales = await getSalesByCashRegister(cashResponse.data.id);
+              if (cashSales.success) setSales(cashSales.data);
+              else setMessage(cashSales.error.message);
+            } else {
+              setMessage(salesResponse.error.message);
+              setSales([]);
+            }
+          }
+        }
       }
+      if (!cancelled) setLoading(false);
     };
 
     void loadSales();
