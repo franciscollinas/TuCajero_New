@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   getAllSuppliers,
@@ -609,12 +609,23 @@ function SupplierModal({
     isActive: supplier?.isActive ?? true,
     notes: supplier?.notes || '',
   });
+  const overlayMouseDown = useRef(false);
+  const handleOverlayMouseDown = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      overlayMouseDown.current = true;
+    }
+  };
   const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
+    if (overlayMouseDown.current && e.target === e.currentTarget) {
+      overlayMouseDown.current = false;
+      onClose();
+    } else {
+      overlayMouseDown.current = false;
+    }
   };
   return (
-    <div className="tc-modal-overlay" onClick={handleOverlayClick}>
-      <div className="tc-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 600 }}>
+    <div className="tc-modal-overlay" onMouseDown={handleOverlayMouseDown} onClick={handleOverlayClick}>
+      <div className="tc-modal" style={{ maxWidth: 600 }}>
         <div
           style={{
             background: 'linear-gradient(to right,#2563eb,#1d4ed8)',
@@ -756,12 +767,23 @@ function OrderModal({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') e.preventDefault();
   };
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
+  const orderOverlayMouseDown = useRef(false);
+  const handleOrderOverlayMouseDown = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      orderOverlayMouseDown.current = true;
+    }
+  };
+  const handleOrderOverlayClick = (e: React.MouseEvent) => {
+    if (orderOverlayMouseDown.current && e.target === e.currentTarget) {
+      orderOverlayMouseDown.current = false;
+      onClose();
+    } else {
+      orderOverlayMouseDown.current = false;
+    }
   };
   return (
-    <div className="tc-modal-overlay" onClick={handleOverlayClick}>
-      <div className="tc-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 700 }}>
+    <div className="tc-modal-overlay" onMouseDown={handleOrderOverlayMouseDown} onClick={handleOrderOverlayClick}>
+      <div className="tc-modal" style={{ maxWidth: 700 }}>
         <div
           style={{
             background: 'linear-gradient(to right,#2563eb,#1d4ed8)',
@@ -997,12 +1019,23 @@ function ReceiveModal({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') e.preventDefault();
   };
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
+  const receiveOverlayMouseDown = useRef(false);
+  const handleReceiveMouseDown = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      receiveOverlayMouseDown.current = true;
+    }
+  };
+  const handleReceiveClick = (e: React.MouseEvent) => {
+    if (receiveOverlayMouseDown.current && e.target === e.currentTarget) {
+      receiveOverlayMouseDown.current = false;
+      onClose();
+    } else {
+      receiveOverlayMouseDown.current = false;
+    }
   };
   return (
-    <div className="tc-modal-overlay" onClick={handleOverlayClick}>
-      <div className="tc-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 700 }}>
+    <div className="tc-modal-overlay" onMouseDown={handleReceiveMouseDown} onClick={handleReceiveClick}>
+      <div className="tc-modal" style={{ maxWidth: 700 }}>
         <div
           style={{
             background: 'linear-gradient(to right,#059669,#047857)',

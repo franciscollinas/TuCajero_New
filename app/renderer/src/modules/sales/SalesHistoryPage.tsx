@@ -851,6 +851,7 @@ function SaleDetailsModal({
       <div
         className="tc-modal"
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
         style={{
           width: 'min(640px, 100%)',
           padding: 0,

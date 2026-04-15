@@ -86,6 +86,7 @@ export function AddProductModal({ open, loading, onClose, onSubmit }: AddProduct
       <div
         className="tc-modal animate-scaleIn"
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
         style={{ width: 'min(640px, 95vw)', maxHeight: '90vh', overflowY: 'auto' }}
       >
         {/* Header */}
