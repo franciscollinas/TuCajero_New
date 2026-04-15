@@ -2,7 +2,7 @@ import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 import type { AuditLogEntry } from '../../renderer/src/shared/types/audit.types';
 import type {
@@ -437,15 +437,35 @@ export class ReportsService {
     const fileName = `${reportType}_${data.range.startDate}_${data.range.endDate}_${timestamp}.${format}`;
     const filePath = path.join(dir, fileName);
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-
     if (format === 'csv') {
-      const csv = XLSX.utils.sheet_to_csv(worksheet);
+      const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+      const escapeCsv = (value: unknown): string => {
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        const needsQuotes = /[",\n\r]/.test(str);
+        const escaped = str.replace(/"/g, '""');
+        return needsQuotes ? `"${escaped}"` : escaped;
+      };
+
+      const lines = [
+        headers.join(','),
+        ...rows.map((row) => headers.map((h) => escapeCsv((row as any)[h])).join(',')),
+      ];
+
+      const csv = `${lines.join('\n')}\n`;
       fs.writeFileSync(filePath, csv, 'utf8');
     } else {
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, reportType);
-      XLSX.writeFile(workbook, filePath);
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet(reportType);
+      const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+
+      sheet.columns = headers.map((key) => ({ header: key, key, width: Math.max(14, key.length + 2) }));
+      rows.forEach((row) => sheet.addRow(row as any));
+
+      sheet.getRow(1).font = { bold: true };
+      sheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+      await workbook.xlsx.writeFile(filePath);
     }
 
     await auditService.log({

@@ -34,11 +34,7 @@ import { formatCurrency } from '../../shared/utils/formatters';
 import type { Product } from '../../shared/types/inventory.types';
 import type { Customer } from '../../shared/types/customers.types';
 import type { CashRegister } from '../../shared/types/cash.types';
-import type {
-  PaymentInput,
-  PaymentMethod,
-  CartItemInput,
-} from '../../shared/types/sales.types';
+import type { PaymentInput, PaymentMethod, CartItemInput } from '../../shared/types/sales.types';
 
 interface CartItem {
   product: Product;
@@ -279,11 +275,13 @@ export function POSPage(): JSX.Element {
 
   const tax = useMemo(
     () =>
-      cart.reduce(
-        (sum, item) =>
-          sum + (item.quantity * item.unitPrice - item.discount) * (item.product.taxRate ?? config?.ivaRate ?? 0.19),
-        0,
-      ),
+      cart.reduce((sum, item) => {
+        const rate =
+          item.product.taxRate !== undefined && item.product.taxRate !== null
+            ? item.product.taxRate
+            : (config?.ivaRate ?? 0);
+        return sum + (item.quantity * item.unitPrice - item.discount) * rate;
+      }, 0),
     [cart, config?.ivaRate],
   );
 
@@ -426,9 +424,7 @@ export function POSPage(): JSX.Element {
       }));
 
       // Calculate total cash received from cash payments
-      const cashPayment = finalPayments.find(
-        (p) => p.method === 'efectivo',
-      );
+      const cashPayment = finalPayments.find((p) => p.method === 'efectivo');
       const actualCashReceived = cashPayment
         ? cashReceived > 0
           ? cashReceived
@@ -1097,20 +1093,22 @@ export function POSPage(): JSX.Element {
                       {formatCurrency(subtotal)}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-600)' }}>
-                      IVA (19%)
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 'var(--text-xs)',
-                        fontWeight: 700,
-                        color: 'var(--gray-800)',
-                      }}
-                    >
-                      {formatCurrency(tax)}
-                    </span>
-                  </div>
+                  {(config?.ivaRate ?? 0) > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-600)' }}>
+                        IVA ({(config?.ivaRate ?? 0.19) * 100}%)
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 'var(--text-xs)',
+                          fontWeight: 700,
+                          color: 'var(--gray-800)',
+                        }}
+                      >
+                        {formatCurrency(tax)}
+                      </span>
+                    </div>
+                  )}
                   {globalDiscount > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-600)' }}>

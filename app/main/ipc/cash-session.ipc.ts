@@ -1,5 +1,9 @@
 import { ipcMain } from 'electron';
-import type { CashCloseSummary, CashRegister } from '../../renderer/src/shared/types/cash.types';
+import type {
+  CashCloseSummary,
+  CashClosureRow,
+  CashRegister,
+} from '../../renderer/src/shared/types/cash.types';
 import type { ApiResponse } from '../../renderer/src/shared/types/api.types';
 
 import { CashSessionService } from '../services/cash-session.service';
@@ -9,6 +13,18 @@ import { toApiError } from '../utils/errors';
 const cashSessionService = new CashSessionService();
 
 export function registerCashSessionIpc(): void {
+  ipcMain.handle(
+    'cash:listClosures',
+    async (_event, take?: number): Promise<ApiResponse<CashClosureRow[]>> => {
+      try {
+        const result = await cashSessionService.listCashClosures(take);
+        return { success: true, data: result };
+      } catch (err) {
+        return { success: false, error: toApiError(err) };
+      }
+    },
+  );
+
   ipcMain.handle(
     'cash:open',
     async (_event, userId: number, initialCash: number): Promise<ApiResponse<CashRegister>> => {

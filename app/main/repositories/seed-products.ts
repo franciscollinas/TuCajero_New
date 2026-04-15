@@ -137,6 +137,31 @@ const PRODUCTS = [
 ];
 
 export async function seedProducts(): Promise<void> {
+  const forceSeed = process.env.SEED_PRODUCTS_FORCE === 'true';
+  const existingProducts = await prisma.product.count();
+  const existingCategories = await prisma.category.count();
+
+  // Bootstrap only: seed products only on fresh install (no categories exist yet).
+  // If categories exist but products don't, respect user's choice to delete products.
+  if (!forceSeed) {
+    if (existingProducts > 0) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(
+          `ℹ️ seedProducts skipped (existing products: ${existingProducts}). Set SEED_PRODUCTS_FORCE=true to reseed.`,
+        );
+      }
+      return;
+    }
+    
+    // Only seed if this is a completely fresh install (no categories)
+    if (existingCategories > 0) {
+      console.log(
+        `ℹ️ seedProducts skipped (categories exist: ${existingCategories}, but no products). Products were intentionally deleted.`,
+      );
+      return;
+    }
+  }
+
   // --- ADMIN USER ---
   const existingAdmin = await prisma.user.findFirst({
     where: { role: 'ADMIN' },
@@ -184,27 +209,11 @@ export async function seedProducts(): Promise<void> {
 
     const cat = categoryMap.get(product.category)!;
 
-    // Create or update product
-    await prisma.product.upsert({
-      where: { code: product.code },
-      update: {
-        name: product.name,
-        barcode: product.barcode,
-        price: product.price,
-        cost: product.cost,
-        stock: product.stock,
-        minStock: product.minStock,
-        criticalStock: product.criticalStock,
-        taxRate: product.taxRate,
-        suggestedPurchaseQty: product.suggestedPurchaseQty,
-        expiryDate: product.expiryDate ? new Date(product.expiryDate) : null,
-        location: product.location,
-        unitType: product.unitType,
-        conversionFactor: product.conversionFactor,
-        isActive: true,
-        categoryId: cat.id,
-      },
-      create: {
+    const exists = await prisma.product.findUnique({ where: { code: product.code } });
+    if (exists) continue;
+
+    await prisma.product.create({
+      data: {
         code: product.code,
         barcode: product.barcode,
         name: product.name,

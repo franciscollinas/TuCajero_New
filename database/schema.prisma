@@ -26,6 +26,7 @@ model User {
   sales          Sale[]
   auditLogs      AuditLog[]
   stockMovements StockMovement[]
+  purchaseOrders   PurchaseOrder[]
 }
 
 model Session {
@@ -71,6 +72,7 @@ model Product {
   updatedAt       DateTime        @updatedAt
   saleItems       SaleItem[]
   stockMovements  StockMovement[]
+  purchaseOrderItems PurchaseOrderItem[]
 
   @@index([isActive, name])
   @@index([categoryId])
@@ -214,12 +216,69 @@ model Debt {
   id          Int      @id @default(autoincrement())
   customerId  Int
   customer    Customer @relation(fields: [customerId], references: [id])
-  saleId      Int?      @unique
-  sale        Sale?     @relation(fields: [saleId], references: [id])
-  amount      Decimal
-  balance     Decimal
-  status      String    @default("PENDING") // PENDING, PARTIAL, PAID
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  payments    Payment[]
+  saleId      Int?     @unique
+  sale        Sale?    @relation(fields: [saleId], references: [id])
+  amount     Decimal
+  balance    Decimal
+  status     String   @default("PENDING") // PENDING, PARTIAL, PAID
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  payments   Payment[]
+}
+
+model Supplier {
+  id            Int              @id @default(autoincrement())
+  name          String
+  contactPerson String?
+  phone         String
+  email         String
+  address       String
+  leadTimeDays  Int             @default(7)
+  isActive      Boolean         @default(true)
+  notes         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  purchaseOrders PurchaseOrder[]
+}
+
+model PurchaseOrder {
+  id             Int                @id @default(autoincrement())
+  orderNumber   String             @unique
+  supplierId   Int
+  supplier      Supplier           @relation(fields: [supplierId], references: [id])
+  status        String             @default("DRAFT")
+  subtotal      Decimal           @default(0)
+  tax           Decimal           @default(0)
+  freight       Decimal           @default(0)
+  total         Decimal           @default(0)
+  expectedDate DateTime?
+  receivedDate DateTime?
+  observations String?
+  notes         String?
+  userId        Int
+  user          User               @relation(fields: [userId], references: [id])
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  items         PurchaseOrderItem[]
+
+  @@index([supplierId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PurchaseOrderItem {
+  id                 Int            @id @default(autoincrement())
+  orderId            Int
+  order              PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId          Int
+  product            Product        @relation(fields: [productId], references: [id])
+  quantityOrdered    Float
+  quantityReceived  Float          @default(0)
+  unitCost           Decimal
+  total              Decimal
+  received           Boolean        @default(false)
+  observations      String?
+
+  @@index([orderId])
+  @@index([productId])
 }

@@ -1,5 +1,5 @@
 import type { ApiResponse } from '../types/api.types';
-import type { CashRegister } from '../types/cash.types';
+import type { CashClosureRow, CashRegister } from '../types/cash.types';
 
 export async function getActiveCashRegister(
   userId: number,
@@ -37,4 +37,8 @@ export async function getTodaySalesTotal(userId: number): Promise<ApiResponse<nu
 
 export async function getMonthSalesTotal(userId: number): Promise<ApiResponse<number>> {
   return window.api.invoke<number>('cash:getMonthSalesTotal', userId);
+}
+
+export async function listCashClosures(take = 60): Promise<ApiResponse<CashClosureRow[]>> {
+  return window.api.invoke<CashClosureRow[]>('cash:listClosures', take);
 }

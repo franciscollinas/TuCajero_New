@@ -1403,7 +1403,7 @@ function PayrollSection({
   return (
     <div className="animate-slideUp" style={{ display: 'grid', gap: 'var(--space-5)' }}>
       {/* Period selector + grand totals */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-4)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-4)' }}>
         <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', padding: 'var(--space-5)', boxShadow: 'var(--shadow-sm)' }}>
           <p style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--gray-600)' }}>Período</p>
           <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
@@ -1432,6 +1432,13 @@ function PayrollSection({
         <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', padding: 'var(--space-5)', boxShadow: 'var(--shadow-sm)' }}>
           <p style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--gray-600)' }}>Horas Totales ({periodLabel})</p>
           <p style={{ margin: 'var(--space-2) 0 0', fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--brand-600)' }}>{data.grandTotalHours}h</p>
+        </div>
+
+        <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', padding: 'var(--space-5)', boxShadow: 'var(--shadow-sm)' }}>
+          <p style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--gray-600)' }}>Total Ventas ({periodLabel})</p>
+          <p style={{ margin: 'var(--space-2) 0 0', fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--warning-500)' }}>
+            ${data.grandTotalSales.toLocaleString('es-CO')}
+          </p>
         </div>
 
         <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-light)', padding: 'var(--space-5)', boxShadow: 'var(--shadow-sm)' }}>
@@ -1481,6 +1488,7 @@ function PayrollSection({
                     <th>Fecha</th>
                     <th>Logins</th>
                     <th>Horas</th>
+                    <th>Ventas</th>
                     <th>Pago</th>
                   </tr>
                 </thead>
@@ -1491,6 +1499,7 @@ function PayrollSection({
                       <td>{d.date}</td>
                       <td>{d.loginCount}</td>
                       <td style={{ fontWeight: 700 }}>{d.workedHours}h</td>
+                      <td style={{ fontWeight: 700, color: 'var(--warning-500)' }}>${d.dailySalesTotal.toLocaleString('es-CO')}</td>
                       <td style={{ fontWeight: 700, color: 'var(--success-600)' }}>${d.payAmount.toLocaleString('es-CO')}</td>
                     </tr>
                   ))}
@@ -1542,11 +1551,12 @@ function UserPayrollDetail({ user: u, onBack }: { user: PayrollUserSummary; onBa
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
           {[
             { label: 'Tarifa/hora', value: `$${u.hourlyRate.toLocaleString('es-CO')}`, color: 'var(--gray-900)' },
             { label: 'Días trabajados', value: `${u.totalDays}`, color: 'var(--brand-600)' },
             { label: 'Horas totales', value: `${u.totalWorkedHours}h`, color: 'var(--brand-600)' },
+            { label: 'Total ventas', value: `$${u.totalSalesAmount.toLocaleString('es-CO')}`, color: 'var(--warning-500)' },
             { label: 'Total a pagar', value: `$${u.totalPayAmount.toLocaleString('es-CO')}`, color: 'var(--success-600)' },
           ].map((item) => (
             <div key={item.label} style={{ textAlign: 'center', padding: 'var(--space-3)', background: 'var(--gray-50)', borderRadius: 'var(--radius-md)' }}>
@@ -1566,6 +1576,7 @@ function UserPayrollDetail({ user: u, onBack }: { user: PayrollUserSummary; onBa
                 <th>Logins</th>
                 <th>Horas trabajadas</th>
                 <th>Tarifa/h</th>
+                <th>Ventas</th>
                 <th>Pago del día</th>
               </tr>
             </thead>
@@ -1577,13 +1588,14 @@ function UserPayrollDetail({ user: u, onBack }: { user: PayrollUserSummary; onBa
                   <td>{d.loginCount}</td>
                   <td style={{ fontWeight: 700 }}>{d.workedHours}h</td>
                   <td>${d.hourlyRate.toLocaleString('es-CO')}</td>
+                  <td style={{ fontWeight: 700, color: 'var(--warning-500)' }}>${d.dailySalesTotal.toLocaleString('es-CO')}</td>
                   <td style={{ fontWeight: 700, color: 'var(--success-600)' }}>${d.payAmount.toLocaleString('es-CO')}</td>
                 </tr>
               ))}
               <tr style={{ borderTop: '2px solid var(--brand-200)' }}>
-                <td colSpan={3} style={{ fontWeight: 800, color: 'var(--gray-900)', textAlign: 'right' }}>TOTALES</td>
-                <td style={{ fontWeight: 800, color: 'var(--brand-600)' }}>{u.totalWorkedHours}h</td>
+                <td colSpan={4} style={{ fontWeight: 800, color: 'var(--gray-900)', textAlign: 'right' }}>TOTALES</td>
                 <td></td>
+                <td style={{ fontWeight: 800, color: 'var(--warning-500)' }}>${u.totalSalesAmount.toLocaleString('es-CO')}</td>
                 <td style={{ fontWeight: 800, color: 'var(--success-600)' }}>${u.totalPayAmount.toLocaleString('es-CO')}</td>
               </tr>
             </tbody>

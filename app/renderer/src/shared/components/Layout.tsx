@@ -34,6 +34,7 @@ const LICENSE = '/license';
 const PRINTER = '/printer';
 const SETTINGS = '/settings';
 const INVENTORY_IMPORT = '/inventory/import';
+const PURCHASE = '/purchase';
 
 export function Layout({ children }: LayoutProps): JSX.Element {
   const { user, logout } = useAuth();
@@ -104,6 +105,11 @@ export function Layout({ children }: LayoutProps): JSX.Element {
           label: es.inventory.importAction,
           path: INVENTORY_IMPORT,
           permission: 'inventory:all',
+        },
+        {
+          icon: purchaseIcon,
+          label: 'Proveedores',
+          path: PURCHASE,
         },
       ],
     },
@@ -440,6 +446,7 @@ function pageTitle(path: string): string {
     [PRINTER]: es.settings.printer.title,
     [SETTINGS]: 'Configuración',
     [INVENTORY_IMPORT]: es.inventory.bulkImport,
+    [PURCHASE]: 'Proveedores',
   };
   return map[path] ?? es.dashboard.title;
 }
@@ -632,6 +639,24 @@ const backupIcon = (
     <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
     <polyline points="17 21 17 13 7 13 7 21" />
     <polyline points="7 3 7 8 15 8" />
+  </svg>
+);
+
+const purchaseIcon = (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M16 16v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2" />
+    <rect x="8" y="3" width="8" height="18" rx="1" />
+    <line x1="12" y1="8" x2="12" y2="14" />
+    <line x1="9" y1="11" x2="15" y2="11" />
   </svg>
 );
 

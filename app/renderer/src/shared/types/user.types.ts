@@ -10,6 +10,7 @@ export interface PayrollDayEntry {
   workedHours: number;
   hourlyRate: number;
   payAmount: number;
+  dailySalesTotal: number;  // Total sales amount for this day
 }
 
 export interface PayrollUserSummary {
@@ -25,12 +26,14 @@ export interface PayrollUserSummary {
   totalWorkedSeconds: number;
   totalWorkedHours: number;
   totalPayAmount: number;
+  totalSalesAmount: number;  // Total sales for the period
 }
 
 export interface PayrollAllUsersResult {
   users: PayrollUserSummary[];
   grandTotalPay: number;
   grandTotalHours: number;
+  grandTotalSales: number;
   generatedAt: string;
 }
 

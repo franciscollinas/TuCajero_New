@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 import { bulkImportProducts } from '../../shared/api/inventory.api';
 import { useAuth } from '../../shared/context/AuthContext';
@@ -57,14 +57,33 @@ export function InventoryBulkImportPage(): JSX.Element {
         sourceRows = parsedCsv.data;
       } else if (extension === 'xlsx' || extension === 'xls') {
         const buffer = await file.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: 'array' });
-        const firstSheet = workbook.SheetNames[0];
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+        const firstSheet = workbook.worksheets[0];
         if (!firstSheet) {
           throw new Error('El archivo no contiene hojas de cálculo.');
         }
 
-        sourceRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[firstSheet], {
-          defval: null,
+        const headerRow = firstSheet.getRow(1);
+        const headers = headerRow.values
+          .slice(1)
+          .map((header) => (header == null ? '' : String(header).trim()));
+
+        sourceRows = [];
+        firstSheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+
+          const values = row.values.slice(1);
+          const obj: Record<string, unknown> = {};
+
+          headers.forEach((header, index) => {
+            if (!header) return;
+            const value = values[index];
+            obj[header] = value == null ? null : value;
+          });
+
+          const hasAnyValue = Object.values(obj).some((value) => value !== null && value !== '');
+          if (hasAnyValue) sourceRows.push(obj);
         });
       } else {
         throw new Error('Formato no soportado. Usa CSV, XLSX o XLS.');

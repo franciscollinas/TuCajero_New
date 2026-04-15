@@ -476,6 +476,7 @@ export class InventoryService {
           stock: Math.trunc(parseImportNumber(item.stock)),
           minStock: Math.trunc(parseImportNumber(item.minStock, 5)),
           criticalStock: Math.trunc(parseImportNumber(item.criticalStock, 2)),
+          taxRate: 0, // Imported products default to 0 IVA (exempt)
           expiryDate: item.expiryDate || null,
           location: item.location || null,
           userId,

@@ -36,7 +36,7 @@ export default defineConfig({
           'ui-vendor': ['lucide-react'],
           // Heavy libraries loaded on demand
           'pdf-vendor': ['pdf-lib', 'pdfkit'],
-          'excel-vendor': ['xlsx'],
+          'excel-vendor': ['exceljs'],
         },
       },
     },

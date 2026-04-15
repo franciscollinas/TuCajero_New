@@ -266,6 +266,7 @@ export class UsersService {
     const userSummaries: PayrollUserSummary[] = [];
     let grandTotalPay = 0;
     let grandTotalHours = 0;
+    let grandTotalSales = 0;
 
     for (const cashier of cashiers) {
       const hourlyRate = cashier.hourlyRate ? Number(cashier.hourlyRate) : 15000;
@@ -289,9 +290,33 @@ export class UsersService {
         sessionsByDate.get(dateKey)!.push(session);
       }
 
+      // Get all sales for this cashier in the period
+      const sales = await prisma.sale.findMany({
+        where: {
+          userId: cashier.id,
+          status: 'COMPLETED',
+          createdAt: { gte: periodStart, lte: periodEnd },
+          debt: null,
+        },
+        select: {
+          createdAt: true,
+          total: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      // Group sales by date
+      const salesByDate = new Map<string, number>();
+      for (const sale of sales) {
+        const dateKey = sale.createdAt.toISOString().slice(0, 10);
+        const currentTotal = salesByDate.get(dateKey) || 0;
+        salesByDate.set(dateKey, currentTotal + Number(sale.total));
+      }
+
       // Build daily entries
       const days: PayrollDayEntry[] = [];
       let totalWorkedSeconds = 0;
+      let totalSalesAmount = 0;
 
       for (const [dateStr, daySessions] of sessionsByDate) {
         let daySeconds = 0;
@@ -305,6 +330,7 @@ export class UsersService {
         const workedHours = daySeconds / 3600;
         const dayDate = new Date(dateStr + 'T12:00:00');
         const dayName = DAY_NAMES_ES[dayDate.getDay()];
+        const dailySales = salesByDate.get(dateStr) || 0;
 
         days.push({
           date: dateStr,
@@ -314,9 +340,11 @@ export class UsersService {
           workedHours: Math.round(workedHours * 100) / 100,
           hourlyRate,
           payAmount: Math.round(hourlyRate * workedHours),
+          dailySalesTotal: Math.round(dailySales * 100) / 100,
         });
 
         totalWorkedSeconds += daySeconds;
+        totalSalesAmount += dailySales;
       }
 
       const totalHours = totalWorkedSeconds / 3600;
@@ -335,16 +363,19 @@ export class UsersService {
         totalWorkedSeconds,
         totalWorkedHours: Math.round(totalHours * 100) / 100,
         totalPayAmount: totalPay,
+        totalSalesAmount: Math.round(totalSalesAmount * 100) / 100,
       });
 
       grandTotalPay += totalPay;
       grandTotalHours += totalHours;
+      grandTotalSales += totalSalesAmount;
     }
 
     return {
       users: userSummaries,
       grandTotalPay,
       grandTotalHours: Math.round(grandTotalHours * 100) / 100,
+      grandTotalSales: Math.round(grandTotalSales * 100) / 100,
       generatedAt: new Date().toISOString(),
     };
   }

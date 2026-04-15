@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Wallet,
   ArrowRight,
+  ArrowLeftRight,
   TrendingUp,
   CreditCard,
   Banknote,
@@ -24,11 +25,12 @@ import {
   getCashSessionSummary,
   getTodaySalesTotal,
   getMonthSalesTotal,
+  listCashClosures,
 } from '../../shared/api/cash.api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { es } from '../../shared/i18n';
 import { formatCurrency } from '../../shared/utils/formatters';
-import type { CashRegister } from '../../shared/types/cash.types';
+import type { CashClosureRow, CashRegister } from '../../shared/types/cash.types';
 
 export function CashRegisterPage(): JSX.Element {
   const { user } = useAuth();
@@ -41,6 +43,10 @@ export function CashRegisterPage(): JSX.Element {
   const [finalCash, setFinalCash] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [closures, setClosures] = useState<CashClosureRow[]>([]);
+  const [closuresTake, setClosuresTake] = useState(60);
+  const [closuresLoading, setClosuresLoading] = useState(false);
+  const [closuresError, setClosuresError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -75,6 +81,30 @@ export function CashRegisterPage(): JSX.Element {
     };
   }, [user]);
 
+  const loadClosures = async (take = closuresTake): Promise<void> => {
+    setClosuresLoading(true);
+    setClosuresError(null);
+
+    try {
+      const resp = await listCashClosures(take);
+      if (resp.success) {
+        setClosures(resp.data);
+      } else {
+        setClosuresError(resp.error.message);
+      }
+    } catch (err) {
+      setClosuresError(err instanceof Error ? err.message : es.errors.unknown);
+    } finally {
+      setClosuresLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    void loadClosures(closuresTake);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, closuresTake]);
+
   const handleOpen = async (): Promise<void> => {
     if (!user) return;
     setLoading(true);
@@ -87,6 +117,7 @@ export function CashRegisterPage(): JSX.Element {
         setInitialCash('');
         const summaryResp = await getCashSessionSummary(response.data.id);
         if (summaryResp.success) setSummary(summaryResp.data);
+        void loadClosures();
       } else {
         setMessage(response.error.message);
       }
@@ -111,6 +142,7 @@ export function CashRegisterPage(): JSX.Element {
         setActiveCash(null);
         setSummary(null);
         setFinalCash('');
+        void loadClosures();
         setMessage('Caja cerrada con éxito. ¡Vuelva pronto!');
       } else {
         setMessage(response.error.message);
@@ -120,6 +152,10 @@ export function CashRegisterPage(): JSX.Element {
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatSignedCurrency = (value: number): string => {
+    return `${value > 0 ? '+' : ''}${formatCurrency(value)}`;
   };
 
   return (
@@ -531,6 +567,39 @@ export function CashRegisterPage(): JSX.Element {
                 <div
                   style={{
                     padding: 'var(--space-4)',
+                    background: 'var(--brand-50)',
+                    borderRadius: 'var(--radius-xl)',
+                    border: '1px solid var(--brand-100)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--space-2)',
+                      color: 'var(--brand-600)',
+                      marginBottom: 'var(--space-1)',
+                      fontWeight: 800,
+                      fontSize: 'var(--text-xs)',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    <ArrowLeftRight size={16} /> Transferencias
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 'var(--text-xl)',
+                      fontWeight: 800,
+                      color: 'var(--brand-700)',
+                    }}
+                  >
+                    {formatCurrency(summary?.transferencia || 0)}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: 'var(--space-4)',
                     background: 'var(--warning-50)',
                     borderRadius: 'var(--radius-xl)',
                     border: '1px solid var(--warning-100)',
@@ -742,6 +811,137 @@ export function CashRegisterPage(): JSX.Element {
           </div>
         </div>
       )}
+
+      {/* Daily Closures */}
+      <div style={{ marginTop: 'var(--space-8)', animation: 'slideUp 0.3s ease' }}>
+        <div className="tc-card" style={{ padding: 'var(--space-6)' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: 'var(--space-4)',
+              marginBottom: 'var(--space-5)',
+            }}
+          >
+            <div>
+              <h3
+                style={{
+                  fontSize: 'var(--text-lg)',
+                  fontWeight: 800,
+                  color: 'var(--gray-800)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)',
+                  marginBottom: 'var(--space-1)',
+                }}
+              >
+                <Lock size={18} style={{ color: 'var(--gray-600)' }} />
+                Cierres de Caja Diarios
+              </h3>
+              <p style={{ color: 'var(--gray-500)', fontSize: 'var(--text-sm)', fontWeight: 500 }}>
+                Historial en orden (mostrando últimos {closuresTake}).
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => void loadClosures(closuresTake)}
+                className="tc-btn tc-btn--secondary"
+                disabled={closuresLoading}
+              >
+                {closuresLoading ? 'Actualizando...' : 'Actualizar'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setClosuresTake((t) => Math.min(500, t + 60))}
+                className="tc-btn tc-btn--primary"
+                disabled={closuresLoading || closuresTake >= 500}
+                style={{ background: 'var(--gradient-primary)', border: 'none' }}
+              >
+                Cargar más
+              </button>
+            </div>
+          </div>
+
+          {closuresError ? (
+            <div className="tc-notice tc-notice--error">{closuresError}</div>
+          ) : closuresLoading && closures.length === 0 ? (
+            <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--gray-500)' }}>
+              {es.common.loading}
+            </div>
+          ) : closures.length === 0 ? (
+            <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--gray-500)' }}>
+              Aún no hay cierres de caja registrados.
+            </div>
+          ) : (
+            <div className="tc-table-wrap">
+              <table className="tc-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Usuario</th>
+                    <th>Base</th>
+                    <th>Esperado</th>
+                    <th>Contado</th>
+                    <th>Diferencia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {closures.map((c) => {
+                    const closedDate = new Date(c.closedAt);
+                    const diff = c.difference;
+
+                    return (
+                      <tr key={c.id}>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <div style={{ fontWeight: 700, color: 'var(--gray-900)' }}>
+                            {closedDate.toLocaleDateString('es-CO', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </div>
+                          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-400)', marginTop: 2 }}>
+                            {closedDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </td>
+
+                        <td>
+                          <div style={{ fontWeight: 700, color: 'var(--gray-900)' }}>{c.user.fullName}</div>
+                          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-400)', marginTop: 2 }}>
+                            {c.user.username} &middot; {c.user.role}
+                          </div>
+                        </td>
+
+                        <td style={{ whiteSpace: 'nowrap', fontWeight: 700 }}>
+                          {formatCurrency(c.initialCash)}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap', fontWeight: 700 }}>
+                          {c.expectedCash == null ? '—' : formatCurrency(c.expectedCash)}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--gray-900)' }}>
+                          {c.finalCash == null ? '—' : formatCurrency(c.finalCash)}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          {diff == null ? (
+                            <span className="tc-badge tc-badge--neutral">—</span>
+                          ) : diff === 0 ? (
+                            <span className="tc-badge tc-badge--success">{formatSignedCurrency(diff)}</span>
+                          ) : (
+                            <span className="tc-badge tc-badge--danger">{formatSignedCurrency(diff)}</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -19,13 +19,22 @@ import { registerReportsIpc } from './ipc/reports.ipc';
 import { registerSalesIpc } from './ipc/sales.ipc';
 import { registerUsersIpc } from './ipc/users.ipc';
 import { registerCustomersIpc } from './ipc/customers.ipc';
+import { registerPurchaseIpc } from './ipc/purchase.ipc';
 import { prisma } from './repositories/prisma';
 import { seedDatabase } from './repositories/seed';
 import { seedProducts } from './repositories/seed-products';
 import { logger } from './utils/logger';
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-console.log('[MAIN] isDev check:', isDev, '(NODE_ENV:', process.env.NODE_ENV, ', isPackaged:', app.isPackaged, ')');
+console.log(
+  '[MAIN] isDev check:',
+  isDev,
+  '(NODE_ENV:',
+  process.env.NODE_ENV,
+  ', isPackaged:',
+  app.isPackaged,
+  ')',
+);
 
 function isEpipeError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && 'code' in error && error.code === 'EPIPE';
@@ -57,13 +66,16 @@ function installProcessGuards(): void {
       console.error('STACK:', error.stack);
     }
     console.error('═══════════════════════════════════════════');
-    logger.error('app:uncaught-exception', { error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : 'N/A' });
+    logger.error('app:uncaught-exception', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : 'N/A',
+    });
   });
 }
 
 async function loadRenderer(win: BrowserWindow): Promise<void> {
   console.log('[MAIN] loadRenderer called, isDev:', isDev);
-  
+
   if (!isDev) {
     console.log('[MAIN] Loading from file:', join(__dirname, '../../../renderer/index.html'));
     await win.loadFile(join(__dirname, '../../../renderer/index.html'));
@@ -80,7 +92,10 @@ async function loadRenderer(win: BrowserWindow): Promise<void> {
       win.webContents.openDevTools();
       return;
     } catch (err) {
-      console.log(`[MAIN] Load attempt ${attempt + 1} failed, retrying...`, err instanceof Error ? err.message : err);
+      console.log(
+        `[MAIN] Load attempt ${attempt + 1} failed, retrying...`,
+        err instanceof Error ? err.message : err,
+      );
       await new Promise((resolve) => {
         setTimeout(resolve, 500);
       });
@@ -93,7 +108,7 @@ async function loadRenderer(win: BrowserWindow): Promise<void> {
 
 function createWindow(): void {
   console.log('[MAIN] createWindow() called');
-  
+
   const win = new BrowserWindow({
     x: 50,
     y: 50,
@@ -115,9 +130,14 @@ function createWindow(): void {
 
   // Listen for renderer crashes
   win.webContents.on('render-process-gone', (_event, details) => {
-    console.error('[MAIN] Renderer process gone! Reason:', details.reason, 'Exit code:', details.exitCode);
+    console.error(
+      '[MAIN] Renderer process gone! Reason:',
+      details.reason,
+      'Exit code:',
+      details.exitCode,
+    );
   });
-  
+
   win.webContents.on('did-fail-load', (_event, code, desc) => {
     console.error('[MAIN] Renderer failed to load! Code:', code, 'Description:', desc);
   });
@@ -144,7 +164,10 @@ function createWindow(): void {
       console.error('═══════════════════════════════════════════');
       console.error('[MAIN] Keeping window open for debugging...');
       // NO cerrar la app — mantenerla abierta para debug
-      logger.error('app:window-create-failed', { error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : 'N/A' });
+      logger.error('app:window-create-failed', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'N/A',
+      });
     });
 }
 
@@ -170,6 +193,7 @@ app.whenReady().then(async () => {
     registerSalesIpc();
     registerUsersIpc();
     registerCustomersIpc();
+    registerPurchaseIpc();
     console.log('INFO: All IPC handlers registered');
     createWindow();
   } catch (error) {

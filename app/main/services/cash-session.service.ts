@@ -1,6 +1,10 @@
 import { Prisma } from '@prisma/client';
 
-import type { CashCloseSummary, CashRegister } from '../../renderer/src/shared/types/cash.types';
+import type {
+  CashCloseSummary,
+  CashClosureRow,
+  CashRegister,
+} from '../../renderer/src/shared/types/cash.types';
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
 import { toNumber } from '../utils/prisma-helpers';
@@ -33,6 +37,34 @@ function mapCashSession(session: {
 }
 
 export class CashSessionService {
+  async listCashClosures(take = 60): Promise<CashClosureRow[]> {
+    const safeTake = Math.max(1, Math.min(500, Math.trunc(take)));
+
+    const sessions = await prisma.cashSession.findMany({
+      where: {
+        status: 'CLOSED',
+        closedAt: { not: null },
+      },
+      include: {
+        user: { select: { id: true, username: true, fullName: true, role: true } },
+      },
+      orderBy: { closedAt: 'desc' },
+      take: safeTake,
+    });
+
+    return sessions.map((s) => ({
+      id: s.id,
+      initialCash: Number(s.initialCash),
+      finalCash: toNumber(s.finalCash),
+      expectedCash: toNumber(s.expectedCash),
+      difference: toNumber(s.difference),
+      openedAt: s.openedAt.toISOString(),
+      closedAt: s.closedAt!.toISOString(),
+      status: s.status,
+      user: s.user,
+    }));
+  }
+
   async openCashSession(userId: number, initialCash: number): Promise<CashRegister> {
     const activeSession = await prisma.cashSession.findFirst({
       where: {

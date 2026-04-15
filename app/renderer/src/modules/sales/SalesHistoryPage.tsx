@@ -275,9 +275,9 @@ export function SalesHistoryPage(): JSX.Element {
       // Admin sees ALL sales; cashiers only see their own
       if (user.role === 'ADMIN') {
         // Load all sales from last 90 days for admin
-        const endDate = new Date();
-        const startDate = new Date(endDate);
-        startDate.setDate(startDate.getDate() - 90);
+        const now = new Date();
+        const startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
         const dateRangeResponse = await getSalesByDateRange(
           startDate.toISOString().split('T')[0],

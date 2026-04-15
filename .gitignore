@@ -4,6 +4,9 @@ release/
 .env
 tucajero.db
 *.log
+dev.out
+dev.err
+nul
 tmp-invoices/
 .DS_Store
 Thumbs.db
