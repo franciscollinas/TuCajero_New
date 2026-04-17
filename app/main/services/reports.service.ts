@@ -1,8 +1,7 @@
 import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
-
-import ExcelJS from 'exceljs';
+import { Worker } from 'worker_threads';
 
 import type { AuditLogEntry } from '../../renderer/src/shared/types/audit.types';
 import type {
@@ -18,6 +17,7 @@ import type {
   SalesReportRow,
   AuditSummary,
 } from '../../renderer/src/shared/types/reports.types';
+import type { WorkerInput, WorkerOutput } from '../workers/report.worker';
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
 import { assertRoleAccess } from '../utils/prisma-helpers';
@@ -347,6 +347,36 @@ export class ReportsService {
     return reportsDir;
   }
 
+  /**
+   * Despacha la generación de archivo a un Worker Thread para no bloquear el proceso principal.
+   * El worker se resuelve con { success, filePath } o { success: false, error }.
+   */
+  private runWorker(input: WorkerInput): Promise<WorkerOutput> {
+    return new Promise((resolve, reject) => {
+      // En producción el worker estará en dist/main/app/main/workers/report.worker.js
+      const workerPath = path.join(__dirname, '..', 'workers', 'report.worker.js');
+      const worker = new Worker(workerPath);
+
+      worker.on('message', (result: WorkerOutput) => {
+        void worker.terminate();
+        resolve(result);
+      });
+
+      worker.on('error', (err) => {
+        void worker.terminate();
+        reject(err);
+      });
+
+      worker.on('exit', (code) => {
+        if (code !== 0) {
+          reject(new Error(`Worker de reportes terminó con código de salida ${code}`));
+        }
+      });
+
+      worker.postMessage(input);
+    });
+  }
+
   private createSheetRows(
     reportType: ReportType,
     data: ReportsDashboardData,
@@ -437,35 +467,19 @@ export class ReportsService {
     const fileName = `${reportType}_${data.range.startDate}_${data.range.endDate}_${timestamp}.${format}`;
     const filePath = path.join(dir, fileName);
 
-    if (format === 'csv') {
-      const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
-      const escapeCsv = (value: unknown): string => {
-        if (value === null || value === undefined) return '';
-        const str = String(value);
-        const needsQuotes = /[",\n\r]/.test(str);
-        const escaped = str.replace(/"/g, '""');
-        return needsQuotes ? `"${escaped}"` : escaped;
-      };
+    // Delegar la generación del archivo al Worker Thread para no bloquear el proceso principal
+    const workerResult = await this.runWorker({
+      rows,
+      format: format as 'xlsx' | 'csv',
+      filePath,
+      reportType,
+    });
 
-      const lines = [
-        headers.join(','),
-        ...rows.map((row) => headers.map((h) => escapeCsv((row as any)[h])).join(',')),
-      ];
-
-      const csv = `${lines.join('\n')}\n`;
-      fs.writeFileSync(filePath, csv, 'utf8');
-    } else {
-      const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet(reportType);
-      const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
-
-      sheet.columns = headers.map((key) => ({ header: key, key, width: Math.max(14, key.length + 2) }));
-      rows.forEach((row) => sheet.addRow(row as any));
-
-      sheet.getRow(1).font = { bold: true };
-      sheet.views = [{ state: 'frozen', ySplit: 1 }];
-
-      await workbook.xlsx.writeFile(filePath);
+    if (!workerResult.success) {
+      throw new AppError(
+        ErrorCode.UNKNOWN,
+        `Error al exportar reporte: ${workerResult.error ?? 'Error desconocido en el worker'}`,
+      );
     }
 
     await auditService.log({

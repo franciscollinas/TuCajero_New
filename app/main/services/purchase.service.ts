@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../../../database/generated-client';
 
 import type {
   Supplier,

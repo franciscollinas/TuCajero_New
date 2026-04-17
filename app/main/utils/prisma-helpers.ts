@@ -1,7 +1,7 @@
 /**
  * Shared Prisma utility functions.
  */
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../../database/generated-client';
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
 

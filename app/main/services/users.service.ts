@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../../database/generated-client';
 
 import type { UserRole } from '../../renderer/src/shared/types/auth.types';
 import type {

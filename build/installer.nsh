@@ -33,7 +33,7 @@
   IfFileExists "$INSTDIR\.env" env_exists create_env
     create_env:
     FileOpen $0 "$INSTDIR\.env" w
-    FileWrite $0 "DATABASE_URL=file:./database/tucajero.db$\r$\n"
+    FileWrite $0 "DATABASE_URL=file:$INSTDIR\resources\app\database\tucajero.db$\r$\n"
     FileClose $0
   env_exists:
 !macroend

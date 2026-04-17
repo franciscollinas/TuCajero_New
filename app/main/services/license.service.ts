@@ -142,13 +142,35 @@ export class LicenseService {
       ? validateLicense(currentLicense, fingerprint.fingerprint)
       : { valid: false, hasLicense: false, reason: 'No hay licencia instalada.' };
 
+    // Lógica de periodo de gracia de 24h
+    let trialBlocked = false;
+    let firstRunDate: Date | null = null;
+
+    if (!validation.valid) {
+      const configFirstRun = await prisma.config.findUnique({ where: { key: 'first_run_at' } });
+      if (!configFirstRun) {
+        // Primer arranque absoluto: registrar fecha
+        const now = new Date();
+        await prisma.config.create({ data: { key: 'first_run_at', value: now.toISOString() } });
+        firstRunDate = now;
+      } else {
+        firstRunDate = new Date(configFirstRun.value);
+        const hoursSinceFirstRun = (Date.now() - firstRunDate.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceFirstRun > 24) {
+          trialBlocked = true;
+        }
+      }
+    }
+
     return {
       fingerprint,
       currentLicense,
       validation: {
         ...validation,
         hasLicense: !!currentLicense,
-      },
+        trialBlocked,
+        firstRunDate: firstRunDate?.toISOString()
+      } as any,
     };
   }
 }

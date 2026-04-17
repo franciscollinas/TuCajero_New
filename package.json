@@ -1,16 +1,23 @@
 {
   "name": "tucajero",
-  "version": "0.1.0",
-  "description": "POS para pequeños negocios",
+  "version": "1.0.0",
+  "description": "Sistema Punto de Venta para pequeños negocios",
+  "author": {
+    "name": "TuCajero",
+    "email": "soporte@tucajero.com"
+  },
   "main": "dist/main/app/main/main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:electron\" \"npm run dev:renderer\"",
     "dev:renderer": "vite app/renderer",
     "dev:electron": "tsc -p tsconfig.main.json && node scripts/dev-electron.cjs",
     "build": "npm run build:renderer && npm run build:electron",
-    "build:renderer": "vite build app/renderer",
+    "build:renderer": "vite build",
     "build:electron": "tsc -p tsconfig.main.json",
-    "dist": "npm run build && electron-builder",
+    "obfuscate": "node scripts/obfuscate.cjs",
+    "clean:template": "tsx scripts/clean-template.ts",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "dist": "npm run clean:template && npm run build && npm run obfuscate && electron-builder",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json}\"",
@@ -28,6 +35,7 @@
     "bcryptjs": "^2.4.3",
     "date-fns": "^3.6.0",
     "electron-store": "^8.2.0",
+    "exceljs": "^4.4.0",
     "lucide-react": "^1.7.0",
     "node-thermal-printer": "^4.3.4",
     "papaparse": "^5.4.1",
@@ -38,11 +46,12 @@
     "react-router-dom": "^6.23.0",
     "recharts": "^3.8.1",
     "systeminformation": "^5.22.0",
+    "better-sqlite3": "^12.9.0",
     "winston": "^3.13.0",
-    "exceljs": "^4.4.0",
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
     "@playwright/test": "^1.44.0",
     "@testing-library/react": "^16.0.0",
     "@types/bcryptjs": "^2.4.6",
@@ -56,7 +65,7 @@
     "@typescript-eslint/parser": "^8.0.0",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.19",
-    "better-sqlite3": "^12.9.0",
+
     "concurrently": "^8.2.0",
     "electron": "^41.2.0",
     "electron-builder": "^26.8.1",

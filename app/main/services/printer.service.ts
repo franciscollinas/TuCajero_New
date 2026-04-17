@@ -88,6 +88,29 @@ function createPrinterInstance(config: PrinterConfig): InstanceType<typeof print
   });
 }
 
+/**
+ * Ejecuta la impresión con un timeout de seguridad para evitar hardware locks.
+ * Si la impresora no responde en timeoutMs, rechaza la promesa con un error descriptivo.
+ */
+function executeWithTimeout(
+  thermalPrinter: InstanceType<typeof printer>,
+  timeoutMs = 5000,
+): Promise<void> {
+  const printPromise = thermalPrinter.execute() as unknown as Promise<void>;
+  const timeoutPromise = new Promise<void>((_, reject) =>
+    setTimeout(
+      () =>
+        reject(
+          new Error(
+            `Timeout: la impresora no respondió en ${timeoutMs}ms. Verifica papel, conexión y estado.`,
+          ),
+        ),
+      timeoutMs,
+    ),
+  );
+  return Promise.race([printPromise, timeoutPromise]);
+}
+
 export class PrinterService {
   private readonly invoiceDir: string;
 
@@ -341,7 +364,7 @@ export class PrinterService {
       thermalPrinter.println(invoice.businessName);
       thermalPrinter.cut();
 
-      await thermalPrinter.execute();
+      await executeWithTimeout(thermalPrinter, 5000);
       thermalPrinter.clear();
 
       return { success: true, message: 'Recibo impreso correctamente.' };
@@ -390,7 +413,7 @@ export class PrinterService {
       thermalPrinter.println(new Date().toLocaleString('es-CO'));
       thermalPrinter.cut();
 
-      await thermalPrinter.execute();
+      await executeWithTimeout(thermalPrinter, 5000);
       thermalPrinter.clear();
 
       return { success: true, message: 'Impresora conectada correctamente.' };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { Layout } from './shared/components/Layout';
 import { LoginPage } from './modules/auth/LoginPage';
@@ -81,7 +81,7 @@ export default function App(): JSX.Element {
     <ErrorBoundary>
       <AuthProvider>
         <ConfigProvider>
-          <BrowserRouter>
+          <HashRouter>
             <Routes>
               <Route
                 path="/login"
@@ -257,7 +257,7 @@ export default function App(): JSX.Element {
               <Route path="/" element={<StartRoute />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          </BrowserRouter>
+          </HashRouter>
         </ConfigProvider>
       </AuthProvider>
     </ErrorBoundary>

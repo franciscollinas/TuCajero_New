@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  base: './',
   root: 'app/renderer',
   plugins: [react()],
   resolve: {
@@ -20,7 +21,7 @@ export default defineConfig({
   build: {
     outDir: '../../dist/renderer',
     emptyOutDir: true,
-    minify: 'terser',
+    minify: true,
     terserOptions: {
       compress: {
         drop_console: true,
@@ -29,14 +30,22 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Split vendor chunks for better caching
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'chart-vendor': ['recharts'],
-          'ui-vendor': ['lucide-react'],
-          // Heavy libraries loaded on demand
-          'pdf-vendor': ['pdf-lib', 'pdfkit'],
-          'excel-vendor': ['exceljs'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'react-vendor';
+            }
+            if (id.includes('recharts')) {
+              return 'chart-vendor';
+            }
+            if (id.includes('lucide-react')) {
+              return 'ui-vendor';
+            }
+            if (id.includes('pdf-lib') || id.includes('pdfkit') || id.includes('exceljs')) {
+              return 'office-vendor';
+            }
+            return 'vendor';
+          }
         },
       },
     },

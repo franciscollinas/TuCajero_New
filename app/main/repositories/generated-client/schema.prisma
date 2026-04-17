@@ -1,0 +1,285 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../app/main/repositories/generated-client"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  Int             @id @default(autoincrement())
+  username            String          @unique
+  password            String
+  fullName            String
+  role                String          @default("CASHIER")
+  active              Boolean         @default(true)
+  mustChangePassword  Boolean         @default(false)
+  hourlyRate          Decimal?        @default(15000)
+  failedLoginAttempts Int             @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  sessions            Session[]
+  cashSessions        CashSession[]
+  sales               Sale[]
+  auditLogs           AuditLog[]
+  stockMovements      StockMovement[]
+  purchaseOrders      PurchaseOrder[]
+}
+
+model Session {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  token     String    @unique
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  closedAt  DateTime?
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  color     String?
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id                   Int                 @id @default(autoincrement())
+  code                 String              @unique
+  barcode              String?             @unique
+  name                 String
+  description          String?
+  categoryId           Int
+  category             Category            @relation(fields: [categoryId], references: [id])
+  price                Decimal
+  cost                 Decimal
+  stock                Float               @default(0)
+  minStock             Int                 @default(5)
+  criticalStock        Int                 @default(2)
+  taxRate              Decimal             @default(0.19)
+  suggestedPurchaseQty Int?
+  expiryDate           DateTime?
+  location             String?
+  unitType             String              @default("UNIT")
+  conversionFactor     Decimal             @default(1)
+  isActive             Boolean             @default(true)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  saleItems            SaleItem[]
+  stockMovements       StockMovement[]
+  purchaseOrderItems   PurchaseOrderItem[]
+
+  @@index([isActive, name])
+  @@index([categoryId])
+  @@index([isActive, categoryId])
+}
+
+model StockMovement {
+  id            Int      @id @default(autoincrement())
+  productId     Int
+  product       Product  @relation(fields: [productId], references: [id])
+  type          String
+  quantity      Float
+  previousStock Float
+  newStock      Float
+  reason        String?
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@index([productId, createdAt])
+  @@index([userId])
+}
+
+model Sale {
+  id            Int          @id @default(autoincrement())
+  saleNumber    String       @unique @map("receiptNumber")
+  userId        Int
+  user          User         @relation(fields: [userId], references: [id])
+  cashSessionId Int?
+  cashSession   CashSession? @relation(fields: [cashSessionId], references: [id])
+  subtotal      Decimal
+  tax           Decimal      @map("taxAmount")
+  discount      Decimal      @default(0)
+  deliveryFee   Decimal      @default(0)
+  total         Decimal
+  status        String       @default("COMPLETED")
+  createdAt     DateTime     @default(now())
+
+  customerId Int?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  items    SaleItem[]
+  payments Payment[]
+  debt     Debt?
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([cashSessionId])
+  @@index([userId, createdAt])
+  @@index([customerId])
+}
+
+model SaleItem {
+  id        Int     @id @default(autoincrement())
+  saleId    Int
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Decimal
+  unitPrice Decimal
+  taxRate   Decimal
+  subtotal  Decimal
+  discount  Decimal @default(0)
+  total     Decimal @default(0)
+  unitType  String
+}
+
+model Payment {
+  id            Int          @id @default(autoincrement())
+  saleId        Int?
+  sale          Sale?        @relation(fields: [saleId], references: [id])
+  debtId        Int?
+  debt          Debt?        @relation(fields: [debtId], references: [id])
+  cashSessionId Int?
+  cashSession   CashSession? @relation(fields: [cashSessionId], references: [id])
+  method        String
+  amount        Decimal
+  reference     String?
+  createdAt     DateTime     @default(now())
+
+  @@index([saleId])
+  @@index([cashSessionId])
+  @@index([method])
+}
+
+model CashSession {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  user         User      @relation(fields: [userId], references: [id])
+  initialCash  Decimal
+  finalCash    Decimal?
+  expectedCash Decimal?
+  difference   Decimal?
+  openedAt     DateTime  @default(now())
+  closedAt     DateTime?
+  status       String    @default("OPEN")
+  sales        Sale[]
+  payments     Payment[]
+
+  @@index([openedAt])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  Int?
+  payload   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([action])
+  @@index([entity])
+}
+
+model Config {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  document  String?  @unique
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sales     Sale[]
+  debts     Debt[]
+}
+
+model Debt {
+  id         Int       @id @default(autoincrement())
+  customerId Int
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  saleId     Int?      @unique
+  sale       Sale?     @relation(fields: [saleId], references: [id])
+  amount     Decimal
+  balance    Decimal
+  status     String    @default("PENDING") // PENDING, PARTIAL, PAID
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  payments   Payment[]
+}
+
+model Supplier {
+  id             Int             @id @default(autoincrement())
+  name           String
+  contactPerson  String?
+  phone          String
+  email          String
+  address        String
+  leadTimeDays   Int             @default(7)
+  isActive       Boolean         @default(true)
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  purchaseOrders PurchaseOrder[]
+}
+
+model PurchaseOrder {
+  id           Int                 @id @default(autoincrement())
+  orderNumber  String              @unique
+  supplierId   Int
+  supplier     Supplier            @relation(fields: [supplierId], references: [id])
+  status       String              @default("DRAFT")
+  subtotal     Decimal             @default(0)
+  tax          Decimal             @default(0)
+  freight      Decimal             @default(0)
+  total        Decimal             @default(0)
+  expectedDate DateTime?
+  receivedDate DateTime?
+  observations String?
+  notes        String?
+  userId       Int
+  user         User                @relation(fields: [userId], references: [id])
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  items        PurchaseOrderItem[]
+
+  @@index([supplierId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PurchaseOrderItem {
+  id               Int           @id @default(autoincrement())
+  orderId          Int
+  order            PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId        Int
+  product          Product       @relation(fields: [productId], references: [id])
+  quantityOrdered  Float
+  quantityReceived Float         @default(0)
+  unitCost         Decimal
+  total            Decimal
+  received         Boolean       @default(false)
+  observations     String?
+
+  @@index([orderId])
+  @@index([productId])
+}

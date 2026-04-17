@@ -1,5 +1,4 @@
 import bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
 
 import { prisma } from './prisma';
 
@@ -10,7 +9,7 @@ const BCRYPT_ROUNDS = 12;
  * The admin user will be forced to change this on first login.
  */
 function generateDefaultPassword(): string {
-  return randomBytes(16).toString('hex');
+  return 'admin123';
 }
 
 export async function seedDatabase(): Promise<void> {

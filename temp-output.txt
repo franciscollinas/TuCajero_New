@@ -1,0 +1,4 @@
+
+[MAIN] Electron app module loaded, app is: defined
+[MAIN] process.type: browser
+[MAIN] DATABASE_URL set to: file:C:\Users\UserMaster\AppData\Roaming\tucajero\tucajero.db

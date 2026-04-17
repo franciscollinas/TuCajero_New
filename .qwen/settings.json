@@ -35,7 +35,8 @@
       "Bash(select-string *)",
       "Bash(echo.)",
       "Bash(python *)",
-      "Bash(pip install *)"
+      "Bash(pip install *)",
+      "WebSearch"
     ]
   },
   "$version": 3
