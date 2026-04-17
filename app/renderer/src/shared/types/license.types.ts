@@ -11,6 +11,12 @@ export interface LicenseValidationResult {
   expiryDate?: Date;
   daysRemaining?: number;
   fingerprint: string;
+  // Trial Fields
+  trialBlocked?: boolean;
+  trialRemainingHours?: number;
+  trialRemainingMinutes?: number;
+  trialRemainingSeconds?: number;
+  firstRunDate?: string;
 }
 
 export interface LicenseInfo {

@@ -36,10 +36,13 @@ const SETTINGS = '/settings';
 const INVENTORY_IMPORT = '/inventory/import';
 const PURCHASE = '/purchase';
 
+import { useLicense } from '../../shared/context/LicenseContext';
+
 export function Layout({ children }: LayoutProps): JSX.Element {
   const { user, logout } = useAuth();
   const { config } = useConfig();
   const { can } = useRBAC();
+  const { isBlocked, isTrial, licenseInfo } = useLicense();
   const location = useLocation();
   const [aboutOpen, setAboutOpen] = useState(false);
 
@@ -56,7 +59,7 @@ export function Layout({ children }: LayoutProps): JSX.Element {
         .toUpperCase()
     : '?';
 
-  const navGroups: { label: string; items: NavItemDef[] }[] = [
+  let navGroups: { label: string; items: NavItemDef[] }[] = [
     {
       label: 'Principal',
       items: [
@@ -139,13 +142,31 @@ export function Layout({ children }: LayoutProps): JSX.Element {
     },
   ];
 
+  // If trial is blocked, restrict navigation to License only
+  if (isBlocked) {
+    navGroups = [
+      {
+        label: 'Sistema Bloqueado',
+        items: [{ icon: licenseIcon, label: 'Activar Licencia', path: LICENSE }],
+      },
+    ];
+  }
+
   return (
     <div className="tc-layout">
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
       {/* Sidebar */}
       <aside className="tc-sidebar">
         <div className="tc-sidebar-header">
-          <div className="tc-logo">
+          <div
+            className="tc-logo"
+            style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
+          >
+            <img
+              src="isotipo.png"
+              alt="Logo"
+              style={{ width: '30px', height: '30px', objectFit: 'contain' }}
+            />
             <span className="tc-logo-text">
               <span className="tc-logo-accent">Tu</span>Cajero
             </span>
@@ -174,6 +195,78 @@ export function Layout({ children }: LayoutProps): JSX.Element {
                 })}
               </div>
             ))}
+
+          {/* Trial Status Badge */}
+          {isTrial && (
+            <div style={{ padding: '0 var(--space-4)', marginTop: 'var(--space-4)' }}>
+              <div
+                style={{
+                  background: 'rgba(52, 211, 153, 0.1)',
+                  border: '1px solid rgba(52, 211, 153, 0.2)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--space-3)',
+                  color: '#059669',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    marginBottom: '4px',
+                  }}
+                >
+                  Periodo de Prueba
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 700 }}>
+                  {licenseInfo?.validation.trialRemainingHours}h{' '}
+                  {licenseInfo?.validation.trialRemainingMinutes}m restantes
+                </div>
+                <Link
+                  to={LICENSE}
+                  style={{
+                    display: 'block',
+                    fontSize: '11px',
+                    marginTop: '8px',
+                    color: 'var(--primary-600)',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                  }}
+                >
+                  Activar ahora →
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {isBlocked && (
+            <div style={{ padding: '0 var(--space-4)', marginTop: 'var(--space-4)' }}>
+              <div
+                style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--space-3)',
+                  color: '#dc2626',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    marginBottom: '4px',
+                  }}
+                >
+                  Sistema Bloqueado
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 700 }}>Prueba terminada</div>
+                <p style={{ fontSize: '11px', margin: '4px 0 0 0', opacity: 0.8 }}>
+                  Requiere activación para continuar.
+                </p>
+              </div>
+            </div>
+          )}
         </nav>
 
         <div className="tc-sidebar-user">
@@ -258,23 +351,19 @@ export function Layout({ children }: LayoutProps): JSX.Element {
                   }}
                 />
               ) : (
-                <div
+                <img
+                  src="isotipo.png"
+                  alt="Logo"
                   style={{
-                    width: 44,
-                    height: 44,
+                    height: '44px',
+                    width: '44px',
                     borderRadius: 'var(--radius-lg)',
-                    background: 'var(--gradient-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#fff',
-                    fontSize: '20px',
-                    fontWeight: 800,
-                    flexShrink: 0,
+                    objectFit: 'contain',
+                    background: 'var(--gray-50)',
+                    padding: '4px',
+                    border: '2px solid var(--gray-100)',
                   }}
-                >
-                  {config?.businessName?.[0] ?? 'T'}
-                </div>
+                />
               )}
               <div style={{ minWidth: 0 }}>
                 <h1
@@ -734,8 +823,8 @@ const Clock = memo(function Clock(): JSX.Element {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    const timer = setInterval((): void => setCurrentTime(new Date()), 1000);
+    return (): void => clearInterval(timer);
   }, []);
 
   return (

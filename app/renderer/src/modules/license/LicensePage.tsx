@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 
-import { activateLicense, getLicenseInfo } from '../../shared/api/license.api';
+import { activateLicense } from '../../shared/api/license.api';
 import { useAuth } from '../../shared/context/AuthContext';
+import { useLicense } from '../../shared/context/LicenseContext';
 import { es } from '../../shared/i18n';
-import type { LicenseInfo } from '../../shared/types/license.types';
 
 function formatDate(value: string | Date): string {
   const date = typeof value === 'string' ? new Date(value) : value;
@@ -81,30 +81,20 @@ function IconClock(): JSX.Element {
 
 export function LicensePage(): JSX.Element {
   const { user } = useAuth();
-  const [info, setInfo] = useState<LicenseInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const {
+    licenseInfo: info,
+    isLoading: loading,
+    isValid,
+    isBlocked,
+    isTrial,
+    refresh,
+  } = useLicense();
+
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'info' | 'error' | 'success'>('info');
   const [licenseInput, setLicenseInput] = useState('');
   const [actionInProgress, setActionInProgress] = useState('');
   const [copied, setCopied] = useState(false);
-
-  const loadData = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    setMessage('');
-    const response = await getLicenseInfo();
-    if (response.success) {
-      setInfo(response.data);
-    } else {
-      setMessage(response.error.message);
-      setMessageType('error');
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
 
   const handleActivate = async (): Promise<void> => {
     if (!user || !licenseInput.trim()) return;
@@ -115,7 +105,7 @@ export function LicensePage(): JSX.Element {
       setMessage(es.license.activateSuccess);
       setMessageType('success');
       setLicenseInput('');
-      await loadData();
+      await refresh();
     } else {
       const reason = response.success ? response.data.message : response.error.message;
       setMessage(es.license.activateError.replace('{reason}', reason));
@@ -133,8 +123,9 @@ export function LicensePage(): JSX.Element {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const isValid = info?.validation.valid ?? false;
   const daysRemaining = info?.validation.daysRemaining ?? 0;
+  const h = info?.validation.trialRemainingHours ?? 0;
+  const m = info?.validation.trialRemainingMinutes ?? 0;
 
   if (loading) {
     return (
@@ -161,26 +152,20 @@ export function LicensePage(): JSX.Element {
     <div style={{ maxWidth: '720px', margin: '0 auto', padding: 'var(--space-6)' }}>
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
       `}</style>
 
       {/* Logo Header */}
       <div style={{ textAlign: 'center', marginBottom: 'var(--space-8)' }}>
-        <div
+        <img
+          src="isotipo.png"
+          alt="TuCajero Logo"
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '96px',
-            height: '96px',
-            borderRadius: 'var(--radius-2xl)',
-            background: 'linear-gradient(135deg, var(--brand-500), var(--brand-600))',
-            boxShadow: '0 8px 24px rgba(70, 95, 255, 0.35)',
-            marginBottom: 'var(--space-4)',
+            width: '100px',
+            height: '100px',
+            objectFit: 'contain',
+            marginBottom: 'var(--space-2)',
           }}
-        >
-          <IconKey />
-        </div>
+        />
         <h1 style={{ margin: 0, fontSize: '32px', fontWeight: 700, color: '#111827' }}>TuCajero</h1>
         <p style={{ margin: 'var(--space-1) 0 0', color: 'var(--gray-500)', fontSize: '16px' }}>
           Sistema de licencias
@@ -224,7 +209,7 @@ export function LicensePage(): JSX.Element {
           padding: '24px',
           marginBottom: '20px',
           boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-          border: `2px solid ${isValid ? '#10b981' : daysRemaining > 0 ? '#f59e0b' : '#ef4444'}`,
+          border: `2px solid ${isValid ? '#10b981' : isTrial ? '#f59e0b' : '#ef4444'}`,
           animation: 'fadeIn 0.4s ease-out both',
         }}
       >
@@ -254,19 +239,19 @@ export function LicensePage(): JSX.Element {
               gap: '8px',
               padding: '6px 14px',
               borderRadius: '20px',
-              background: isValid ? '#ecfdf5' : daysRemaining > 0 ? '#fef3c7' : '#fef2f2',
-              border: `1px solid ${isValid ? '#a7f3d0' : daysRemaining > 0 ? '#fcd34d' : '#fecaca'}`,
+              background: isValid ? '#ecfdf5' : isTrial ? '#fef3c7' : '#fef2f2',
+              border: `1px solid ${isValid ? '#a7f3d0' : isTrial ? '#fcd34d' : '#fecaca'}`,
             }}
           >
-            {isValid ? <IconCheck /> : <IconX />}
+            {isValid ? <IconCheck /> : isTrial ? <IconClock /> : <IconX />}
             <span
               style={{
                 fontWeight: 700,
                 fontSize: '14px',
-                color: isValid ? '#059669' : daysRemaining > 0 ? '#92400e' : '#dc2626',
+                color: isValid ? '#059669' : isTrial ? '#92400e' : '#dc2626',
               }}
             >
-              {isValid ? 'Activa' : 'Inactiva'}
+              {isValid ? 'Activa' : isTrial ? 'Prueba Activa' : 'Inactiva / Bloqueada'}
             </span>
           </div>
         </div>
@@ -311,31 +296,63 @@ export function LicensePage(): JSX.Element {
           </div>
         )}
 
-        {!isValid && daysRemaining > 0 && (
+        {isTrial && (
           <div
             style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
               paddingTop: '12px',
               borderTop: '1px solid #f3f4f6',
-              color: '#92400e',
-              fontSize: '13px',
             }}
           >
-            Tiempo de gracia: <strong>{daysRemaining} días</strong> restantes para activar la
-            licencia.
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#92400e' }}>
+              <IconClock />
+              <span style={{ fontSize: '14px', fontWeight: 500 }}>Tiempo restante de prueba:</span>
+            </div>
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <div style={{ textAlign: 'center', minWidth: '60px' }}>
+                <span
+                  style={{ display: 'block', fontSize: '24px', fontWeight: 800, color: '#92400e' }}
+                >
+                  {h}h
+                </span>
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#b45309' }}>
+                  Horas
+                </span>
+              </div>
+              <div style={{ textAlign: 'center', minWidth: '60px' }}>
+                <span
+                  style={{ display: 'block', fontSize: '24px', fontWeight: 800, color: '#92400e' }}
+                >
+                  {m}m
+                </span>
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#b45309' }}>
+                  Minutos
+                </span>
+              </div>
+            </div>
+            <p style={{ margin: 0, fontSize: '13px', color: '#6b7280', fontStyle: 'italic' }}>
+              Tu periodo de prueba de 24 horas está activo. Activa el software para evitar bloqueos.
+            </p>
           </div>
         )}
 
-        {!isValid && daysRemaining <= 0 && (
+        {isBlocked && (
           <div
             style={{
               paddingTop: '12px',
               borderTop: '1px solid #f3f4f6',
               color: '#dc2626',
-              fontSize: '13px',
-              fontWeight: 500,
+              fontSize: '14px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
             }}
           >
-            Sistema bloqueado. Contacta al administrador para obtener una licencia.
+            <IconX />
+            SISTEMA BLOQUEADO: El periodo de prueba ha expirado.
           </div>
         )}
       </div>

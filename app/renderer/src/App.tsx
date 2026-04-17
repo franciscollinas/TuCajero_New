@@ -22,20 +22,22 @@ import { UsersPage } from './modules/users/UsersPage';
 import CustomersPage from './modules/customers/CustomersPage';
 import { AuthProvider, useAuth } from './shared/context/AuthContext';
 import { ConfigProvider } from './shared/context/ConfigContext';
+import { LicenseProvider } from './shared/context/LicenseContext';
 import { es } from './shared/i18n';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
-  constructor(props: any) {
+  constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
   }
-  static getDerivedStateFromError() {
+  static getDerivedStateFromError(): { hasError: boolean } {
     return { hasError: true };
   }
-  componentDidCatch(error: any, errorInfo: any) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    // eslint-disable-next-line no-console
     console.error('React Error:', error, errorInfo);
   }
-  render() {
+  render(): React.ReactNode {
     if (this.state.hasError)
       return (
         <div style={{ padding: 20, color: 'red' }}>
@@ -81,183 +83,185 @@ export default function App(): JSX.Element {
     <ErrorBoundary>
       <AuthProvider>
         <ConfigProvider>
-          <HashRouter>
-            <Routes>
-              <Route
-                path="/login"
-                element={
-                  <PublicRoute>
-                    <LoginPage />
-                  </PublicRoute>
-                }
-              />
+          <LicenseProvider>
+            <HashRouter>
+              <Routes>
+                <Route
+                  path="/login"
+                  element={
+                    <PublicRoute>
+                      <LoginPage />
+                    </PublicRoute>
+                  }
+                />
 
-              {/* Rutas con Sidebar Layout */}
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <LayoutRoute>
-                      <DashboardPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/alerts"
-                element={
-                  <ProtectedRoute>
-                    <LayoutRoute>
-                      <AlertsPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/cash"
-                element={
-                  <ProtectedRoute roles={['ADMIN', 'CASHIER']}>
-                    <LayoutRoute>
-                      <CashRegisterPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/audit"
-                element={
-                  <ProtectedRoute roles={['ADMIN']}>
-                    <LayoutRoute>
-                      <AuditPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/inventory"
-                element={
-                  <ProtectedRoute>
-                    <LayoutRoute>
-                      <InventoryPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/users"
-                element={
-                  <ProtectedRoute roles={['ADMIN']}>
-                    <LayoutRoute>
-                      <UsersPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/inventory/import"
-                element={
-                  <ProtectedRoute roles={['ADMIN', 'SUPERVISOR']}>
-                    <LayoutRoute>
-                      <InventoryBulkImportPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/reports"
-                element={
-                  <ProtectedRoute roles={['ADMIN', 'SUPERVISOR']}>
-                    <LayoutRoute>
-                      <ReportsPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/backup"
-                element={
-                  <ProtectedRoute roles={['ADMIN']}>
-                    <LayoutRoute>
-                      <BackupPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/license"
-                element={
-                  <ProtectedRoute roles={['ADMIN']}>
-                    <LayoutRoute>
-                      <LicensePage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/printer"
-                element={
-                  <ProtectedRoute roles={['ADMIN']}>
-                    <LayoutRoute>
-                      <PrinterSettingsPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute roles={['ADMIN']}>
-                    <LayoutRoute>
-                      <SettingsPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/purchase"
-                element={
-                  <ProtectedRoute roles={['ADMIN']}>
-                    <LayoutRoute>
-                      <PurchasePage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/sales"
-                element={
-                  <ProtectedRoute roles={['ADMIN', 'CASHIER', 'SUPERVISOR']}>
-                    <LayoutRoute>
-                      <POSPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/sales/history"
-                element={
-                  <ProtectedRoute roles={['ADMIN', 'CASHIER', 'SUPERVISOR']}>
-                    <LayoutRoute>
-                      <SalesHistoryPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/customers"
-                element={
-                  <ProtectedRoute roles={['ADMIN', 'CASHIER', 'SUPERVISOR']}>
-                    <LayoutRoute>
-                      <CustomersPage />
-                    </LayoutRoute>
-                  </ProtectedRoute>
-                }
-              />
+                {/* Rutas con Sidebar Layout */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <LayoutRoute>
+                        <DashboardPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/alerts"
+                  element={
+                    <ProtectedRoute>
+                      <LayoutRoute>
+                        <AlertsPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/cash"
+                  element={
+                    <ProtectedRoute roles={['ADMIN', 'CASHIER']}>
+                      <LayoutRoute>
+                        <CashRegisterPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/audit"
+                  element={
+                    <ProtectedRoute roles={['ADMIN']}>
+                      <LayoutRoute>
+                        <AuditPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/inventory"
+                  element={
+                    <ProtectedRoute>
+                      <LayoutRoute>
+                        <InventoryPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/users"
+                  element={
+                    <ProtectedRoute roles={['ADMIN']}>
+                      <LayoutRoute>
+                        <UsersPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/inventory/import"
+                  element={
+                    <ProtectedRoute roles={['ADMIN', 'SUPERVISOR']}>
+                      <LayoutRoute>
+                        <InventoryBulkImportPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/reports"
+                  element={
+                    <ProtectedRoute roles={['ADMIN', 'SUPERVISOR']}>
+                      <LayoutRoute>
+                        <ReportsPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/backup"
+                  element={
+                    <ProtectedRoute roles={['ADMIN']}>
+                      <LayoutRoute>
+                        <BackupPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/license"
+                  element={
+                    <ProtectedRoute roles={['ADMIN']}>
+                      <LayoutRoute>
+                        <LicensePage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/printer"
+                  element={
+                    <ProtectedRoute roles={['ADMIN']}>
+                      <LayoutRoute>
+                        <PrinterSettingsPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute roles={['ADMIN']}>
+                      <LayoutRoute>
+                        <SettingsPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/purchase"
+                  element={
+                    <ProtectedRoute roles={['ADMIN']}>
+                      <LayoutRoute>
+                        <PurchasePage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/sales"
+                  element={
+                    <ProtectedRoute roles={['ADMIN', 'CASHIER', 'SUPERVISOR']}>
+                      <LayoutRoute>
+                        <POSPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/sales/history"
+                  element={
+                    <ProtectedRoute roles={['ADMIN', 'CASHIER', 'SUPERVISOR']}>
+                      <LayoutRoute>
+                        <SalesHistoryPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/customers"
+                  element={
+                    <ProtectedRoute roles={['ADMIN', 'CASHIER', 'SUPERVISOR']}>
+                      <LayoutRoute>
+                        <CustomersPage />
+                      </LayoutRoute>
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route path="/" element={<StartRoute />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </HashRouter>
+                <Route path="/" element={<StartRoute />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </HashRouter>
+          </LicenseProvider>
         </ConfigProvider>
       </AuthProvider>
     </ErrorBoundary>

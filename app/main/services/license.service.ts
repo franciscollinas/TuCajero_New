@@ -75,7 +75,10 @@ export class LicenseService {
     return license;
   }
 
-  async activateLicense(adminUserId: number, licenseString: string): Promise<{ valid: boolean; message: string }> {
+  async activateLicense(
+    adminUserId: number,
+    licenseString: string,
+  ): Promise<{ valid: boolean; message: string }> {
     const actor = await prisma.user.findUnique({
       where: { id: adminUserId },
       select: { active: true, role: true },
@@ -114,12 +117,19 @@ export class LicenseService {
     return { valid: true, message: 'Licencia activada correctamente.' };
   }
 
-  async validateCurrentLicense(): Promise<LicenseValidation & { hasLicense: boolean; fingerprint: string }> {
+  async validateCurrentLicense(): Promise<
+    LicenseValidation & { hasLicense: boolean; fingerprint: string }
+  > {
     const fingerprint = await generateFingerprint();
     const license = loadLicenseFromFile();
 
     if (!license) {
-      return { valid: false, hasLicense: false, fingerprint: fingerprint.fingerprint, reason: 'No hay licencia instalada.' };
+      return {
+        valid: false,
+        hasLicense: false,
+        fingerprint: fingerprint.fingerprint,
+        reason: 'No hay licencia instalada.',
+      };
     }
 
     const validation = validateLicense(license, fingerprint.fingerprint);
@@ -134,7 +144,14 @@ export class LicenseService {
   async getLicenseInfo(): Promise<{
     fingerprint: HardwareFingerprint;
     currentLicense: LicenseData | null;
-    validation: LicenseValidation & { hasLicense: boolean };
+    validation: LicenseValidation & {
+      hasLicense: boolean;
+      trialBlocked: boolean;
+      trialRemainingHours: number;
+      trialRemainingMinutes: number;
+      trialRemainingSeconds: number;
+      firstRunDate: string | null;
+    };
   }> {
     const fingerprint = await generateFingerprint();
     const currentLicense = loadLicenseFromFile();
@@ -145,20 +162,31 @@ export class LicenseService {
     // Lógica de periodo de gracia de 24h
     let trialBlocked = false;
     let firstRunDate: Date | null = null;
+    let trialRemainingHours = 0;
+    let trialRemainingMinutes = 0;
+    let trialRemainingSeconds = 0;
 
-    if (!validation.valid) {
-      const configFirstRun = await prisma.config.findUnique({ where: { key: 'first_run_at' } });
-      if (!configFirstRun) {
-        // Primer arranque absoluto: registrar fecha
-        const now = new Date();
-        await prisma.config.create({ data: { key: 'first_run_at', value: now.toISOString() } });
-        firstRunDate = now;
-      } else {
-        firstRunDate = new Date(configFirstRun.value);
-        const hoursSinceFirstRun = (Date.now() - firstRunDate.getTime()) / (1000 * 60 * 60);
-        if (hoursSinceFirstRun > 24) {
+    const configFirstRun = await prisma.config.findUnique({ where: { key: 'first_run_at' } });
+    if (!configFirstRun) {
+      // Primer arranque absoluto: registrar fecha
+      const now = new Date();
+      await prisma.config.create({ data: { key: 'first_run_at', value: now.toISOString() } });
+      firstRunDate = now;
+      trialRemainingHours = 24;
+    } else {
+      firstRunDate = new Date(configFirstRun.value);
+      const msSinceFirstRun = Date.now() - firstRunDate.getTime();
+      const msTrialLimit = 24 * 60 * 60 * 1000;
+
+      if (msSinceFirstRun > msTrialLimit) {
+        if (!validation.valid) {
           trialBlocked = true;
         }
+      } else {
+        const remainingMs = msTrialLimit - msSinceFirstRun;
+        trialRemainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
+        trialRemainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+        trialRemainingSeconds = Math.floor((remainingMs % (1000 * 60)) / 1000);
       }
     }
 
@@ -169,8 +197,11 @@ export class LicenseService {
         ...validation,
         hasLicense: !!currentLicense,
         trialBlocked,
-        firstRunDate: firstRunDate?.toISOString()
-      } as any,
+        trialRemainingHours,
+        trialRemainingMinutes,
+        trialRemainingSeconds,
+        firstRunDate: firstRunDate?.toISOString() ?? null,
+      },
     };
   }
 }
