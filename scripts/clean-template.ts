@@ -1,9 +1,12 @@
+import path from 'path';
 import { PrismaClient } from '../app/main/repositories/generated-client';
+
+const dbPath = path.resolve(process.cwd(), 'database', 'tucajero.db');
 
 const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: `file:../database/tucajero.db`,
+      url: `file:${dbPath}`,
     },
   },
 });
