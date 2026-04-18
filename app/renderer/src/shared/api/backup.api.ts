@@ -40,6 +40,13 @@ export function checkV1Database(): Promise<ApiResponse<V1DatabaseInfo>> {
   return window.api.invoke<V1DatabaseInfo>('backup:check-v1');
 }
 
-export function importFromV1(actorUserId: number): Promise<ApiResponse<V1ImportResult>> {
-  return window.api.invoke<V1ImportResult>('backup:import-v1', actorUserId);
+export function selectV1File(): Promise<ApiResponse<{ filePath: string }>> {
+  return window.api.invoke<{ filePath: string }>('backup:select-v1-file');
+}
+
+export function importFromV1(
+  actorUserId: number,
+  customPath?: string,
+): Promise<ApiResponse<V1ImportResult>> {
+  return window.api.invoke<V1ImportResult>('backup:import-v1', actorUserId, customPath);
 }

@@ -56,7 +56,7 @@ function createWindow(): void {
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
-      devTools: !app.isPackaged,
+      devTools: true, // Always enable for debugging
     },
   });
 
@@ -64,17 +64,26 @@ function createWindow(): void {
     win.setMenu(null);
   }
 
+  // Register Ctrl+Shift+I to open devtools
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.control && input.shift && input.key === 'I') {
+      win.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
+
   const rendererPath = app.isPackaged
     ? join(__dirname, '../../../renderer/index.html')
-    : join(__dirname, '../../dist/renderer/index.html');
+    : join(process.cwd(), 'dist', 'renderer', 'index.html');
 
+  console.log('[Main] Loading renderer from:', rendererPath);
   win.loadFile(rendererPath);
 }
 
 app.whenReady().then(async () => {
   try {
     const dbPath = join(app.getPath('userData'), 'tucajero.db');
-    
+
     let shouldCopy = !existsSync(dbPath);
     if (!shouldCopy && statSync(dbPath).size < 50000) {
       shouldCopy = true;
@@ -95,10 +104,10 @@ app.whenReady().then(async () => {
     console.error('ERROR CRÍTICO AL INICIALIZAR DB:', err);
     dialog.showErrorBox(
       'Error de Base de Datos',
-      `No se pudo inicializar la base de datos: ${err instanceof Error ? err.message : String(err)}`
+      `No se pudo inicializar la base de datos: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
-  
+
   registerAlertsIpc();
   registerAuthIpc();
   registerBackupIpc();

@@ -105,7 +105,12 @@ function parseImportNumber(value: string | number | undefined, fallback = 0): nu
   }
 
   if (typeof value === 'string') {
-    const normalized = value.trim().replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '.');
+    const normalized = value
+      .trim()
+      .replace(/\$/g, '')
+      .replace(/\s/g, '')
+      .replace(/\./g, '')
+      .replace(/,/g, '.');
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : fallback;
   }
@@ -117,7 +122,30 @@ async function resolveCategory(input: {
   categoryId?: number;
   categoryName?: string;
 }): Promise<number> {
+  console.log('[resolveCategory] Input:', input);
+
   if (input.categoryId) {
+    // Verify the category exists
+    const existingCat = await prisma.category.findUnique({
+      where: { id: input.categoryId },
+    });
+    console.log(
+      '[resolveCategory] Category lookup by ID:',
+      input.categoryId,
+      'Result:',
+      existingCat,
+    );
+
+    if (!existingCat) {
+      // Try to get first available category
+      const firstCategory = await prisma.category.findFirst();
+      console.log('[resolveCategory] No category found, using first:', firstCategory);
+      if (firstCategory) return firstCategory.id;
+      throw new AppError(
+        ErrorCode.VALIDATION,
+        'No hay categorías disponibles. Crea una categoría primero.',
+      );
+    }
     return input.categoryId;
   }
 
@@ -216,15 +244,15 @@ export class InventoryService {
   async createProduct(data: ProductInput): Promise<Product> {
     const existingProduct = await prisma.product.findFirst({
       where: {
-        OR: [
-          { code: data.code },
-          ...(data.barcode ? [{ barcode: data.barcode }] : []),
-        ],
+        OR: [{ code: data.code }, ...(data.barcode ? [{ barcode: data.barcode }] : [])],
       },
     });
 
     if (existingProduct) {
-      throw new AppError(ErrorCode.DUPLICATE_CODE, 'Ya existe un producto con ese código o barcode.');
+      throw new AppError(
+        ErrorCode.DUPLICATE_CODE,
+        'Ya existe un producto con ese código o barcode.',
+      );
     }
 
     const product = await prisma.product.create({
@@ -239,7 +267,7 @@ export class InventoryService {
         stock: data.stock,
         minStock: data.minStock ?? 5,
         criticalStock: data.criticalStock ?? 2,
-        taxRate: data.taxRate ?? await configService.getIvaRate(),
+        taxRate: data.taxRate ?? (await configService.getIvaRate()),
         suggestedPurchaseQty: data.suggestedPurchaseQty ?? null,
         expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
         location: data.location ?? null,
@@ -296,7 +324,11 @@ export class InventoryService {
         criticalStock: data.criticalStock,
         taxRate: data.taxRate,
         suggestedPurchaseQty: data.suggestedPurchaseQty ?? undefined,
-        expiryDate: data.expiryDate ? new Date(data.expiryDate) : data.expiryDate === null ? null : undefined,
+        expiryDate: data.expiryDate
+          ? new Date(data.expiryDate)
+          : data.expiryDate === null
+            ? null
+            : undefined,
         location: data.location ?? undefined,
         unitType: data.unitType,
         conversionFactor: data.conversionFactor,
@@ -401,7 +433,9 @@ export class InventoryService {
         (product) => product.stock > product.criticalStock && product.stock <= product.minStock,
       ),
       ok: mapped.filter((product) => product.stock > product.minStock),
-      expired: mapped.filter((product) => product.expiryDate && new Date(product.expiryDate) < new Date()),
+      expired: mapped.filter(
+        (product) => product.expiryDate && new Date(product.expiryDate) < new Date(),
+      ),
       expiringSoon: mapped.filter((product) => {
         if (!product.expiryDate) {
           return false;

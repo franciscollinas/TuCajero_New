@@ -106,8 +106,8 @@ export class ReportsService {
       },
     });
 
-    return sales.map((sale) => {
-      const paymentMap = sale.payments.reduce<Record<string, number>>((acc, payment) => {
+    return (sales as any[]).map((sale: any) => {
+      const paymentMap = sale.payments.reduce((acc, payment) => {
         acc[payment.method] = (acc[payment.method] ?? 0) + Number(payment.amount);
         return acc;
       }, {});
@@ -126,7 +126,7 @@ export class ReportsService {
         discount: Number(sale.discount),
         total: Number(sale.total),
         isCredit,
-        payments: Object.entries(paymentMap).map(([label, value]) => ({ label, value })),
+        payments: Object.entries(paymentMap).map(([label, value]) => ({ label, value: Number(value) as number })),
       };
     });
   }

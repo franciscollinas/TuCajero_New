@@ -9,6 +9,7 @@ import {
   importFromV1,
   listBackups,
   restoreBackup,
+  selectV1File,
 } from '../../shared/api/backup.api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { es } from '../../shared/i18n';
@@ -275,6 +276,39 @@ export function BackupPage(): JSX.Element {
     setMessage('');
 
     const response = await importFromV1(user.id);
+
+    if (response.success) {
+      setMessage(es.backup.importSuccess.replace('{count}', String(response.data.imported)));
+      setMessageType('success');
+    } else {
+      setMessage(response.error.message);
+      setMessageType('error');
+    }
+
+    setActionInProgress('');
+  };
+
+  const handleSelectAndImportV1 = async (): Promise<void> => {
+    if (!user) return;
+
+    const selectRes = await selectV1File();
+    if (!selectRes.success) {
+      if (selectRes.error.code !== 'CANCELLED') {
+        setMessage(selectRes.error.message);
+        setMessageType('error');
+      }
+      return;
+    }
+
+    const filePath = selectRes.data.filePath;
+
+    if (!confirm(`¿Importar datos desde "${filePath}"? Los datos existentes se fusionarán.`))
+      return;
+
+    setActionInProgress('import-v1');
+    setMessage('');
+
+    const response = await importFromV1(user.id, filePath);
 
     if (response.success) {
       setMessage(es.backup.importSuccess.replace('{count}', String(response.data.imported)));
@@ -592,7 +626,67 @@ export function BackupPage(): JSX.Element {
             {actionInProgress === 'import-v1' ? es.backup.importing : es.backup.migrateButton}
           </button>
         </div>
-      ) : null}
+      ) : (
+        <div
+          className="backup-card"
+          style={{
+            background: 'linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%)',
+            border: '1px solid #fcd34d',
+            borderRadius: '14px',
+            padding: '22px',
+            marginBottom: '24px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                borderRadius: '8px',
+                padding: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                color: '#ffffff',
+              }}
+            >
+              <DatabaseIcon />
+            </div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#92400e' }}>
+                {es.backup.migrateTitle}
+              </h2>
+              <p style={{ margin: 0, fontSize: '13px', color: '#a16207' }}>
+                {es.backup.migrateNotFound}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="backup-btn-primary"
+            onClick={() => void handleSelectAndImportV1()}
+            disabled={actionInProgress === 'import-v1'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '11px 20px',
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: actionInProgress === 'import-v1' ? 'not-allowed' : 'pointer',
+              opacity: actionInProgress === 'import-v1' ? 0.7 : 1,
+              boxShadow: '0 2px 8px rgba(245, 158, 11, 0.25)',
+            }}
+          >
+            <CloudUploadIcon />
+            {actionInProgress === 'import-v1' ? es.backup.importing : es.backup.migrateButton}
+          </button>
+        </div>
+      )}
 
       {/* Database Info Card */}
       {dbInfo ? (

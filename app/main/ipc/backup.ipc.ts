@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { ipcMain, dialog } from 'electron';
 
 import type { ApiResponse } from '../../renderer/src/shared/types/api.types';
 import type {
@@ -101,11 +101,33 @@ export function registerBackupIpc(): void {
     }
   });
 
+  ipcMain.handle('backup:select-v1-file', async (): Promise<ApiResponse<{ filePath: string }>> => {
+    try {
+      const result = await dialog.showOpenDialog({
+        title: 'Seleccionar base de datos de TuCajero v1',
+        filters: [{ name: 'Base de datos SQLite', extensions: ['db', 'sqlite', 'sqlite3'] }],
+        properties: ['openFile'],
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, error: { code: 'CANCELLED', message: 'Operación cancelada' } };
+      }
+
+      return { success: true, data: { filePath: result.filePaths[0] } };
+    } catch (err) {
+      return { success: false, error: toApiError(err) };
+    }
+  });
+
   ipcMain.handle(
     'backup:import-v1',
-    async (_event, actorUserId: number): Promise<ApiResponse<V1ImportResult>> => {
+    async (
+      _event,
+      actorUserId: number,
+      customPath?: string,
+    ): Promise<ApiResponse<V1ImportResult>> => {
       try {
-        const result = await backupService.importFromV1(actorUserId);
+        const result = await backupService.importFromV1(actorUserId, customPath);
         logger.info('backup:import-v1-success', { actorUserId, imported: result.imported });
         return { success: true, data: result };
       } catch (err) {

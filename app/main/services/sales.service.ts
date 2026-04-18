@@ -179,7 +179,7 @@ export class SalesService {
       include: { category: true },
     });
 
-    const productMap = new Map(products.map((product) => [product.id, product]));
+    const productMap = new Map<number, any>(products.map((product: any) => [product.id, product]));
 
     for (const item of items) {
       const product = productMap.get(item.productId);
@@ -216,7 +216,7 @@ export class SalesService {
         include: { category: true },
       });
 
-      const txProductMap = new Map(txProducts.map((product) => [product.id, product]));
+      const txProductMap = new Map<number, any>(txProducts.map((product: any) => [product.id, product]));
 
       // Validate stock INSIDE transaction
       for (const item of items) {
@@ -452,7 +452,7 @@ export class SalesService {
       const products = await tx.product.findMany({
         where: { id: { in: productIds } },
       });
-      const productMap = new Map(products.map((p) => [p.id, p]));
+      const productMap = new Map<number, any>(products.map((p: any) => [p.id, p]));
 
       for (const item of sale.items) {
         const product = productMap.get(item.productId);

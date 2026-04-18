@@ -40,6 +40,7 @@ export function InventoryPage(): JSX.Element {
   const [addingProduct, setAddingProduct] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const canManage = user?.role !== 'CASHIER';
 
   useEffect(() => {
@@ -161,21 +162,32 @@ export function InventoryPage(): JSX.Element {
     unitType: string;
     conversionFactor: number;
   }): Promise<void> => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
+    setError(null);
     setAddingProduct(true);
     try {
       const response = await createProduct({
         ...data,
         userId: user.id,
       });
+
       if (response.success) {
-        // Refresh product list
         const productsResponse = await getAllProducts();
         if (productsResponse.success) {
           replaceFromBackend(productsResponse.data);
         }
         setShowAddProduct(false);
+      } else {
+        const msg = response.error?.message || 'Error desconocido';
+        setError(msg);
+        console.error('[InventoryPage] Error response:', response.error);
       }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
+      setError(msg);
+      console.error('[InventoryPage] Exception:', err);
     } finally {
       setAddingProduct(false);
     }
@@ -653,7 +665,11 @@ export function InventoryPage(): JSX.Element {
       <AddProductModal
         open={showAddProduct}
         loading={addingProduct}
-        onClose={() => setShowAddProduct(false)}
+        error={error}
+        onClose={() => {
+          setShowAddProduct(false);
+          setError(null);
+        }}
         onSubmit={handleAddProduct}
       />
     </div>

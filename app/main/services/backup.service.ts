@@ -442,6 +442,7 @@ export class BackupService {
         'database',
         'pos.db',
       ),
+      path.join(process.env.LOCALAPPDATA || '', 'tucajero-updater', 'pos.db'),
       'C:\\Users\\UserMaster\\AppData\\Local\\TuCajero\\database\\pos.db',
       'C:\\Users\\UserMaster\\Documents\\Proyectos\\TuCajeroPOS\\tucajero\\tucajero.db',
     ];
@@ -461,18 +462,23 @@ export class BackupService {
 
   async importFromV1(
     actorUserId: number,
+    customPath?: string,
   ): Promise<{ success: boolean; message: string; imported: number }> {
     await this.assertBackupAccess(actorUserId);
 
-    const v1Info = await this.checkV1Database();
-    if (!v1Info.exists) {
-      throw new AppError(
-        ErrorCode.NOT_FOUND,
-        'No se encontró la base de datos de la versión anterior.',
-      );
+    let v1DbPath: string;
+    if (customPath) {
+      v1DbPath = customPath;
+    } else {
+      const v1Info = await this.checkV1Database();
+      if (!v1Info.exists) {
+        throw new AppError(
+          ErrorCode.NOT_FOUND,
+          'No se encontró la base de datos de la versión anterior.',
+        );
+      }
+      v1DbPath = v1Info.path;
     }
-
-    const v1DbPath = v1Info.path;
 
     try {
       // Dynamic import — better-sqlite3 is optional and may not be installed
@@ -483,13 +489,20 @@ export class BackupService {
       if (!Database) {
         throw new AppError(ErrorCode.DATABASE_ERROR, 'better-sqlite3 no está instalado.');
       }
-      interface V1Database { prepare: (sql: string) => { all: () => unknown[] }; close: () => void }
+      interface V1Database {
+        prepare: (sql: string) => { all: () => unknown[] };
+        close: () => void;
+      }
       const v1Db = new Database(v1DbPath, { readonly: true }) as V1Database;
 
       let imported = 0;
 
       // Import categories
-      const categorias = v1Db.prepare('SELECT * FROM categorias').all() as Array<{ id: number; nombre: string; color?: string }>;
+      const categorias = v1Db.prepare('SELECT * FROM categorias').all() as Array<{
+        id: number;
+        nombre: string;
+        color?: string;
+      }>;
       for (const cat of categorias) {
         try {
           await prisma.category.upsert({
@@ -505,14 +518,24 @@ export class BackupService {
           });
           imported++;
         } catch (error) {
-          logger.warn('V1 import: skipped category', { id: cat.id, error: error instanceof Error ? error.message : String(error) });
+          logger.warn('V1 import: skipped category', {
+            id: cat.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }
 
       // Import products
       const productos = v1Db.prepare('SELECT * FROM productos').all() as Array<{
-        id: number; codigo?: string; nombre: string; precio?: number; costo?: number;
-        stock?: number; stock_minimo?: number; activo?: number; categoria_id?: number;
+        id: number;
+        codigo?: string;
+        nombre: string;
+        precio?: number;
+        costo?: number;
+        stock?: number;
+        stock_minimo?: number;
+        activo?: number;
+        categoria_id?: number;
         fecha_vencimiento?: string;
       }>;
 
@@ -534,6 +557,7 @@ export class BackupService {
               isActive: prod.activo !== 0,
               categoryId: prod.categoria_id ?? defaultCategoryId,
               expiryDate: prod.fecha_vencimiento ? new Date(prod.fecha_vencimiento) : null,
+              taxRate: 0,
             },
             update: {
               code: prod.codigo || `PROD-${prod.id}`,
@@ -545,17 +569,25 @@ export class BackupService {
               isActive: prod.activo !== 0,
               categoryId: prod.categoria_id ?? defaultCategoryId,
               expiryDate: prod.fecha_vencimiento ? new Date(prod.fecha_vencimiento) : null,
+              taxRate: 0,
             },
           });
           imported++;
         } catch (error) {
-          logger.warn('V1 import: skipped product', { id: prod.id, error: error instanceof Error ? error.message : String(error) });
+          logger.warn('V1 import: skipped product', {
+            id: prod.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }
 
       // Import customers
       const clientes = v1Db.prepare('SELECT * FROM clientes').all() as Array<{
-        id: number; nombre: string; telefono?: string; email?: string; direccion?: string;
+        id: number;
+        nombre: string;
+        telefono?: string;
+        email?: string;
+        direccion?: string;
       }>;
       for (const cli of clientes) {
         try {
@@ -577,8 +609,127 @@ export class BackupService {
           });
           imported++;
         } catch (error) {
-          logger.warn('V1 import: skipped customer', { id: cli.id, error: error instanceof Error ? error.message : String(error) });
+          logger.warn('V1 import: skipped customer', {
+            id: cli.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
+      }
+
+      // Import sales from V1
+      try {
+        const ventas = v1Db.prepare('SELECT * FROM ventas').all() as Array<{
+          id: number;
+          fecha: string;
+          total: number;
+          cliente_id?: number;
+          usuario_id?: number;
+          caja_id?: number;
+          metodo_pago?: string;
+          observaciones?: string;
+        }>;
+        const detallesVenta = v1Db.prepare('SELECT * FROM detalle_venta').all() as Array<{
+          id: number;
+          venta_id: number;
+          producto_id: number;
+          cantidad: number;
+          precio_unitario: number;
+          subtotal: number;
+          descuento?: number;
+        }>;
+
+        for (const venta of ventas) {
+          try {
+            const saleNumber = `V1-${venta.id}-${new Date(venta.fecha).getTime()}`;
+            const detalleVentaItems = detallesVenta.filter((d) => d.venta_id === venta.id);
+
+            await prisma.sale.create({
+              data: {
+                id: venta.id,
+                saleNumber,
+                cashSessionId: 1,
+                userId: venta.usuario_id || 1,
+                subtotal: venta.total,
+                tax: 0,
+                discount: 0,
+                deliveryFee: 0,
+                total: venta.total,
+                status: 'COMPLETED',
+                customerId: venta.cliente_id || null,
+                createdAt: new Date(venta.fecha),
+                items: {
+                  create: detalleVentaItems.map((item) => ({
+                    productId: item.producto_id,
+                    quantity: item.cantidad,
+                    unitPrice: item.precio_unitario,
+                    taxRate: 0,
+                    subtotal: item.subtotal,
+                    discount: item.descuento || 0,
+                    total: item.subtotal - (item.descuento || 0),
+                    unitType: 'UNIT',
+                  })),
+                },
+                payments: {
+                  create: [
+                    {
+                      method: venta.metodo_pago || 'efectivo',
+                      amount: venta.total,
+                      reference: venta.observaciones || null,
+                      cashSessionId: 1,
+                    },
+                  ],
+                },
+              },
+            });
+            imported++;
+          } catch (error) {
+            logger.warn('V1 import: skipped sale', {
+              id: venta.id,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+      } catch {
+        logger.info('V1 import: no ventas table found');
+      }
+
+      // Import cash sessions (cierres de caja)
+      try {
+        const cierres = v1Db.prepare('SELECT * FROM cierres_caja').all() as Array<{
+          id: number;
+          fecha_apertura: string;
+          fecha_cierre: string;
+          monto_inicial: number;
+          monto_final: number;
+          total_ventas: number;
+          usuario_id?: number;
+          observaciones?: string;
+        }>;
+
+        for (const cierre of cierres) {
+          try {
+            await prisma.cashSession.create({
+              data: {
+                id: cierre.id,
+                userId: cierre.usuario_id || 1,
+                status: 'CLOSED',
+                initialCash: cierre.monto_inicial,
+                expectedCash: cierre.monto_final,
+                finalCash: cierre.monto_final,
+                openedAt: new Date(cierre.fecha_apertura),
+                closedAt: new Date(cierre.fecha_cierre),
+              },
+            });
+            imported++;
+          } catch (error) {
+            logger.warn('V1 import: skipped cash session', {
+              id: cierre.id,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+      } catch {
+        logger.info('V1 import: no cierres_caja table found');
       }
 
       v1Db.close();

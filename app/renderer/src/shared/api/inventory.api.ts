@@ -33,10 +33,19 @@ export function getProductByBarcode(barcode: string): Promise<ApiResponse<Produc
 }
 
 export function createProduct(data: ProductInput): Promise<ApiResponse<Product>> {
-  return window.api.invoke<Product>('inventory:create', data);
+  console.log('[inventory.api] createProduct called with:', JSON.stringify(data, null, 2));
+  const result = window.api.invoke<Product>('inventory:create', data);
+  // @ts-ignore - for debugging
+  result.then((response: any) =>
+    console.log('[inventory.api] Response:', JSON.stringify(response, null, 2)),
+  );
+  return result;
 }
 
-export function updateProduct(id: number, data: Partial<ProductInput>): Promise<ApiResponse<Product>> {
+export function updateProduct(
+  id: number,
+  data: Partial<ProductInput>,
+): Promise<ApiResponse<Product>> {
   return window.api.invoke<Product>('inventory:update', id, data);
 }
 

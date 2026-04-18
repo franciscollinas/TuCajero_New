@@ -57,14 +57,17 @@ export function registerInventoryIpc(): void {
     },
   );
 
-  ipcMain.handle('inventory:getById', async (_event, id: number): Promise<ApiResponse<ProductDetail>> => {
-    try {
-      const result = await inventoryService.getProductById(id);
-      return { success: true, data: result };
-    } catch (err) {
-      return { success: false, error: toApiError(err) };
-    }
-  });
+  ipcMain.handle(
+    'inventory:getById',
+    async (_event, id: number): Promise<ApiResponse<ProductDetail>> => {
+      try {
+        const result = await inventoryService.getProductById(id);
+        return { success: true, data: result };
+      } catch (err) {
+        return { success: false, error: toApiError(err) };
+      }
+    },
+  );
 
   ipcMain.handle(
     'inventory:getByBarcode',
@@ -82,6 +85,7 @@ export function registerInventoryIpc(): void {
     'inventory:create',
     async (_event, data: ProductInput): Promise<ApiResponse<Product>> => {
       try {
+        console.log('[inventory:create] Received data:', JSON.stringify(data, null, 2));
         const result = await inventoryService.createProduct(data);
         logger.info('inventory:create-success', { productId: result.id, code: result.code });
         cache.invalidate('categories');
@@ -91,8 +95,25 @@ export function registerInventoryIpc(): void {
           .forEach((k) => cache.invalidate(k));
         return { success: true, data: result };
       } catch (err) {
+        console.error('[inventory:create] Error:', err);
         logger.error('inventory:create-error', { err, code: data.code });
-        return { success: false, error: toApiError(err) };
+        const apiError = toApiError(err);
+        // Log to file for debugging
+        const fs = require('fs');
+        const logPath = require('path').join(
+          process.env.USERPROFILE || '',
+          'Documents',
+          'MPointOfSale',
+          'debug.log',
+        );
+        try {
+          fs.mkdirSync(require('path').dirname(logPath), { recursive: true });
+          fs.appendFileSync(
+            logPath,
+            `[${new Date().toISOString()}] inventory:create Error: ${JSON.stringify(apiError)}\n`,
+          );
+        } catch {}
+        return { success: false, error: apiError };
       }
     },
   );
@@ -165,7 +186,11 @@ export function registerInventoryIpc(): void {
 
   ipcMain.handle(
     'inventory:bulkImport',
-    async (_event, products: BulkImportRow[], userId: number): Promise<ApiResponse<BulkImportResult>> => {
+    async (
+      _event,
+      products: BulkImportRow[],
+      userId: number,
+    ): Promise<ApiResponse<BulkImportResult>> => {
       try {
         const result = await inventoryService.bulkImportProducts(products, userId);
         logger.info('inventory:bulk-import-success', {

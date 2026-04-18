@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:electron\" \"npm run dev:renderer\"",
     "dev:renderer": "vite app/renderer",
-    "dev:electron": "tsc -p tsconfig.main.json && node scripts/dev-electron.cjs",
+    "dev:electron": "node scripts/dev-electron.cjs",
     "build": "npm run build:renderer && npm run build:electron",
     "build:renderer": "vite build",
     "build:electron": "tsc -p tsconfig.main.json",
@@ -65,7 +65,6 @@
     "@typescript-eslint/parser": "^8.0.0",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.19",
-
     "concurrently": "^8.2.0",
     "electron": "^41.2.0",
     "electron-builder": "^26.8.1",

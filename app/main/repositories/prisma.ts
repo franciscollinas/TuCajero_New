@@ -1,32 +1,52 @@
 import { app } from 'electron';
 import path from 'path';
-import { PrismaClient } from './generated-client';
 
 declare global {
-  var __tucajeroPrisma__: PrismaClient | undefined;
+  var __tucajeroPrisma__: any | undefined;
 }
 
-if (app.isPackaged) {
-  const appPath = app.getAppPath();
-  const unpackedPath = appPath.replace('app.asar', 'app.asar.unpacked');
-  const enginePath = path.join(
-    unpackedPath,
-    'dist',
-    'main',
-    'app',
-    'main',
-    'repositories',
-    'generated-client',
-    'query_engine-windows.dll.node'
-  );
-  
-  console.log('PRISMA ENGINE PATH:', enginePath);
-  process.env.PRISMA_QUERY_ENGINE_LIBRARY = enginePath;
-}
+// Usar require para poder importar dinámicamente según el entorno
+const getPrismaClient = () => {
+  let dbPath: string;
 
-export const prisma: PrismaClient =
-  globalThis.__tucajeroPrisma__ ??
-  new PrismaClient({ log: ['error', 'warn'] });
+  if (app.isPackaged) {
+    const appPath = app.getAppPath();
+    const unpackedPath = appPath.replace('app.asar', 'app.asar.unpacked');
+    const enginePath = path.join(
+      unpackedPath,
+      'dist',
+      'main',
+      'app',
+      'main',
+      'repositories',
+      'generated-client',
+      'query_engine-windows.dll.node',
+    );
+
+    console.log('[Prisma] Engine path (packaged):', enginePath);
+    process.env.PRISMA_QUERY_ENGINE_LIBRARY = enginePath;
+    dbPath = path.join(app.getPath('userData'), 'tucajero.db');
+  } else {
+    console.log('[Prisma] Running in development mode');
+    // En desarrollo, usar la base de datos en la carpeta database/
+    dbPath = path.join(process.cwd(), 'database', 'tucajero.db');
+  }
+
+  console.log('[Prisma] Database path:', dbPath);
+
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { PrismaClient } = require('./generated-client');
+  return new PrismaClient({
+    log: ['error', 'warn'],
+    datasources: {
+      db: {
+        url: `file:${dbPath}`,
+      },
+    },
+  });
+};
+
+export const prisma: any = globalThis.__tucajeroPrisma__ ?? getPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') {
   globalThis.__tucajeroPrisma__ = prisma;
