@@ -1071,3 +1071,132 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--gray-400);
 }
+
+/* ===== Responsive - Pantallas pequeñas ===== */
+@media (max-width: 1280px) {
+  :root {
+    --text-xs: 11px;
+    --text-sm: 13px;
+    --text-base: 15px;
+    --text-lg: 16px;
+    --text-xl: 18px;
+    --text-2xl: 20px;
+    --text-3xl: 24px;
+    --sidebar-width: 240px;
+    --header-height: 60px;
+  }
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --text-xs: 10px;
+    --text-sm: 12px;
+    --text-base: 14px;
+    --text-lg: 15px;
+    --text-xl: 16px;
+    --text-2xl: 18px;
+    --text-3xl: 20px;
+    --sidebar-width: 200px;
+    --header-height: 56px;
+  }
+}
+
+@media (max-width: 768px) {
+  .tc-layout {
+    flex-direction: column;
+  }
+
+  .tc-sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 50vh;
+    border-right: none;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .tc-content {
+    min-width: 0;
+    overflow: auto;
+  }
+
+  .tc-header {
+    flex-wrap: wrap;
+    height: auto;
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-2);
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --text-xs: 9px;
+    --text-sm: 11px;
+    --text-base: 13px;
+    --text-lg: 14px;
+    --sidebar-width: 100%;
+    --space-1: 4px;
+    --space-2: 6px;
+    --space-3: 8px;
+    --space-4: 10px;
+    --space-5: 12px;
+    --space-6: 14px;
+  }
+}
+
+/* ===== POS Grid Responsiva ===== */
+.tc-pos-grid {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: var(--space-6);
+}
+
+@media (max-width: 1280px) {
+  .tc-pos-grid {
+    grid-template-columns: 1fr 360px;
+    gap: var(--space-4);
+  }
+}
+
+@media (max-width: 1024px) {
+  .tc-pos-grid {
+    grid-template-columns: 1fr 300px;
+    gap: var(--space-3);
+  }
+}
+
+@media (max-width: 768px) {
+  .tc-pos-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+}
+
+/* ===== Contenedores con overflow para evitar superposición ===== */
+.tc-content > div,
+.tc-main {
+  overflow: auto;
+  min-height: 0;
+}
+
+/* ===== Ajustes generales para pantallas pequeñas ===== */
+@media (max-width: 1024px) {
+  .tc-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .tc-metric-value {
+    font-size: 20px;
+  }
+
+  .tc-btn {
+    padding: var(--space-2) var(--space-3);
+  }
+}
+
+@media (max-width: 768px) {
+  .tc-btn {
+    min-height: 36px;
+    font-size: 12px;
+  }
+}

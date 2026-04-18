@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   adjustStock as adjustStockApi,
   createProduct,
+  deleteProduct,
   getAllProducts,
   updateProduct,
 } from '../../shared/api/inventory.api';
@@ -142,6 +143,18 @@ export function InventoryPage(): JSX.Element {
       }
     } catch (err) {
       console.error('Error updating product:', err);
+    }
+  };
+
+  const handleDeleteProduct = async (id: number): Promise<void> => {
+    try {
+      const response = await deleteProduct(id);
+      if (response.success) {
+        const updatedProducts = products.filter((p: InventoryProduct) => p.id !== id);
+        setProducts(updatedProducts);
+      }
+    } catch (err) {
+      console.error('Error deleting product:', err);
     }
   };
 
@@ -615,12 +628,12 @@ export function InventoryPage(): JSX.Element {
                           </span>
                         </td>
                         {canManage && (
-                          <td style={{ textAlign: 'center' }}>
+                          <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                             <button
                               type="button"
                               onClick={() => setSelectedProduct(product)}
                               className="tc-btn tc-btn--secondary"
-                              style={{ minHeight: '36px', padding: '0 12px' }}
+                              style={{ minHeight: '36px', padding: '0 12px', marginRight: '4px' }}
                             >
                               <svg
                                 width="16"
@@ -634,6 +647,28 @@ export function InventoryPage(): JSX.Element {
                                 <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
                               </svg>
                               Ajustar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm(`¿Eliminar producto "${product.name}"?`)) {
+                                  handleDeleteProduct(product.id);
+                                }
+                              }}
+                              className="tc-btn tc-btn--danger"
+                              style={{ minHeight: '36px', padding: '0 8px' }}
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                              >
+                                <path d="M3 6h18" />
+                                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                              </svg>
                             </button>
                           </td>
                         )}

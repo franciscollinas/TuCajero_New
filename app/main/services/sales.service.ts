@@ -170,6 +170,8 @@ export class SalesService {
       throw new AppError(ErrorCode.NO_OPEN_SESSION, 'Debes abrir una caja antes de vender.');
     }
 
+    const defaultTaxRate = await configService.getIvaRate();
+
     let subtotal = 0;
     let tax = 0;
 
@@ -190,13 +192,18 @@ export class SalesService {
           `Producto ${item.productId} no encontrado.`,
         );
       }
+      const rate =
+        product.taxRate !== null && product.taxRate !== undefined
+          ? Number(product.taxRate)
+          : defaultTaxRate;
       const lineSubtotal = item.quantity * item.unitPrice;
       const lineNet = lineSubtotal - item.discount;
       subtotal += lineNet;
-      tax += lineNet * Number(product.taxRate);
+      tax += lineNet * rate;
     }
 
-    const total = subtotal + tax - discount + deliveryFee;
+    const finalDiscount = discount <= 100 ? (subtotal * discount) / 100 : discount;
+    const total = subtotal + tax + deliveryFee - finalDiscount;
     const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
 
     if (Math.abs(totalPaid - total) > 0.01) {
@@ -207,7 +214,6 @@ export class SalesService {
     }
 
     const saleNumber = await buildSaleNumber();
-    const defaultTaxRate = await configService.getIvaRate();
 
     const sale = await prisma.$transaction(async (tx) => {
       // Re-fetch products INSIDE the transaction to prevent race conditions
@@ -216,7 +222,9 @@ export class SalesService {
         include: { category: true },
       });
 
-      const txProductMap = new Map<number, any>(txProducts.map((product: any) => [product.id, product]));
+      const txProductMap = new Map<number, any>(
+        txProducts.map((product: any) => [product.id, product]),
+      );
 
       // Validate stock INSIDE transaction
       for (const item of items) {

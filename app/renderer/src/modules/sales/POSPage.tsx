@@ -630,10 +630,8 @@ export function POSPage(): JSX.Element {
       )}
 
       <div
+        className="tc-pos-grid"
         style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 420px',
-          gap: 'var(--space-6)',
           height: 'calc(100vh - 140px)',
           minHeight: 0,
         }}

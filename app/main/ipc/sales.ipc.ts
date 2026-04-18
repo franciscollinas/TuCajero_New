@@ -157,7 +157,11 @@ export function registerSalesIpc(): void {
 
         const config = await configService.getConfig();
         const filePath = await generateInvoicePDF(sale, config);
-        logger.info('sales:invoice-generated', { saleId, filePath, businessName: config.businessName });
+        logger.info('sales:invoice-generated', {
+          saleId,
+          filePath,
+          businessName: config.businessName,
+        });
         return { success: true, data: filePath };
       } catch (err) {
         return { success: false, error: toApiError(err) };
