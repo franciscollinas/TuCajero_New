@@ -35,14 +35,20 @@ export function registerInventoryIpc(): void {
     'inventory:getAll',
     async (
       _event,
-      options?: { page?: number; pageSize?: number; search?: string; categoryId?: number },
+      options?: {
+        page?: number;
+        pageSize?: number;
+        search?: string;
+        categoryId?: number;
+        orderBySales?: boolean;
+      },
     ): Promise<ApiResponse<Product[]>> => {
       try {
         // Only cache if no search/filter to avoid stale results
         const cacheKey =
           options?.search || options?.categoryId
             ? null
-            : `inventory:all:${options?.page || 1}:${options?.pageSize || 'all'}`;
+            : `inventory:all:${options?.page || 1}:${options?.pageSize || 'all'}:${options?.orderBySales ? 'top' : 'alpha'}`;
 
         const result = cacheKey
           ? await cache.getOrSet(cacheKey, CACHE_TTL.INVENTORY, () =>

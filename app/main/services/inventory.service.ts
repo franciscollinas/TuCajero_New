@@ -172,8 +172,9 @@ export class InventoryService {
     pageSize?: number;
     search?: string;
     categoryId?: number;
+    orderBySales?: boolean;
   }): Promise<Product[]> {
-    const { page, pageSize, search, categoryId } = options || {};
+    const { page, pageSize, search, categoryId, orderBySales } = options || {};
 
     const where: Prisma.ProductWhereInput = { isActive: true };
 
@@ -189,13 +190,65 @@ export class InventoryService {
       where.categoryId = categoryId;
     }
 
-    const products = await prisma.product.findMany({
-      where,
-      include: { category: true },
-      orderBy: { name: 'asc' },
-      skip: page && pageSize ? (page - 1) * pageSize : undefined,
-      take: pageSize ?? undefined,
-    });
+    let products;
+
+    if (orderBySales && !search && !categoryId) {
+      // Logic for top selling:
+      // 1. Group sales by productId and sort by total quantity
+      const salesRanking = await prisma.saleItem.groupBy({
+        by: ['productId'],
+        _sum: { quantity: true },
+        orderBy: {
+          _sum: {
+            quantity: 'desc',
+          },
+        },
+        take: 300, // Enough to cover a typical inventory
+      });
+
+      const topIds = salesRanking.map((item) => item.productId);
+
+      // 2. Fetch products in those IDs
+      const topProducts = await prisma.product.findMany({
+        where: {
+          ...where,
+          id: { in: topIds },
+        },
+        include: { category: true },
+      });
+
+      // 3. Keep sales order
+      const sortedTop = topIds
+        .map((id) => topProducts.find((p) => p.id === id))
+        .filter((p): p is (typeof topProducts)[0] => !!p);
+
+      // 4. Fetch the rest alphabetically
+      const others = await prisma.product.findMany({
+        where: {
+          ...where,
+          id: { notIn: topIds },
+        },
+        include: { category: true },
+        orderBy: { name: 'asc' },
+      });
+
+      products = [...sortedTop, ...others];
+
+      // Manual pagination
+      if (page && pageSize) {
+        products = products.slice((page - 1) * pageSize, page * pageSize);
+      } else if (pageSize) {
+        products = products.slice(0, pageSize);
+      }
+    } else {
+      products = await prisma.product.findMany({
+        where,
+        include: { category: true },
+        orderBy: { name: 'asc' },
+        skip: page && pageSize ? (page - 1) * pageSize : undefined,
+        take: pageSize ?? undefined,
+      });
+    }
 
     return products.map(mapProduct);
   }

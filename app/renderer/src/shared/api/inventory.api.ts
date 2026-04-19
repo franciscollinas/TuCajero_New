@@ -20,6 +20,7 @@ export function getAllProducts(options?: {
   pageSize?: number;
   search?: string;
   categoryId?: number;
+  orderBySales?: boolean;
 }): Promise<ApiResponse<Product[]>> {
   return window.api.invoke<Product[]>('inventory:getAll', options);
 }

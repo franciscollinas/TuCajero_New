@@ -222,7 +222,7 @@ export function POSPage(): JSX.Element {
         setCashLoadError(null);
         const [cashResponse, productsResponse, customersResponse] = await Promise.all([
           getActiveCashRegister(user.id),
-          getAllProducts(),
+          getAllProducts({ orderBySales: true }),
           getAllCustomers(),
         ]);
 
@@ -255,7 +255,7 @@ export function POSPage(): JSX.Element {
   const refreshProducts = async (): Promise<void> => {
     if (!user) return;
     try {
-      const productsResponse = await getAllProducts();
+      const productsResponse = await getAllProducts({ orderBySales: true });
       if (productsResponse.success) {
         setProducts(productsResponse.data.filter((p) => p.isActive));
       }
