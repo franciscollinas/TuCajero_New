@@ -9,8 +9,8 @@ function createWindow() {
     minWidth: 560,
     minHeight: 600,
     webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
+      nodeIntegration: true,
+      contextIsolation: false,
     },
     title: 'Licencia TuCajero',
   });

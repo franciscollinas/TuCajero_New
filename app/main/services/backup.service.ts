@@ -1,6 +1,7 @@
 import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import Database from 'better-sqlite3';
 
 import type {
   BackupInfo,
@@ -180,54 +181,6 @@ export class BackupService {
     }
   }
 
-  listBackups(actorUserId: number): BackupListResult {
-    void actorUserId;
-    const backupDir = getBackupDir();
-
-    let dirFiles: string[];
-    try {
-      dirFiles = fs.readdirSync(backupDir);
-    } catch {
-      return { backups: [], totalSize: 0, totalSizeFormatted: '0 B' };
-    }
-
-    const files = dirFiles
-      .filter((file) => file.endsWith('.db'))
-      .map((file) => {
-        const filePath = path.join(backupDir, file);
-        let stats: fs.Stats;
-        try {
-          stats = fs.statSync(filePath);
-        } catch {
-          return null;
-        }
-        const isValid = isValidBackupFile(filePath);
-
-        return {
-          fileName: file,
-          filePath,
-          createdAt: stats.birthtime.toISOString(),
-          modifiedAt: stats.mtime.toISOString(),
-          fileSize: stats.size,
-          fileSizeFormatted: formatFileSize(stats.size),
-          isValid,
-          description: '',
-          createdBy: 0,
-          databasePath: getDatabasePath(),
-        } satisfies BackupMetadata;
-      })
-      .filter((f): f is BackupMetadata => f !== null)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    const totalSize = files.reduce((sum, file) => sum + file.fileSize, 0);
-
-    return {
-      backups: files,
-      totalSize,
-      totalSizeFormatted: formatFileSize(totalSize),
-    };
-  }
-
   async deleteBackup(
     actorUserId: number,
     fileName: string,
@@ -239,14 +192,7 @@ export class BackupService {
     const backupDir = getBackupDir();
     const filePath = path.join(backupDir, safeFileName);
 
-    let files: string[];
-    try {
-      files = fs.readdirSync(backupDir);
-    } catch {
-      throw new AppError(ErrorCode.DATABASE_ERROR, 'No se pudo leer el directorio de backups.');
-    }
-
-    if (!files.includes(safeFileName)) {
+    if (!fs.existsSync(filePath)) {
       throw new AppError(
         ErrorCode.NOT_FOUND,
         `No se encontró la copia de seguridad: ${safeFileName}`,
@@ -268,6 +214,54 @@ export class BackupService {
       if (error instanceof AppError) throw error;
       throw new AppError(ErrorCode.DATABASE_ERROR, 'Error al eliminar la copia de seguridad.');
     }
+  }
+
+  async listBackups(actorUserId: number): Promise<BackupListResult> {
+    await this.assertBackupAccess(actorUserId);
+
+    const backupDir = getBackupDir();
+    let files: string[] = [];
+    try {
+      files = fs.existsSync(backupDir)
+        ? fs.readdirSync(backupDir).filter((f) => f.endsWith('.db'))
+        : [];
+    } catch {
+      files = [];
+    }
+
+    files.sort().reverse();
+
+    const backups: BackupMetadata[] = [];
+    const dbPath = getDatabasePath();
+    let totalSize = 0;
+
+    for (const fileName of files) {
+      try {
+        const filePath = path.join(backupDir, fileName);
+        const stats = fs.statSync(filePath);
+        totalSize += stats.size;
+        backups.push({
+          fileName,
+          filePath,
+          createdAt: stats.birthtime.toISOString(),
+          modifiedAt: stats.mtime.toISOString(),
+          fileSize: stats.size,
+          fileSizeFormatted: formatFileSize(stats.size),
+          isValid: isValidBackupFile(filePath),
+          description: '',
+          createdBy: 0,
+          databasePath: dbPath,
+        });
+      } catch {
+        // Skip invalid files
+      }
+    }
+
+    return {
+      backups,
+      totalSize,
+      totalSizeFormatted: formatFileSize(totalSize),
+    };
   }
 
   async restoreBackup(
@@ -432,6 +426,7 @@ export class BackupService {
 
   async checkV1Database(): Promise<{ exists: boolean; path: string }> {
     const v1Paths = [
+      path.join(process.env.APPDATA || '', 'tucajero', 'tucajero.db'),
       path.join(process.env.LOCALAPPDATA || '', 'TuCajero', 'database', 'pos.db'),
       path.join(process.env.APPDATA || '', 'TuCajero', 'database', 'pos.db'),
       path.join(
@@ -481,14 +476,6 @@ export class BackupService {
     }
 
     try {
-      // Dynamic import — better-sqlite3 is optional and may not be installed
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const DatabaseModule = await import('better-sqlite3');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const Database = (DatabaseModule as any).default;
-      if (!Database) {
-        throw new AppError(ErrorCode.DATABASE_ERROR, 'better-sqlite3 no está instalado.');
-      }
       interface V1Database {
         prepare: (sql: string) => { all: () => unknown[] };
         close: () => void;

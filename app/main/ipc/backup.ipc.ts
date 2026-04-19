@@ -35,7 +35,7 @@ export function registerBackupIpc(): void {
     'backup:list',
     async (_event, actorUserId: number): Promise<ApiResponse<BackupListResult>> => {
       try {
-        const result = backupService.listBackups(actorUserId);
+        const result = await backupService.listBackups(actorUserId);
         return { success: true, data: result };
       } catch (err) {
         return { success: false, error: toApiError(err) };

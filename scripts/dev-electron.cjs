@@ -8,10 +8,14 @@ const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 
 // Compile TypeScript - ignore errors but compile
-execSync('npx tsc -p tsconfig.main.json --noEmitOnError false', {
-  cwd: projectRoot,
-  stdio: 'ignore',
-});
+try {
+  execSync('npx tsc -p tsconfig.main.json --noEmitOnError false', {
+    cwd: projectRoot,
+    stdio: 'inherit',
+  });
+} catch (error) {
+  console.error('TSC compilation failed, but attempting to start Electron anyway...');
+}
 
 const child = spawn(electronPath, ['.'], {
   cwd: projectRoot,
