@@ -79,7 +79,11 @@ function formatDate(dateStr: string): string {
 
 interface ChartTooltipProps {
   active?: boolean;
-  payload?: { payload: { name?: string; ventas?: number; ingresos?: number; value?: number }; name?: string; value?: number }[];
+  payload?: {
+    payload: { name?: string; ventas?: number; ingresos?: number; value?: number };
+    name?: string;
+    value?: number;
+  }[];
 }
 
 const CustomBarTooltip = memo(function CustomBarTooltip(props: ChartTooltipProps) {
@@ -112,7 +116,9 @@ const CustomBarTooltip = memo(function CustomBarTooltip(props: ChartTooltipProps
         </p>
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-500)' }}>
           Ingresos:{' '}
-          <strong style={{ color: 'var(--success-600)' }}>{formatCurrency(data.ingresos ?? 0)}</strong>
+          <strong style={{ color: 'var(--success-600)' }}>
+            {formatCurrency(data.ingresos ?? 0)}
+          </strong>
         </p>
       </div>
     );
@@ -151,7 +157,7 @@ export function DashboardPage(): JSX.Element {
   const products = useInventoryStore((state) => state.products);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [cashSession, setCashSession] = useState<any>(null);
+  const [cashSession, setCashSession] = useState<CashRegister | null>(null);
   const [cashLoading, setCashLoading] = useState(false);
   const [initialCashInput, setInitialCashInput] = useState('');
 
@@ -173,44 +179,44 @@ export function DashboardPage(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
-    const loadCashSession = async () => {
+    const loadCashSession = async (): Promise<void> => {
       if (!user) return;
       try {
         const resp = await getActiveCashRegister(user.id);
         if (!cancelled && resp.success) {
           setCashSession(resp.data);
         }
-      } catch (err) {
-        console.error('Error loading cash session:', err);
+      } catch {
+        // Silent fail - UI will handle null session
       }
     };
-    loadCashSession();
-    return () => {
+    void loadCashSession();
+    return (): void => {
       cancelled = true;
     };
   }, [user]);
 
   useEffect(() => {
     let cancelled = false;
-    const loadSummary = async () => {
+    const loadSummary = async (): Promise<void> => {
       try {
         const response = await getDashboardSummary();
         if (!cancelled && response.success) {
           setSummary(response.data);
         }
-      } catch (err) {
-        console.error('Error loading dashboard summary:', err);
+      } catch {
+        // Silent fail - dashboard will show loading or empty
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
-    loadSummary();
-    return () => {
+    void loadSummary();
+    return (): void => {
       cancelled = true;
     };
   }, []);
 
-  const handleOpenCash = async () => {
+  const handleOpenCash = async (): Promise<void> => {
     if (!user || cashLoading) return;
     const amount = parseFloat(initialCashInput) || 0;
     if (amount <= 0) return;
@@ -222,13 +228,14 @@ export function DashboardPage(): JSX.Element {
         setInitialCashInput('');
       }
     } catch (err) {
-      console.error('Error opening cash:', err);
+      // eslint-disable-next-line no-console
+      console.error('Error opening cash register:', err);
     } finally {
       setCashLoading(false);
     }
   };
 
-  const handleCloseCash = async () => {
+  const handleCloseCash = async (): Promise<void> => {
     if (!cashSession || cashLoading) return;
     setCashLoading(true);
     try {
@@ -237,13 +244,14 @@ export function DashboardPage(): JSX.Element {
         setCashSession(null);
       }
     } catch (err) {
-      console.error('Error closing cash:', err);
+      // eslint-disable-next-line no-console
+      console.error('Error closing cash register:', err);
     } finally {
       setCashLoading(false);
     }
   };
 
-  const toggleCashSession = () => {
+  const toggleCashSession = (): void => {
     if (cashSession) {
       handleCloseCash();
     } else {

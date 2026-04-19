@@ -122,24 +122,14 @@ async function resolveCategory(input: {
   categoryId?: number;
   categoryName?: string;
 }): Promise<number> {
-  console.log('[resolveCategory] Input:', input);
-
   if (input.categoryId) {
-    // Verify the category exists
     const existingCat = await prisma.category.findUnique({
       where: { id: input.categoryId },
     });
-    console.log(
-      '[resolveCategory] Category lookup by ID:',
-      input.categoryId,
-      'Result:',
-      existingCat,
-    );
 
     if (!existingCat) {
       // Try to get first available category
       const firstCategory = await prisma.category.findFirst();
-      console.log('[resolveCategory] No category found, using first:', firstCategory);
       if (firstCategory) return firstCategory.id;
       throw new AppError(
         ErrorCode.VALIDATION,
@@ -185,7 +175,7 @@ export class InventoryService {
   }): Promise<Product[]> {
     const { page, pageSize, search, categoryId } = options || {};
 
-    const where: any = { isActive: true };
+    const where: Prisma.ProductWhereInput = { isActive: true };
 
     if (search) {
       where.OR = [

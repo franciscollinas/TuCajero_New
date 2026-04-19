@@ -4,14 +4,25 @@ directories:
   output: release
 files:
   - dist/**/*
+  - node_modules/**/*
   - package.json
   - from: app/main/repositories/generated-client
     to: dist/main/app/main/repositories/generated-client
   - database/tucajero.db
-  - '!**/*.map'
+  - "!node_modules/@types/**/*"
+  - "!node_modules/.bin/**/*"
+  - "!node_modules/typescript/**/*"
+  - "!**/*.ts"
+  - "!**/*.tsx"
+  - "!**/*.map"
+  - "!**/*.md"
+  - "!**/*.txt"
+  - "!**/tests/**/*"
+  - "!**/docs/**/*"
 asar: true
 asarUnpack:
   - "**/*.node"
+  - "node_modules/better-sqlite3/**/*"
 win:
   target:
     - nsis

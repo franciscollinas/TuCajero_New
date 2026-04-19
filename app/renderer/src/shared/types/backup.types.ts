@@ -33,14 +33,3 @@ export interface BackupSummaryInfo {
   backupDir: string;
   lastBackup: BackupMetadata | null;
 }
-
-export interface V1DatabaseInfo {
-  exists: boolean;
-  path: string;
-}
-
-export interface V1ImportResult {
-  success: boolean;
-  message: string;
-  imported: number;
-}

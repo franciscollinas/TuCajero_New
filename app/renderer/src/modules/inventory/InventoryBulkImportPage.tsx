@@ -4,11 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import Papa from 'papaparse';
 import ExcelJS from 'exceljs';
 
-import { bulkImportProducts } from '../../shared/api/inventory.api';
+import { bulkImportProducts, getAllProducts } from '../../shared/api/inventory.api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { es } from '../../shared/i18n';
 import { useInventoryStore } from '../../shared/store/inventory.store';
-import type { InventoryBulkImportResult, InventoryImportRow } from '../../shared/types/inventory.types';
+import type {
+  InventoryBulkImportResult,
+  InventoryImportRow,
+} from '../../shared/types/inventory.types';
 import { formatCurrency, rowToInventoryImport } from './inventory.utils';
 
 interface ParsedImportState {
@@ -94,7 +97,9 @@ export function InventoryBulkImportPage(): JSX.Element {
         .filter((row): row is InventoryImportRow => Boolean(row));
 
       const errors = sourceRows
-        .map((row, index) => (rowToInventoryImport(row) ? null : `Fila ${index + 1}: faltan campos obligatorios.`))
+        .map((row, index) =>
+          rowToInventoryImport(row) ? null : `Fila ${index + 1}: faltan campos obligatorios.`,
+        )
         .filter((message): message is string => Boolean(message));
 
       setParsed({
@@ -122,9 +127,25 @@ export function InventoryBulkImportPage(): JSX.Element {
 
     setLoading(true);
     try {
+      // 1. Await the backend import FIRST to ensure DB integrity
+      const backendResult = await bulkImportProducts(parsed.rows, user.id);
+
+      if (backendResult.success) {
+        setResult(backendResult.data);
+        // 2. Sync the local store with the actual backend data (Single Source of Truth)
+        const productsResponse = await getAllProducts();
+        if (productsResponse.success) {
+          useInventoryStore.getState().replaceFromBackend(productsResponse.data);
+        }
+      } else {
+        // Fallback to local import if backend fails (unlikely)
+        const localResult = bulkImport(parsed.rows, user.id);
+        setResult(localResult);
+      }
+    } catch {
+      // Fallback
       const localResult = bulkImport(parsed.rows, user.id);
       setResult(localResult);
-      void bulkImportProducts(parsed.rows, user.id).catch(() => undefined);
     } finally {
       setLoading(false);
     }
@@ -146,12 +167,39 @@ export function InventoryBulkImportPage(): JSX.Element {
     <div className="tc-page-container">
       <div className="tc-section-header">
         <div>
-          <p style={{ margin: 0, color: 'var(--brand-600)', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 'var(--text-xs)', fontWeight: 700 }}>{es.inventory.bulkImport}</p>
-          <h1 style={{ margin: '6px 0 0', fontSize: 'var(--text-2xl)', lineHeight: 1.1, color: 'var(--gray-900)', fontWeight: 700 }}>{es.inventory.importCSV}</h1>
-          <p style={{ margin: '8px 0 0', color: 'var(--gray-500)' }}>{es.inventory.importInstructions}</p>
+          <p
+            style={{
+              margin: 0,
+              color: 'var(--brand-600)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.14em',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 700,
+            }}
+          >
+            {es.inventory.bulkImport}
+          </p>
+          <h1
+            style={{
+              margin: '6px 0 0',
+              fontSize: 'var(--text-2xl)',
+              lineHeight: 1.1,
+              color: 'var(--gray-900)',
+              fontWeight: 700,
+            }}
+          >
+            {es.inventory.importCSV}
+          </h1>
+          <p style={{ margin: '8px 0 0', color: 'var(--gray-500)' }}>
+            {es.inventory.importInstructions}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => navigate('/inventory')} className="tc-btn tc-btn--secondary">
+          <button
+            type="button"
+            onClick={() => navigate('/inventory')}
+            className="tc-btn tc-btn--secondary"
+          >
             {es.inventory.backToInventory}
           </button>
           <a
@@ -177,10 +225,23 @@ export function InventoryBulkImportPage(): JSX.Element {
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => void onDrop(event)}
       >
-        <p style={{ margin: 0, fontSize: 'var(--text-2xl)', color: 'var(--gray-900)', fontWeight: 800 }}>Arrastra aquí tu CSV o XLSX</p>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 'var(--text-2xl)',
+            color: 'var(--gray-900)',
+            fontWeight: 800,
+          }}
+        >
+          Arrastra aquí tu CSV o XLSX
+        </p>
         <p style={{ margin: 0, color: 'var(--gray-500)' }}>{es.inventory.importInstructions}</p>
         <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => importInputRef.current?.click()} className="tc-btn tc-btn--primary">
+          <button
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+            className="tc-btn tc-btn--primary"
+          >
             {es.inventory.importFile}
           </button>
           <input
@@ -199,12 +260,38 @@ export function InventoryBulkImportPage(): JSX.Element {
       </section>
 
       {parsed && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(280px, 0.7fr)', gap: 'var(--space-5)', alignItems: 'start' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1.6fr) minmax(280px, 0.7fr)',
+            gap: 'var(--space-5)',
+            alignItems: 'start',
+          }}
+        >
           <div className="tc-section" style={{ display: 'grid', gap: 'var(--space-4)' }}>
             <div className="tc-section-header" style={{ marginBottom: 0, padding: 0 }}>
               <div>
-                <p style={{ margin: 0, color: 'var(--brand-600)', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 'var(--text-xs)', fontWeight: 700 }}>{es.inventory.importPreview}</p>
-                <h2 style={{ margin: '6px 0 0', fontSize: 'var(--text-xl)', color: 'var(--gray-900)' }}>{parsed.fileName}</h2>
+                <p
+                  style={{
+                    margin: 0,
+                    color: 'var(--brand-600)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.14em',
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 700,
+                  }}
+                >
+                  {es.inventory.importPreview}
+                </p>
+                <h2
+                  style={{
+                    margin: '6px 0 0',
+                    fontSize: 'var(--text-xl)',
+                    color: 'var(--gray-900)',
+                  }}
+                >
+                  {parsed.fileName}
+                </h2>
               </div>
               <span className="tc-badge tc-badge--brand">{totalPreview} filas válidas</span>
             </div>
@@ -235,7 +322,14 @@ export function InventoryBulkImportPage(): JSX.Element {
                 <tbody>
                   {previewRows.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: 'var(--space-6)', color: 'var(--gray-500)', textAlign: 'center' }}>
+                      <td
+                        colSpan={6}
+                        style={{
+                          padding: 'var(--space-6)',
+                          color: 'var(--gray-500)',
+                          textAlign: 'center',
+                        }}
+                      >
                         {es.common.noResults}
                       </td>
                     </tr>
@@ -247,7 +341,9 @@ export function InventoryBulkImportPage(): JSX.Element {
                         <td>{row.category}</td>
                         <td>{row.stock}</td>
                         <td>
-                          {formatCurrency(typeof row.price === 'string' ? Number(row.price) : row.price)}
+                          {formatCurrency(
+                            typeof row.price === 'string' ? Number(row.price) : row.price,
+                          )}
                         </td>
                         <td>{row.expiryDate ?? 'Sin vencimiento'}</td>
                       </tr>
@@ -257,8 +353,19 @@ export function InventoryBulkImportPage(): JSX.Element {
               </table>
             </div>
 
-            <footer style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-              <button type="button" onClick={() => navigate('/inventory')} className="tc-btn tc-btn--secondary">
+            <footer
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 'var(--space-3)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => navigate('/inventory')}
+                className="tc-btn tc-btn--secondary"
+              >
                 {es.common.cancel}
               </button>
               <button
@@ -290,7 +397,18 @@ export function InventoryBulkImportPage(): JSX.Element {
 
 function StatRow({ label, value }: { label: string; value: number }): JSX.Element {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-3)', alignItems: 'center', padding: 'var(--space-3)', borderRadius: 'var(--radius-md)', background: 'var(--gray-50)', border: '1px solid var(--border-light)' }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 'var(--space-3)',
+        alignItems: 'center',
+        padding: 'var(--space-3)',
+        borderRadius: 'var(--radius-md)',
+        background: 'var(--gray-50)',
+        border: '1px solid var(--border-light)',
+      }}
+    >
       <span style={{ color: 'var(--gray-600)' }}>{label}</span>
       <strong style={{ color: 'var(--gray-900)', fontSize: 'var(--text-lg)' }}>{value}</strong>
     </div>

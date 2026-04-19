@@ -77,25 +77,54 @@ export function InventoryPage(): JSX.Element {
   );
 
   const filteredProducts = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const rawQuery = search || '';
+    const query = rawQuery.trim().toLowerCase();
 
-    return products.filter((product) => {
+    const result = products.filter((product) => {
+      // Si no hay query y los filtros están en 'all', dejar pasar todo
+      if (!query && filter === 'all' && category === 'all') return true;
+
       const status = getInventoryStatus(product);
+
+      const productNameNorm = product.name.toLowerCase().replace(/\s/g, '');
+      const productCodeNorm = product.code.toLowerCase().replace(/\s/g, '');
+      const queryNorm = query.replace(/\s/g, '');
+
       const matchesSearch =
         !query ||
         product.code.toLowerCase().includes(query) ||
         product.name.toLowerCase().includes(query) ||
         product.category.name.toLowerCase().includes(query) ||
+        productNameNorm.includes(queryNorm) ||
+        productCodeNorm.includes(queryNorm) ||
+        (product.barcode?.toLowerCase().includes(query) ?? false) ||
         (product.location?.toLowerCase().includes(query) ?? false);
+
       const matchesCategory = category === 'all' || product.category.name === category;
       const matchesStatus = filter === 'all' || status === filter;
 
       return matchesSearch && matchesCategory && matchesStatus;
     });
+
+    // Ordenar alfabéticamente por nombre por defecto para consistencia
+    return [...result].sort((a, b) => a.name.localeCompare(b.name));
   }, [category, filter, products, search]);
 
   const alertBuckets = useMemo(() => buildInventoryAlertBuckets(products), [products]);
   const expiredCount = alertBuckets.expired?.length ?? 0;
+
+  const handleSync = async (): Promise<void> => {
+    setSyncing(true);
+    try {
+      // Force refresh by bypassing local state if needed (though getAllProducts does it)
+      const response = await getAllProducts();
+      if (response.success) {
+        replaceFromBackend(response.data);
+      }
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleAdjust = async ({
     quantity,
@@ -119,8 +148,8 @@ export function InventoryPage(): JSX.Element {
         setSelectedProduct(updated);
       }
 
-      void adjustStockApi(selectedProduct.id, delta, reason, user.id).catch((err) => {
-        console.error('Failed to persist stock adjustment to backend:', err);
+      void adjustStockApi(selectedProduct.id, delta, reason, user.id).catch(() => {
+        // Ignore
       });
     } finally {
       setSubmitting(false);
@@ -142,6 +171,7 @@ export function InventoryPage(): JSX.Element {
         setSelectedProduct((prev) => (prev ? (prev.id === id ? response.data : prev) : null));
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Error updating product:', err);
     }
   };
@@ -154,6 +184,7 @@ export function InventoryPage(): JSX.Element {
         setProducts(updatedProducts);
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Error deleting product:', err);
     }
   };
@@ -195,12 +226,10 @@ export function InventoryPage(): JSX.Element {
       } else {
         const msg = response.error?.message || 'Error desconocido';
         setError(msg);
-        console.error('[InventoryPage] Error response:', response.error);
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error desconocido';
+    } catch {
+      const msg = 'Error desconocido';
       setError(msg);
-      console.error('[InventoryPage] Exception:', err);
     } finally {
       setAddingProduct(false);
     }
@@ -289,6 +318,26 @@ export function InventoryPage(): JSX.Element {
             </svg>
             {es.inventory.importCSV}
           </Link>
+          <button
+            type="button"
+            onClick={handleSync}
+            disabled={syncing}
+            className="tc-btn tc-btn--secondary"
+            title="Sincronizar con el servidor"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              className={syncing ? 'animate-spin' : ''}
+            >
+              <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+            </svg>
+            {syncing ? 'Sincronizando...' : 'Sincronizar'}
+          </button>
         </div>
       </div>
 
@@ -382,19 +431,32 @@ export function InventoryPage(): JSX.Element {
 
       {/* Main Content Grid */}
       <div
+        className="tc-inventory-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 380px',
           gap: 'var(--space-5)',
           alignItems: 'start',
         }}
       >
+        <style>{`
+          .tc-inventory-grid {
+            grid-template-columns: 1fr 380px;
+          }
+          @media (max-width: 1200px) {
+            .tc-inventory-grid {
+              grid-template-columns: 1fr;
+            }
+          }
+        `}</style>
         {/* Products Table */}
         <div className="tc-section animate-slideUp" style={{ animationDelay: '0.2s' }}>
           <div className="tc-section-header">
             <div>
               <h3 className="tc-section-title">{es.inventory.title}</h3>
-              <p className="tc-section-subtitle">{es.inventory.filters}</p>
+              <p className="tc-section-subtitle">
+                Mostrando {filteredProducts.length} de {products.length} productos
+                {products.length > 0 && ` (Total Base Datos: ${products.length})`}
+              </p>
             </div>
             {syncing && (
               <span className="tc-badge tc-badge--brand" style={{ padding: '6px 12px' }}>
@@ -485,7 +547,7 @@ export function InventoryPage(): JSX.Element {
           </div>
 
           {/* Table */}
-          <div className="tc-table-wrap">
+          <div className="tc-table-wrap" key={`table-view-${search}-${filter}-${category}`}>
             <table className="tc-table">
               <thead>
                 <tr>

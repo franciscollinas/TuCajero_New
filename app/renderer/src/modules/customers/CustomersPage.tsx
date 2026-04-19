@@ -29,7 +29,7 @@ const CustomersPage: React.FC = () => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isDebtsOpen, setIsDebtsOpen] = useState(false);
 
-  const loadCustomers = async (query: string = '') => {
+  const loadCustomers = async (query: string = ''): Promise<void> => {
     setIsLoading(true);
     setError(null);
     try {
@@ -56,24 +56,24 @@ const CustomersPage: React.FC = () => {
       loadCustomers(searchQuery);
     }, 500);
 
-    return () => clearTimeout(delayDebounceFn);
+    return (): void => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
-  const handleOpenForm = (customer?: Customer) => {
+  const handleOpenForm = (customer?: Customer): void => {
     setSelectedCustomer(customer);
     setIsFormOpen(true);
   };
 
-  const handleFormSaved = () => {
+  const handleFormSaved = (): void => {
     loadCustomers(searchQuery);
   };
 
-  const handleOpenHistory = (customer: Customer) => {
+  const handleOpenHistory = (customer: Customer): void => {
     setSelectedCustomer(customer);
     setIsHistoryOpen(true);
   };
 
-  const handleOpenDebts = (customer: Customer) => {
+  const handleOpenDebts = (customer: Customer): void => {
     setSelectedCustomer(customer);
     setIsDebtsOpen(true);
   };

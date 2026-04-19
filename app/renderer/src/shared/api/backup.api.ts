@@ -1,11 +1,5 @@
 import type { ApiResponse } from '../types/api.types';
-import type {
-  BackupInfo,
-  BackupListResult,
-  BackupSummaryInfo,
-  V1DatabaseInfo,
-  V1ImportResult,
-} from '../types/backup.types';
+import type { BackupInfo, BackupListResult, BackupSummaryInfo } from '../types/backup.types';
 
 export function createBackup(
   actorUserId: number,
@@ -34,19 +28,4 @@ export function restoreBackup(
 
 export function getBackupInfo(actorUserId: number): Promise<ApiResponse<BackupSummaryInfo>> {
   return window.api.invoke<BackupSummaryInfo>('backup:info', actorUserId);
-}
-
-export function checkV1Database(): Promise<ApiResponse<V1DatabaseInfo>> {
-  return window.api.invoke<V1DatabaseInfo>('backup:check-v1');
-}
-
-export function selectV1File(): Promise<ApiResponse<{ filePath: string }>> {
-  return window.api.invoke<{ filePath: string }>('backup:select-v1-file');
-}
-
-export function importFromV1(
-  actorUserId: number,
-  customPath?: string,
-): Promise<ApiResponse<V1ImportResult>> {
-  return window.api.invoke<V1ImportResult>('backup:import-v1', actorUserId, customPath);
 }

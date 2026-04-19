@@ -2,29 +2,23 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import {
-  checkV1Database,
   createBackup,
   deleteBackup,
   getBackupInfo,
-  importFromV1,
   listBackups,
   restoreBackup,
-  selectV1File,
 } from '../../shared/api/backup.api';
 import { useAuth } from '../../shared/context/AuthContext';
+import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
 import { es } from '../../shared/i18n';
-import type {
-  BackupMetadata,
-  BackupSummaryInfo,
-  V1DatabaseInfo,
-} from '../../shared/types/backup.types';
+import type { BackupMetadata, BackupSummaryInfo } from '../../shared/types/backup.types';
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString('es-CO');
 }
 
 // Inline SVG icon components for premium UI
-const DatabaseIcon = () => (
+const DatabaseIcon = (): JSX.Element => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <ellipse cx="12" cy="6" rx="7" ry="4" stroke="currentColor" strokeWidth="2" />
     <path d="M5 6v6c0 2.21 3.13 4 7 4s7-1.79 7-4V6" stroke="currentColor" strokeWidth="2" />
@@ -32,7 +26,7 @@ const DatabaseIcon = () => (
   </svg>
 );
 
-const CloudUploadIcon = () => (
+const CloudUploadIcon = (): JSX.Element => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path
       d="M12 16V4m0 0L8 8m4-4l4 4"
@@ -51,7 +45,7 @@ const CloudUploadIcon = () => (
   </svg>
 );
 
-const RestoreIcon = () => (
+const RestoreIcon = (): JSX.Element => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M3 12a9 9 0 1018 0A9 9 0 003 12z" stroke="currentColor" strokeWidth="2" />
     <path
@@ -64,7 +58,7 @@ const RestoreIcon = () => (
   </svg>
 );
 
-const TrashIcon = () => (
+const TrashIcon = (): JSX.Element => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path
       d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"
@@ -76,7 +70,7 @@ const TrashIcon = () => (
   </svg>
 );
 
-const CheckCircleIcon = () => (
+const CheckCircleIcon = (): JSX.Element => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
     <path
@@ -89,7 +83,7 @@ const CheckCircleIcon = () => (
   </svg>
 );
 
-const XCircleIcon = () => (
+const XCircleIcon = (): JSX.Element => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
     <path
@@ -102,7 +96,7 @@ const XCircleIcon = () => (
   </svg>
 );
 
-const FileIcon = () => (
+const FileIcon = (): JSX.Element => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path
       d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
@@ -121,14 +115,14 @@ const FileIcon = () => (
   </svg>
 );
 
-const InfoIcon = () => (
+const InfoIcon = (): JSX.Element => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
     <path d="M12 8h.01M11 12h2v4h-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
 
-const ArrowLeftIcon = () => (
+const ArrowLeftIcon = (): JSX.Element => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path
       d="M19 12H5m7-7l-7 7 7 7"
@@ -140,7 +134,7 @@ const ArrowLeftIcon = () => (
   </svg>
 );
 
-const ShieldCheckIcon = () => (
+const ShieldCheckIcon = (): JSX.Element => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path
       d="M12 2l7 4v5c0 5.25-3.5 9.74-7 11-3.5-1.26-7-5.75-7-11V6l7-4z"
@@ -168,8 +162,19 @@ export function BackupPage(): JSX.Element {
   const [actionInProgress, setActionInProgress] = useState<string>('');
   const [description, setDescription] = useState('');
   const [dbInfo, setDbInfo] = useState<BackupSummaryInfo | null>(null);
-  const [v1Info, setV1Info] = useState<V1DatabaseInfo | null>(null);
-  const [v1Loading, setV1Loading] = useState(true);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant: 'danger' | 'warning' | 'info';
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    variant: 'warning',
+  });
 
   const loadData = useCallback(async (): Promise<void> => {
     if (!user) return;
@@ -177,11 +182,7 @@ export function BackupPage(): JSX.Element {
     setLoading(true);
     setMessage('');
 
-    const [backupsRes, infoRes, v1Res] = await Promise.all([
-      listBackups(user.id),
-      getBackupInfo(user.id),
-      checkV1Database(),
-    ]);
+    const [backupsRes, infoRes] = await Promise.all([listBackups(user.id), getBackupInfo(user.id)]);
 
     if (backupsRes.success) {
       setBackups(backupsRes.data.backups);
@@ -194,11 +195,6 @@ export function BackupPage(): JSX.Element {
       setDbInfo(infoRes.data);
     }
 
-    if (v1Res.success) {
-      setV1Info(v1Res.data);
-    }
-
-    setV1Loading(false);
     setLoading(false);
   }, [user]);
 
@@ -227,98 +223,59 @@ export function BackupPage(): JSX.Element {
     setActionInProgress('');
   };
 
-  const handleDeleteBackup = async (fileName: string): Promise<void> => {
-    if (!user) return;
-    if (!confirm(es.backup.deleteConfirm.replace('{fileName}', fileName))) return;
+  const handleDeleteBackup = (fileName: string): void => {
+    setConfirmDialog({
+      open: true,
+      title: es.backup.delete,
+      message: es.backup.deleteConfirm.replace('{fileName}', fileName),
+      variant: 'danger',
+      onConfirm: async () => {
+        if (!user) return;
+        setActionInProgress(`delete:${fileName}`);
+        setMessage('');
 
-    setActionInProgress(`delete:${fileName}`);
-    setMessage('');
+        const response = await deleteBackup(user.id, fileName);
 
-    const response = await deleteBackup(user.id, fileName);
+        if (response.success) {
+          setMessage(es.backup.deleteSuccess);
+          setMessageType('success');
+          await loadData();
+        } else {
+          setMessage(response.error.message || es.backup.deleteError);
+          setMessageType('error');
+        }
 
-    if (response.success) {
-      setMessage(es.backup.deleteSuccess);
-      setMessageType('success');
-      await loadData();
-    } else {
-      setMessage(response.error.message);
-      setMessageType('error');
-    }
-
-    setActionInProgress('');
+        setActionInProgress('');
+      },
+    });
   };
 
-  const handleRestoreBackup = async (fileName: string): Promise<void> => {
-    if (!user) return;
-    if (!confirm(es.backup.restoreConfirm.replace('{fileName}', fileName))) return;
+  const handleRestoreBackup = (fileName: string): void => {
+    setConfirmDialog({
+      open: true,
+      title: es.backup.restore,
+      message: es.backup.restoreConfirm.replace('{fileName}', fileName),
+      variant: 'warning',
+      onConfirm: async () => {
+        if (!user) return;
+        setActionInProgress(`restore:${fileName}`);
+        setMessage('');
 
-    setActionInProgress(`restore:${fileName}`);
-    setMessage('');
+        const response = await restoreBackup(user.id, fileName);
 
-    const response = await restoreBackup(user.id, fileName);
+        if (response.success) {
+          setMessage(es.backup.restoreSuccess);
+          setMessageType('success');
+          // No reload immediately to let the user see the success message
+          setTimeout(() => window.location.reload(), 2000);
+        } else {
+          setMessage(response.error.message || es.backup.restoreError);
+          setMessageType('error');
+        }
 
-    if (response.success) {
-      setMessage(es.backup.restoreSuccess);
-      setMessageType('success');
-    } else {
-      setMessage(response.error.message);
-      setMessageType('error');
-    }
-
-    setActionInProgress('');
-  };
-
-  const handleImportV1 = async (): Promise<void> => {
-    if (!user) return;
-    if (!confirm('¿Importar datos de TuCajero v1? Los datos existentes se fusionarán.')) return;
-
-    setActionInProgress('import-v1');
-    setMessage('');
-
-    const response = await importFromV1(user.id);
-
-    if (response.success) {
-      setMessage(es.backup.importSuccess.replace('{count}', String(response.data.imported)));
-      setMessageType('success');
-    } else {
-      setMessage(response.error.message);
-      setMessageType('error');
-    }
-
-    setActionInProgress('');
-  };
-
-  const handleSelectAndImportV1 = async (): Promise<void> => {
-    if (!user) return;
-
-    const selectRes = await selectV1File();
-    if (!selectRes.success) {
-      if (selectRes.error.code !== 'CANCELLED') {
-        setMessage(selectRes.error.message);
-        setMessageType('error');
-      }
-      return;
-    }
-
-    const filePath = selectRes.data.filePath;
-
-    if (!confirm(`¿Importar datos desde "${filePath}"? Los datos existentes se fusionarán.`))
-      return;
-
-    setActionInProgress('import-v1');
-    setMessage('');
-
-    const response = await importFromV1(user.id, filePath);
-
-    if (response.success) {
-      setMessage(es.backup.importSuccess.replace('{count}', String(response.data.imported)));
-      setMessageType('success');
-    } else {
-      setMessage(response.error.message);
-      setMessageType('error');
-    }
-
-    setActionInProgress('');
+        setActionInProgress('');
+      },
+    });
   };
 
   return (
@@ -515,178 +472,6 @@ export function BackupPage(): JSX.Element {
           <span>{message}</span>
         </div>
       ) : null}
-
-      {/* V1 Migration Section */}
-      {v1Loading ? (
-        <div
-          className="backup-card"
-          style={{
-            backgroundColor: '#ffffff',
-            border: '1px solid #e5e7eb',
-            borderRadius: '14px',
-            padding: '22px',
-            marginBottom: '24px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              color: '#6b7280',
-              fontSize: '14px',
-            }}
-          >
-            <span style={{ animation: 'pulse 1.5s infinite' }}>{es.backup.migrateLoading}</span>
-          </div>
-        </div>
-      ) : v1Info && v1Info.exists ? (
-        <div
-          className="backup-card"
-          style={{
-            background: 'linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%)',
-            border: '1px solid #fcd34d',
-            borderRadius: '14px',
-            padding: '22px',
-            marginBottom: '24px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-            <div
-              style={{
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                borderRadius: '8px',
-                padding: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                color: '#ffffff',
-              }}
-            >
-              <DatabaseIcon />
-            </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#92400e' }}>
-                {es.backup.migrateTitle}
-              </h2>
-              <p style={{ margin: 0, fontSize: '13px', color: '#a16207' }}>
-                {es.backup.migrateSubtitle}
-              </p>
-            </div>
-          </div>
-          <div
-            style={{
-              padding: '12px 14px',
-              backgroundColor: '#ffffff',
-              borderRadius: '10px',
-              border: '1px solid #fcd34d',
-              marginBottom: '14px',
-            }}
-          >
-            <div
-              style={{ fontWeight: 600, color: '#92400e', fontSize: '13px', marginBottom: '4px' }}
-            >
-              {es.backup.migratePath}
-            </div>
-            <div
-              style={{
-                color: '#78350f',
-                fontSize: '12px',
-                fontFamily: 'ui-monospace, monospace',
-                wordBreak: 'break-all',
-              }}
-            >
-              {v1Info.path}
-            </div>
-          </div>
-          <button
-            type="button"
-            className="backup-btn-primary"
-            onClick={() => void handleImportV1()}
-            disabled={actionInProgress === 'import-v1'}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '11px 20px',
-              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: actionInProgress === 'import-v1' ? 'not-allowed' : 'pointer',
-              opacity: actionInProgress === 'import-v1' ? 0.7 : 1,
-              boxShadow: '0 2px 8px rgba(245, 158, 11, 0.25)',
-            }}
-          >
-            <CloudUploadIcon />
-            {actionInProgress === 'import-v1' ? es.backup.importing : es.backup.migrateButton}
-          </button>
-        </div>
-      ) : (
-        <div
-          className="backup-card"
-          style={{
-            background: 'linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%)',
-            border: '1px solid #fcd34d',
-            borderRadius: '14px',
-            padding: '22px',
-            marginBottom: '24px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-            <div
-              style={{
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                borderRadius: '8px',
-                padding: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                color: '#ffffff',
-              }}
-            >
-              <DatabaseIcon />
-            </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#92400e' }}>
-                {es.backup.migrateTitle}
-              </h2>
-              <p style={{ margin: 0, fontSize: '13px', color: '#a16207' }}>
-                {es.backup.migrateNotFound}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="backup-btn-primary"
-            onClick={() => void handleSelectAndImportV1()}
-            disabled={actionInProgress === 'import-v1'}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '11px 20px',
-              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: actionInProgress === 'import-v1' ? 'not-allowed' : 'pointer',
-              opacity: actionInProgress === 'import-v1' ? 0.7 : 1,
-              boxShadow: '0 2px 8px rgba(245, 158, 11, 0.25)',
-            }}
-          >
-            <CloudUploadIcon />
-            {actionInProgress === 'import-v1' ? es.backup.importing : es.backup.migrateButton}
-          </button>
-        </div>
-      )}
 
       {/* Database Info Card */}
       {dbInfo ? (
@@ -1160,6 +945,19 @@ export function BackupPage(): JSX.Element {
           </div>
         )}
       </div>
+      {confirmDialog.open && (
+        <ConfirmDialog
+          open={confirmDialog.open}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          variant={confirmDialog.variant}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => {
+            setConfirmDialog((prev) => ({ ...prev, open: false }));
+            setActionInProgress('');
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -28,12 +28,13 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
 
   useEffect(() => {
     if (isOpen) {
-      loadDebts();
-      loadCashSession();
+      void loadDebts();
+      void loadCashSession();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const loadCashSession = async () => {
+  const loadCashSession = async (): Promise<void> => {
     if (user) {
       const resp = await getActiveCashRegister(user.id);
       if (resp.success && resp.data) {
@@ -42,7 +43,7 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
     }
   };
 
-  const loadDebts = async () => {
+  const loadDebts = async (): Promise<void> => {
     setIsLoading(true);
     setError(null);
     try {
@@ -60,7 +61,7 @@ const CustomerDebtsModal: React.FC<CustomerDebtsModalProps> = ({ isOpen, onClose
     }
   };
 
-  const handlePay = async () => {
+  const handlePay = async (): Promise<void> => {
     if (!paymentMode) return;
 
     const amount = Number(paymentAmount);

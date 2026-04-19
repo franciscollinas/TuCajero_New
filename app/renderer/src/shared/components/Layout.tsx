@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useEffect, memo } from 'react';
+import { type ReactNode, useState, useEffect, memo, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../../shared/context/AuthContext';
@@ -7,6 +7,7 @@ import { useRBAC } from '../../shared/hooks/useRBAC';
 import type { Permission } from '../../shared/hooks/useRBAC';
 import { es } from '../../shared/i18n';
 import { AboutModal } from './AboutModal';
+import { useLicense } from '../../shared/context/LicenseContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -36,8 +37,6 @@ const SETTINGS = '/settings';
 const INVENTORY_IMPORT = '/inventory/import';
 const PURCHASE = '/purchase';
 
-import { useLicense } from '../../shared/context/LicenseContext';
-
 export function Layout({ children }: LayoutProps): JSX.Element {
   const { user, logout } = useAuth();
   const { config } = useConfig();
@@ -45,6 +44,17 @@ export function Layout({ children }: LayoutProps): JSX.Element {
   const { isBlocked, isTrial, licenseInfo } = useLicense();
   const location = useLocation();
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(window.innerWidth <= 1024);
+
+  useEffect(() => {
+    const handleResize = (): void => {
+      if (window.innerWidth <= 1024) {
+        setIsCollapsed(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return (): void => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleLogout = async (): Promise<void> => {
     await logout();
@@ -59,101 +69,67 @@ export function Layout({ children }: LayoutProps): JSX.Element {
         .toUpperCase()
     : '?';
 
-  let navGroups: { label: string; items: NavItemDef[] }[] = [
-    {
-      label: 'Principal',
-      items: [
-        {
-          icon: dashboardIcon,
-          label: es.dashboard.title,
-          path: DASHBOARD,
-        },
-        {
-          icon: salesIcon,
-          label: es.sales.posTitle,
-          path: POS,
-        },
-        {
-          icon: historyIcon,
-          label: es.sales.historyTitle,
-          path: SALES_HISTORY,
-        },
-        {
-          icon: cashIcon,
-          label: es.cashSession.status,
-          path: CASH,
-        },
-      ],
-    },
-    {
-      label: 'Gestión',
-      items: [
-        {
-          icon: usersIcon,
-          label: 'Clientes',
-          path: CUSTOMERS,
-        },
-        {
-          icon: inventoryIcon,
-          label: es.inventory.title,
-          path: INVENTORY,
-        },
-        {
-          icon: alertIcon,
-          label: es.alerts.title,
-          path: ALERTS,
-        },
-        {
-          icon: importIcon,
-          label: es.inventory.importAction,
-          path: INVENTORY_IMPORT,
-          permission: 'inventory:all',
-        },
-        {
-          icon: purchaseIcon,
-          label: 'Proveedores',
-          path: PURCHASE,
-        },
-      ],
-    },
-    {
-      label: 'Administración',
-      items:
-        can('audit:view') || can('users:all') || can('reports:all')
-          ? can('audit:view')
+  const navGroups = useMemo(() => {
+    let groups: { label: string; items: NavItemDef[] }[] = [
+      {
+        label: 'Principal',
+        items: [
+          { icon: dashboardIcon, label: es.dashboard.title, path: DASHBOARD },
+          { icon: salesIcon, label: es.sales.posTitle, path: POS },
+          { icon: historyIcon, label: es.sales.historyTitle, path: SALES_HISTORY },
+          { icon: cashIcon, label: es.cashSession.status, path: CASH },
+        ],
+      },
+      {
+        label: 'Gestión',
+        items: [
+          { icon: usersIcon, label: 'Clientes', path: CUSTOMERS },
+          { icon: inventoryIcon, label: es.inventory.title, path: INVENTORY },
+          { icon: alertIcon, label: es.alerts.title, path: ALERTS },
+          {
+            icon: importIcon,
+            label: es.inventory.importAction,
+            path: INVENTORY_IMPORT,
+            permission: 'inventory:all',
+          },
+          { icon: purchaseIcon, label: 'Proveedores', path: PURCHASE },
+        ],
+      },
+      {
+        label: 'Administración',
+        items:
+          can('audit:view') || can('users:all') || can('reports:all')
             ? [
                 { icon: reportsIcon, label: es.reports.title, path: REPORTS },
-                { icon: auditIcon, label: es.audit.title, path: AUDIT },
-                { icon: usersIcon, label: es.users.title, path: USERS },
-                { icon: backupIcon, label: es.backup.title, path: BACKUP },
+                { icon: auditIcon, label: es.audit.title, path: AUDIT, permission: 'audit:view' },
+                { icon: usersIcon, label: es.users.title, path: USERS, permission: 'users:all' },
+                {
+                  icon: backupIcon,
+                  label: es.backup.title,
+                  path: BACKUP,
+                  permission: 'backup:all',
+                },
                 { icon: licenseIcon, label: es.license.title, path: LICENSE },
                 { icon: printerIcon, label: es.settings.printer.title, path: PRINTER },
                 { icon: settingsIcon, label: 'Configuración', path: SETTINGS },
-              ]
-            : [
-                { icon: usersIcon, label: es.users.title, path: USERS },
-                { icon: reportsIcon, label: es.reports.title, path: REPORTS },
-                { icon: backupIcon, label: es.backup.title, path: BACKUP },
-                { icon: licenseIcon, label: es.license.title, path: LICENSE },
-                { icon: printerIcon, label: es.settings.printer.title, path: PRINTER },
-                { icon: settingsIcon, label: 'Configuración', path: SETTINGS },
-              ]
-          : [],
-    },
-  ];
-
-  // If trial is blocked, restrict navigation to License only
-  if (isBlocked) {
-    navGroups = [
-      {
-        label: 'Sistema Bloqueado',
-        items: [{ icon: licenseIcon, label: 'Activar Licencia', path: LICENSE }],
+              ].filter((i) => !i.permission || can(i.permission as Permission))
+            : [],
       },
     ];
-  }
+
+    if (isBlocked) {
+      groups = [
+        {
+          label: 'Sistema Bloqueado',
+          items: [{ icon: licenseIcon, label: 'Activar Licencia', path: LICENSE }],
+        },
+      ];
+    }
+    return groups;
+  }, [can, isBlocked]);
 
   return (
-    <div className="tc-layout">
+    <div className={`tc-layout ${isCollapsed ? 'tc-layout--collapsed' : ''}`}>
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
       {/* Sidebar */}
       <aside className="tc-sidebar">
@@ -167,29 +143,55 @@ export function Layout({ children }: LayoutProps): JSX.Element {
               alt="Logo"
               style={{ width: '30px', height: '30px', objectFit: 'contain' }}
             />
-            <span className="tc-logo-text">
-              <span className="tc-logo-accent">Tu</span>Cajero
-            </span>
+            {!isCollapsed && (
+              <span className="tc-logo-text">
+                <span className="tc-logo-accent">Tu</span>Cajero
+              </span>
+            )}
           </div>
+          <button
+            type="button"
+            className="tc-sidebar-toggle"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            title={isCollapsed ? 'Expandir' : 'Colapsar'}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                transform: isCollapsed ? 'rotate(180deg)' : 'none',
+                transition: 'transform 0.3s',
+              }}
+            >
+              <polyline points="11 17 6 12 11 7" />
+              <polyline points="18 17 13 12 18 7" />
+            </svg>
+          </button>
         </div>
 
         <nav className="tc-nav">
           {navGroups
             .filter((g) => g.items.length > 0)
             .map((group) => (
-              <div key={group.label}>
-                <div className="tc-nav-group-label">{group.label}</div>
+              <div key={group.label} className="tc-nav-group">
+                {!isCollapsed && <div className="tc-nav-group-label">{group.label}</div>}
                 {group.items.map((item) => {
-                  if (item.permission && !can(item.permission as Permission)) return null;
                   const isActive = location.pathname === item.path;
                   return (
                     <Link
                       key={item.path}
                       to={item.path}
                       className={`tc-nav-item ${isActive ? 'tc-nav-item-active' : ''}`}
+                      title={isCollapsed ? item.label : ''}
                     >
-                      {item.icon}
-                      <span className="tc-nav-item-text">{item.label}</span>
+                      <div className="tc-nav-icon">{item.icon}</div>
+                      {!isCollapsed && <span className="tc-nav-item-text">{item.label}</span>}
                     </Link>
                   );
                 })}
@@ -197,7 +199,7 @@ export function Layout({ children }: LayoutProps): JSX.Element {
             ))}
 
           {/* Trial Status Badge */}
-          {isTrial && (
+          {isTrial && !isCollapsed && (
             <div style={{ padding: '0 var(--space-4)', marginTop: 'var(--space-4)' }}>
               <div
                 style={{
@@ -219,51 +221,8 @@ export function Layout({ children }: LayoutProps): JSX.Element {
                   Periodo de Prueba
                 </div>
                 <div style={{ fontSize: '13px', fontWeight: 700 }}>
-                  {licenseInfo?.validation.trialRemainingHours}h{' '}
-                  {licenseInfo?.validation.trialRemainingMinutes}m restantes
+                  {licenseInfo?.validation.trialRemainingHours}h restantes
                 </div>
-                <Link
-                  to={LICENSE}
-                  style={{
-                    display: 'block',
-                    fontSize: '11px',
-                    marginTop: '8px',
-                    color: 'var(--primary-600)',
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                  }}
-                >
-                  Activar ahora →
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {isBlocked && (
-            <div style={{ padding: '0 var(--space-4)', marginTop: 'var(--space-4)' }}>
-              <div
-                style={{
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.2)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: 'var(--space-3)',
-                  color: '#dc2626',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    marginBottom: '4px',
-                  }}
-                >
-                  Sistema Bloqueado
-                </div>
-                <div style={{ fontSize: '13px', fontWeight: 700 }}>Prueba terminada</div>
-                <p style={{ fontSize: '11px', margin: '4px 0 0 0', opacity: 0.8 }}>
-                  Requiere activación para continuar.
-                </p>
               </div>
             </div>
           )}
@@ -271,39 +230,45 @@ export function Layout({ children }: LayoutProps): JSX.Element {
 
         <div className="tc-sidebar-user">
           <div className="tc-user-avatar">{initials}</div>
-          <div className="tc-user-info">
-            <div className="tc-user-name">{user?.fullName ?? ''}</div>
-            <div className="tc-user-role">
-              {user?.role === 'ADMIN' ? 'Administrador' : 'Cajero'}
+          {!isCollapsed && (
+            <div className="tc-user-info">
+              <div className="tc-user-name">{user?.fullName ?? ''}</div>
+              <div className="tc-user-role">
+                {user?.role === 'ADMIN' ? 'Administrador' : 'Cajero'}
+              </div>
             </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setAboutOpen(true)}
-            className="tc-btn tc-btn--ghost"
-            title="Acerca de"
+          )}
+          <div
+            className={`tc-sidebar-user-actions ${isCollapsed ? 'tc-sidebar-user-actions--vertical' : ''}`}
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+            <button
+              type="button"
+              onClick={() => setAboutOpen(true)}
+              className="tc-btn tc-btn--ghost"
+              title="Acerca de"
             >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="tc-btn tc-btn--ghost"
-            title={es.auth.logout}
-          >
-            {logoutIcon}
-          </button>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="tc-btn tc-btn--ghost"
+              title={es.auth.logout}
+            >
+              {logoutIcon}
+            </button>
+          </div>
         </div>
       </aside>
 

@@ -1,12 +1,7 @@
-import { ipcMain, dialog } from 'electron';
+import { ipcMain } from 'electron';
 
 import type { ApiResponse } from '../../renderer/src/shared/types/api.types';
-import type {
-  BackupInfo,
-  BackupListResult,
-  V1DatabaseInfo,
-  V1ImportResult,
-} from '../../renderer/src/shared/types/backup.types';
+import type { BackupInfo, BackupListResult } from '../../renderer/src/shared/types/backup.types';
 import { BackupService } from '../services/backup.service';
 import { toApiError } from '../utils/errors';
 import { logger } from '../utils/logger';
@@ -85,50 +80,6 @@ export function registerBackupIpc(): void {
     ): Promise<ApiResponse<Awaited<ReturnType<typeof backupService.getBackupInfo>>>> => {
       try {
         const result = await backupService.getBackupInfo(actorUserId);
-        return { success: true, data: result };
-      } catch (err) {
-        return { success: false, error: toApiError(err) };
-      }
-    },
-  );
-
-  ipcMain.handle('backup:check-v1', async (): Promise<ApiResponse<V1DatabaseInfo>> => {
-    try {
-      const result = await backupService.checkV1Database();
-      return { success: true, data: result };
-    } catch (err) {
-      return { success: false, error: toApiError(err) };
-    }
-  });
-
-  ipcMain.handle('backup:select-v1-file', async (): Promise<ApiResponse<{ filePath: string }>> => {
-    try {
-      const result = await dialog.showOpenDialog({
-        title: 'Seleccionar base de datos de TuCajero v1',
-        filters: [{ name: 'Base de datos SQLite', extensions: ['db', 'sqlite', 'sqlite3'] }],
-        properties: ['openFile'],
-      });
-
-      if (result.canceled || result.filePaths.length === 0) {
-        return { success: false, error: { code: 'CANCELLED', message: 'Operación cancelada' } };
-      }
-
-      return { success: true, data: { filePath: result.filePaths[0] } };
-    } catch (err) {
-      return { success: false, error: toApiError(err) };
-    }
-  });
-
-  ipcMain.handle(
-    'backup:import-v1',
-    async (
-      _event,
-      actorUserId: number,
-      customPath?: string,
-    ): Promise<ApiResponse<V1ImportResult>> => {
-      try {
-        const result = await backupService.importFromV1(actorUserId, customPath);
-        logger.info('backup:import-v1-success', { actorUserId, imported: result.imported });
         return { success: true, data: result };
       } catch (err) {
         return { success: false, error: toApiError(err) };

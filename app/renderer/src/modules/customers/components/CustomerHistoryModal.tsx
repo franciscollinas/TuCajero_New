@@ -37,18 +37,23 @@ interface SerializedHistorySale {
   debt?: { balance: number; amount: number; status: string } | null;
 }
 
-const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ isOpen, onClose, customer }) => {
+const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
+  isOpen,
+  onClose,
+  customer,
+}) => {
   const [sales, setSales] = useState<SerializedHistorySale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      loadHistory();
+      void loadHistory();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const loadHistory = async () => {
+  const loadHistory = async (): Promise<void> => {
     setIsLoading(true);
     setError(null);
     try {
@@ -70,7 +75,16 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ isOpen, onC
 
   return (
     <div className="tc-modal-overlay animate-fadeIn">
-      <div className="tc-modal animate-scaleIn" style={{ maxWidth: '900px', width: '100%', height: '85vh', display: 'flex', flexDirection: 'column' }}>
+      <div
+        className="tc-modal animate-scaleIn"
+        style={{
+          maxWidth: '900px',
+          width: '100%',
+          height: '85vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-brand-50 text-brand-600 shadow-sm border border-brand-100">
@@ -79,7 +93,8 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ isOpen, onC
             <div>
               <h2 className="tc-modal-title">Historial de Compras</h2>
               <p className="text-sm text-gray-500">
-                <span className="font-semibold text-gray-700">{customer?.fullName}</span> • Registro cronológico de consumos
+                <span className="font-semibold text-gray-700">{customer?.fullName}</span> • Registro
+                cronológico de consumos
               </p>
             </div>
           </div>
@@ -102,7 +117,9 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ isOpen, onC
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <div className="tc-spinner w-10 h-10 border-4"></div>
-              <p className="text-gray-500 animate-pulse font-medium">Sincronizando transacciones...</p>
+              <p className="text-gray-500 animate-pulse font-medium">
+                Sincronizando transacciones...
+              </p>
             </div>
           ) : sales.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -110,36 +127,50 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ isOpen, onC
                 <Package size={40} className="text-gray-300" />
               </div>
               <h3 className="text-lg font-bold text-gray-800">Sin historial registrado</h3>
-              <p className="text-gray-500 max-w-xs mx-auto">Este cliente aún no ha realizado compras en el sistema.</p>
+              <p className="text-gray-500 max-w-xs mx-auto">
+                Este cliente aún no ha realizado compras en el sistema.
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
               {sales.map((sale) => (
-                <div key={sale.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 group">
+                <div
+                  key={sale.id}
+                  className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 group"
+                >
                   <div className="flex justify-between items-start mb-5 pb-4 border-b border-gray-50">
                     <div className="flex items-center gap-4">
                       <div className="bg-gray-50 p-2.5 rounded-lg group-hover:bg-brand-50 transition-colors">
                         <Calendar size={20} className="text-gray-400 group-hover:text-brand-500" />
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">Fecha y Hora</div>
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">
+                          Fecha y Hora
+                        </div>
                         <div className="text-sm font-semibold text-gray-700">
                           {new Date(sale.createdAt).toLocaleString('es-CO', {
-                            day: 'numeric', month: 'short', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit'
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
                           })}
                         </div>
                       </div>
                       <div className="h-10 w-px bg-gray-100 mx-1"></div>
                       <div>
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">Identificador</div>
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">
+                          Identificador
+                        </div>
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-50 text-brand-700">
                           #{sale.saleNumber || sale.id.toString().slice(-8).toUpperCase()}
                         </span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">Monto Total</div>
+                      <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">
+                        Monto Total
+                      </div>
                       <div className="text-xl font-bold text-success-600 tracking-tight">
                         {formatCurrency(Number(sale.total))}
                       </div>
@@ -155,9 +186,14 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ isOpen, onC
                         {sale.items.map((item, idx: number) => (
                           <div key={idx} className="flex justify-between items-center text-sm">
                             <span className="text-gray-600 font-medium">
-                              <span className="text-brand-600 font-bold mr-1">{item.quantity}x</span> {item.productName || item.product?.name}
+                              <span className="text-brand-600 font-bold mr-1">
+                                {item.quantity}x
+                              </span>{' '}
+                              {item.productName || item.product?.name}
                             </span>
-                            <span className="text-gray-900 font-bold tabular-nums">{formatCurrency(Number(item.subtotal))}</span>
+                            <span className="text-gray-900 font-bold tabular-nums">
+                              {formatCurrency(Number(item.subtotal))}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -171,12 +207,16 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ isOpen, onC
                           </h4>
                           <div className="flex flex-wrap gap-2">
                             {sale.payments.map((p) => (
-                              <div key={p.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold ${
-                                p.method === 'credito'
-                                  ? 'bg-amber-50 border-amber-100 text-amber-700'
-                                  : 'bg-emerald-50 border-emerald-100 text-emerald-700'
-                              }`}>
-                                {p.method.charAt(0).toUpperCase() + p.method.slice(1)}: {formatCurrency(Number(p.amount))}
+                              <div
+                                key={p.id}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold ${
+                                  p.method === 'credito'
+                                    ? 'bg-amber-50 border-amber-100 text-amber-700'
+                                    : 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                                }`}
+                              >
+                                {p.method.charAt(0).toUpperCase() + p.method.slice(1)}:{' '}
+                                {formatCurrency(Number(p.amount))}
                               </div>
                             ))}
                           </div>
@@ -187,10 +227,15 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ isOpen, onC
                         <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-start gap-3">
                           <DollarSign className="text-amber-500 shrink-0 mt-0.5" size={18} />
                           <div>
-                            <div className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1">Saldo Pendiente</div>
+                            <div className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1">
+                              Saldo Pendiente
+                            </div>
                             <div className="text-sm text-amber-600 font-medium leading-tight">
                               Se generó un crédito por {formatCurrency(Number(sale.debt.amount))}.
-                              Saldo actual: <span className="font-bold">{formatCurrency(Number(sale.debt.balance))}</span>
+                              Saldo actual:{' '}
+                              <span className="font-bold">
+                                {formatCurrency(Number(sale.debt.balance))}
+                              </span>
                             </div>
                           </div>
                         </div>

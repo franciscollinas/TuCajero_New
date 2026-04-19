@@ -126,7 +126,7 @@
 
   /* Sidebar */
   --sidebar-width: 290px;
-  --sidebar-collapsed: 90px;
+  --sidebar-collapsed: 70px;
   --header-height: 70px;
 
   /* Typography */
@@ -282,8 +282,34 @@ body {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;
   flex-shrink: 0;
   z-index: 50;
+  transition: width var(--transition-slow);
+}
+
+.tc-layout--collapsed {
+  --sidebar-width: var(--sidebar-collapsed);
+}
+
+.tc-sidebar-toggle {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.tc-sidebar-toggle:hover {
+  background: var(--gray-50);
+  color: var(--brand-600);
+  border-color: var(--brand-200);
 }
 
 .tc-content {
@@ -400,6 +426,31 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  min-height: 70px;
+}
+
+.tc-sidebar-user-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.tc-sidebar-user-actions--vertical {
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.tc-nav-group {
+  margin-bottom: var(--space-4);
+}
+
+.tc-nav-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .tc-user-avatar {

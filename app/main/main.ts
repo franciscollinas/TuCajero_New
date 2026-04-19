@@ -72,12 +72,13 @@ function createWindow(): void {
     }
   });
 
-  const rendererPath = app.isPackaged
-    ? join(__dirname, '../../../renderer/index.html')
-    : join(process.cwd(), 'dist', 'renderer', 'index.html');
-
-  console.log('[Main] Loading renderer from:', rendererPath);
-  win.loadFile(rendererPath);
+  if (app.isPackaged) {
+    const rendererPath = join(__dirname, '../../../renderer/index.html');
+    win.loadFile(rendererPath);
+  } else {
+    const devServerUrl = 'http://localhost:5173';
+    win.loadURL(devServerUrl);
+  }
 }
 
 app.whenReady().then(async () => {
@@ -93,14 +94,18 @@ app.whenReady().then(async () => {
       const templatePath = join(app.getAppPath(), 'database/tucajero.db');
       if (existsSync(templatePath)) {
         copyFileSync(templatePath, dbPath);
+        // eslint-disable-next-line no-console
         console.log('Plantilla copiada con éxito.');
       }
     }
 
+    // eslint-disable-next-line no-console
     console.log('Iniciando base de datos...');
     await seedDatabase();
+    // eslint-disable-next-line no-console
     console.log('Base de datos inicializada correctamente');
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error('ERROR CRÍTICO AL INICIALIZAR DB:', err);
     dialog.showErrorBox(
       'Error de Base de Datos',

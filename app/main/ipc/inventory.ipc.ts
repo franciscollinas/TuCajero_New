@@ -85,35 +85,12 @@ export function registerInventoryIpc(): void {
     'inventory:create',
     async (_event, data: ProductInput): Promise<ApiResponse<Product>> => {
       try {
-        console.log('[inventory:create] Received data:', JSON.stringify(data, null, 2));
         const result = await inventoryService.createProduct(data);
-        logger.info('inventory:create-success', { productId: result.id, code: result.code });
-        cache.invalidate('categories');
         // Invalidate all inventory caches
-        Array.from(cache['store'].keys())
-          .filter((k) => k.startsWith('inventory:'))
-          .forEach((k) => cache.invalidate(k));
+        cache.invalidateByPrefix('inventory:');
         return { success: true, data: result };
       } catch (err) {
-        console.error('[inventory:create] Error:', err);
-        logger.error('inventory:create-error', { err, code: data.code });
-        const apiError = toApiError(err);
-        // Log to file for debugging
-        const fs = require('fs');
-        const logPath = require('path').join(
-          process.env.USERPROFILE || '',
-          'Documents',
-          'MPointOfSale',
-          'debug.log',
-        );
-        try {
-          fs.mkdirSync(require('path').dirname(logPath), { recursive: true });
-          fs.appendFileSync(
-            logPath,
-            `[${new Date().toISOString()}] inventory:create Error: ${JSON.stringify(apiError)}\n`,
-          );
-        } catch {}
-        return { success: false, error: apiError };
+        return { success: false, error: toApiError(err) };
       }
     },
   );
@@ -193,6 +170,12 @@ export function registerInventoryIpc(): void {
     ): Promise<ApiResponse<BulkImportResult>> => {
       try {
         const result = await inventoryService.bulkImportProducts(products, userId);
+
+        // Invalidate all inventory caches to ensure the next fetch gets real data
+        Array.from(cache['store'].keys())
+          .filter((k) => k.startsWith('inventory:'))
+          .forEach((k) => cache.invalidate(k));
+
         logger.info('inventory:bulk-import-success', {
           success: result.success,
           errors: result.errors.length,

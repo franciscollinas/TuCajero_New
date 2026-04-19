@@ -51,6 +51,17 @@ export class Cache {
   }
 
   /**
+   * Remove cache entries starting with a prefix.
+   */
+  invalidateByPrefix(prefix: string): void {
+    for (const key of this.store.keys()) {
+      if (key.startsWith(prefix)) {
+        this.store.delete(key);
+      }
+    }
+  }
+
+  /**
    * Get or set cache. If key exists and is valid, returns cached data.
    * Otherwise, calls fn, caches the result, and returns it.
    */

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef, memo } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef, memo, useTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -143,7 +143,9 @@ export function POSPage(): JSX.Element {
   const [cashLoadError, setCashLoadError] = useState<string | null>(null);
 
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [isSearching, startTransition] = useTransition();
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [globalDiscount, setGlobalDiscount] = useState(0);
@@ -158,23 +160,26 @@ export function POSPage(): JSX.Element {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error' | 'info'>('info');
 
-  const addToCart = useCallback((product: Product) => {
-    setCart((prev) => {
-      const idx = prev.findIndex((item) => item.product.id === product.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
-        return next;
-      }
-      return [...prev, { product, quantity: 1, unitPrice: product.price, discount: 0 }];
-    });
-  }, []);
+  const addToCart = useCallback(
+    (product: Product): void => {
+      setCart((prev) => {
+        const idx = prev.findIndex((item) => item.product.id === product.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
+          return next;
+        }
+        return [...prev, { product, quantity: 1, unitPrice: product.price, discount: 0 }];
+      });
+    },
+    [setCart],
+  );
 
-  const removeFromCart = (id: number) => {
+  const removeFromCart = (id: number): void => {
     setCart((prev) => prev.filter((item) => item.product.id !== id));
   };
 
-  const clearCart = () => {
+  const clearCart = (): void => {
     setCart([]);
     setPayments([]);
     setDeliveryFee(0);
@@ -188,7 +193,7 @@ export function POSPage(): JSX.Element {
   // Barcode scanner integration
   useBarcodeScanner({
     onScan: useCallback(
-      (code: string) => {
+      (code: string): void => {
         const found = products.find((p) => p.code === code || p.barcode === code);
         if (found && found.isActive) {
           addToCart(found);
@@ -201,7 +206,7 @@ export function POSPage(): JSX.Element {
           setTimeout(() => setMessage(''), 3000);
         }
       },
-      [products],
+      [products, addToCart],
     ),
     enabled: true,
     minLength: 4,
@@ -212,7 +217,7 @@ export function POSPage(): JSX.Element {
     if (!user) return;
     let cancelled = false;
 
-    const loadData = async () => {
+    const loadData = async (): Promise<void> => {
       try {
         setCashLoadError(null);
         const [cashResponse, productsResponse, customersResponse] = await Promise.all([
@@ -236,14 +241,13 @@ export function POSPage(): JSX.Element {
           }
           if (customersResponse.success) setCustomers(customersResponse.data);
         }
-      } catch (err) {
-        console.error('Error loading POS data:', err);
+      } catch {
         if (!cancelled) setCashLoadError('Error de conexión al cargar datos');
       }
     };
 
-    loadData();
-    return () => {
+    void loadData();
+    return (): void => {
       cancelled = true;
     };
   }, [user]);
@@ -260,13 +264,28 @@ export function POSPage(): JSX.Element {
     }
   };
 
+  // Debounce search term to avoid excessive re-renders/filters
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      startTransition(() => {
+        setDebouncedSearch(searchTerm);
+      });
+    }, 300);
+    return (): void => clearTimeout(timer);
+  }, [searchTerm]);
+
   const filteredProducts = useMemo(() => {
-    if (!searchTerm) return products;
-    const term = searchTerm.toLowerCase();
-    return products.filter(
-      (p) => p.name.toLowerCase().includes(term) || p.code.toLowerCase().includes(term),
-    );
-  }, [products, searchTerm]);
+    if (!debouncedSearch) return products.slice(0, 40); // Limit initial view for performance
+    const lowerSearch = debouncedSearch.toLowerCase();
+    return products
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(lowerSearch) ||
+          p.code.toLowerCase().includes(lowerSearch) ||
+          p.barcode?.toLowerCase().includes(lowerSearch),
+      )
+      .slice(0, 40); // Limit results to avoid DOM bloat
+  }, [products, debouncedSearch]);
 
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.quantity * item.unitPrice - item.discount, 0),
@@ -294,7 +313,7 @@ export function POSPage(): JSX.Element {
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const remaining = total - totalPaid;
 
-  const addPayment = (method: PaymentMethod) => {
+  const addPayment = (method: PaymentMethod): void => {
     if (remaining <= 0.1) return;
     if (method === 'credito' && !selectedCustomerId) {
       setMessageType('error');
@@ -320,7 +339,7 @@ export function POSPage(): JSX.Element {
     setShowPaymentMethods(false);
   };
 
-  const confirmCashPayment = async () => {
+  const confirmCashPayment = async (): Promise<void> => {
     if (!selectedMethod || cashReceived < remaining) {
       setMessageType('error');
       setMessage(`El monto recibido debe ser al menos ${formatCurrency(remaining)}`);
@@ -344,7 +363,7 @@ export function POSPage(): JSX.Element {
     await processCompleteSale(finalPayments, false);
   };
 
-  const handleCompleteSale = async () => {
+  const handleCompleteSale = async (): Promise<void> => {
     if (remaining > 0.1) {
       setMessageType('error');
       setMessage(`Falta cubrir un saldo de ${formatCurrency(remaining)}`);
@@ -354,7 +373,7 @@ export function POSPage(): JSX.Element {
   };
 
   // Procesar venta a crédito (sin pagos, se crea deuda)
-  const processCreditSale = async () => {
+  const processCreditSale = async (): Promise<void> => {
     if (!user || !activeCash) return;
     if (cart.length === 0) return;
     if (!selectedCustomerId) {
@@ -410,7 +429,10 @@ export function POSPage(): JSX.Element {
     }
   };
 
-  const processCompleteSale = async (finalPayments: PaymentInput[], isCreditSale = false) => {
+  const processCompleteSale = async (
+    finalPayments: PaymentInput[],
+    isCreditSale = false,
+  ): Promise<void> => {
     if (!user || !activeCash) return;
     if (cart.length === 0) return;
 
@@ -479,7 +501,7 @@ export function POSPage(): JSX.Element {
     }
   };
 
-  const refreshCashState = async () => {
+  const refreshCashState = async (): Promise<void> => {
     if (!user) return;
     try {
       setCashLoadError(null);
@@ -491,8 +513,7 @@ export function POSPage(): JSX.Element {
         setActiveCash(null);
         setCashLoadError(cashResponse.error?.message || 'No se detectó una caja abierta');
       }
-    } catch (err) {
-      console.error('Error refreshing cash state:', err);
+    } catch {
       setCashLoadError('Error de conexión al verificar la caja');
     }
   };
@@ -751,12 +772,13 @@ export function POSPage(): JSX.Element {
             <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
               <div style={{ position: 'relative', flex: 1 }}>
                 <Search
+                  className={isSearching ? 'tc-animate-spin' : ''}
                   style={{
                     position: 'absolute',
                     left: 'var(--space-4)',
                     top: '50%',
                     transform: 'translateY(-50%)',
-                    color: 'var(--gray-400)',
+                    color: 'var(--brand-500)',
                     pointerEvents: 'none',
                   }}
                   size={20}
@@ -764,17 +786,38 @@ export function POSPage(): JSX.Element {
                 <input
                   ref={searchInputRef}
                   type="text"
-                  placeholder="Buscar producto por nombre o codigo..."
+                  placeholder="Buscar producto por nombre o código (F1)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="tc-input"
                   style={{
                     paddingLeft: '48px',
+                    paddingRight: '48px',
                     minHeight: '50px',
                     fontSize: 'var(--text-base)',
                     background: 'var(--gray-50)',
                   }}
+                  autoFocus
                 />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    style={{
+                      position: 'absolute',
+                      right: 'var(--space-2)',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--gray-400)',
+                      cursor: 'pointer',
+                      padding: 'var(--space-2)',
+                    }}
+                    title="Limpiar búsqueda"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
               </div>
             </div>
           </div>
