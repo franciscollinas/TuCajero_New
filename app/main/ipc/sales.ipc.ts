@@ -11,8 +11,11 @@ import type {
 import { generateInvoicePDF } from '../services/invoice.service';
 import { SalesService } from '../services/sales.service';
 import { ConfigService } from '../services/config.service';
+import { PrinterService } from '../services/printer.service';
 import { logger } from '../utils/logger';
 import { toApiError } from '../utils/errors';
+
+const printerService = new PrinterService();
 import { cache } from '../utils/cache';
 
 const salesService = new SalesService();
@@ -162,6 +165,45 @@ export function registerSalesIpc(): void {
           filePath,
           businessName: config.businessName,
         });
+
+        const invoiceData = {
+          invoiceNumber: sale.saleNumber,
+          date: sale.createdAt,
+          cashierName: sale.user.fullName,
+          businessName: config.businessName,
+          businessNIT: config.nit,
+          businessAddress: config.address,
+          businessPhone: config.phone,
+          items: sale.items.map((item) => ({
+            name: item.product.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            taxRate: item.taxRate,
+            subtotal: item.subtotal,
+            tax: item.subtotal * item.taxRate,
+            total: item.total,
+          })),
+          subtotal: sale.subtotal,
+          totalTax: sale.tax,
+          discount: sale.discount,
+          total: sale.total,
+          payments: sale.payments.map((p) => ({
+            method: p.method,
+            amount: p.amount,
+          })),
+          change: sale.change,
+        };
+
+        const printResult = await printerService.printThermalReceipt(invoiceData);
+        if (printResult.success) {
+          logger.info('sales:invoice-printed-thermal', { saleId });
+        } else {
+          logger.warn('sales:invoice-thermal-print-failed', {
+            saleId,
+            message: printResult.message,
+          });
+        }
+
         return { success: true, data: filePath };
       } catch (err) {
         return { success: false, error: toApiError(err) };

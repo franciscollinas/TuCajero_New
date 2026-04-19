@@ -180,9 +180,9 @@ export class InventoryService {
 
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' as const } },
-        { code: { contains: search, mode: 'insensitive' as const } },
-        { barcode: { contains: search, mode: 'insensitive' as const } },
+        { name: { contains: search } },
+        { code: { contains: search } },
+        { barcode: { contains: search } },
       ];
     }
 

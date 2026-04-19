@@ -2,7 +2,11 @@ import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
-import type { BackupInfo, BackupMetadata } from '../../renderer/src/shared/types/backup.types';
+import type {
+  BackupInfo,
+  BackupMetadata,
+  BackupListResult,
+} from '../../renderer/src/shared/types/backup.types';
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
 import { toFileDate } from '../utils/date';
