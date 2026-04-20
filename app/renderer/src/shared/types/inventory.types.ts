@@ -41,6 +41,7 @@ export interface InventoryProduct {
   createdAt: string;
   updatedAt: string;
   stockMovements?: InventoryMovement[];
+  salesLast30Days?: number;
 }
 
 export interface ProductDetail extends InventoryProduct {

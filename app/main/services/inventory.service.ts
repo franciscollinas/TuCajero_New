@@ -21,6 +21,8 @@ import { ConfigService } from './config.service';
 const auditService = new AuditService();
 const configService = new ConfigService();
 
+const COVERAGE_DAYS = 30;
+
 function mapStockMovement(movement: {
   id: number;
   productId: number;
@@ -72,6 +74,7 @@ function mapProduct(product: {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  salesLast30Days?: number;
 }): Product {
   return {
     id: product.id,
@@ -96,6 +99,7 @@ function mapProduct(product: {
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
     stockMovements: [],
+    salesLast30Days: product.salesLast30Days,
   };
 }
 
@@ -250,7 +254,31 @@ export class InventoryService {
       });
     }
 
-    return products.map(mapProduct);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - COVERAGE_DAYS);
+
+    const salesLast30Days = await prisma.saleItem.groupBy({
+      by: ['productId'],
+      _sum: { quantity: true },
+      where: {
+        sale: {
+          createdAt: { gte: thirtyDaysAgo },
+          status: 'COMPLETED',
+        },
+      },
+    });
+
+    const salesMap = new Map<number, number>();
+    salesLast30Days.forEach((item) => {
+      salesMap.set(item.productId, item._sum.quantity || 0);
+    });
+
+    return products.map((product) =>
+      mapProduct({
+        ...product,
+        salesLast30Days: salesMap.get(product.id) || 0,
+      }),
+    );
   }
 
   async getProductById(id: number): Promise<ProductDetail> {

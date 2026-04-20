@@ -169,6 +169,92 @@ function IconAudit(props: { className?: string; style?: React.CSSProperties }) {
   );
 }
 
+function IconProfit(props: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M22 12L18 12M18 12L20 8M18 12L20 16M2 12L6 12M6 12L4 8M6 12L4 16M12 2L12 22M12 22L16 18M12 22L8 18"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconPercent(props: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M19 5L5 19M6.5 6.5L17.5 17.5M16 5C16 6.65685 14.6569 8 13 8C11.3431 8 10 6.65685 10 5C10 3.34315 11.3431 2 13 2C14.6569 2 16 3.34315 16 5ZM8 19C8 20.6569 6.65685 22 5 22C3.34315 22 2 20.6569 2 19C2 17.3431 3.34315 16 5 16C6.65685 16 8 17.3431 8 19Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconReceipt(props: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M4 2V22H20V2H4ZM16 6L12 10L8 6H16ZM8 10L12 14L8 10ZM8 14L12 18L8 14H8Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+interface ComparisonBadgeProps {
+  current: number;
+  previous: number;
+}
+
+function ComparisonBadge({ current, previous }: ComparisonBadgeProps): JSX.Element | null {
+  if (previous === 0) {
+    return null;
+  }
+  const pctChange = ((current - previous) / previous) * 100;
+  if (Math.abs(pctChange) < 2) {
+    return null;
+  }
+  const isPositive = pctChange > 0;
+  const color = isPositive ? 'var(--success-600)' : 'var(--danger-600)';
+  const arrow = isPositive ? '▲' : '▼';
+  return (
+    <span style={{ fontSize: '11px', color, fontWeight: 600, display: 'block', marginTop: '2px' }}>
+      {arrow} {Math.abs(pctChange).toFixed(1)}% vs anterior
+    </span>
+  );
+}
+
 function IconCalendar(props: { className?: string; style?: React.CSSProperties }) {
   return (
     <svg
@@ -459,18 +545,77 @@ export function ReportsPage(): JSX.Element {
       return [];
     }
 
+    const profitMargin = data.salesSummary.profitMargin;
+    const profitMarginFormatted =
+      data.salesSummary.completedSales > 0 && profitMargin > 0
+        ? `${profitMargin.toFixed(1)}%`
+        : '—';
+
+    const avgTicket = data.salesSummary.averageTicket;
+    const prevAvgTicket = data.salesSummary.previousPeriodAvgTicket;
+
+    const periodDays =
+      (new Date(data.range.endDate).getTime() - new Date(data.range.startDate).getTime()) /
+      (1000 * 60 * 60 * 24);
+    const showComparison = periodDays >= 2;
+
     return [
       {
         label: es.reports.totalSales,
         value: String(data.salesSummary.completedSales),
         icon: <IconSales />,
         color: 'brand',
+        comparison:
+          showComparison && data.salesSummary.previousPeriodSales > 0
+            ? {
+                current: data.salesSummary.completedSales,
+                previous: data.salesSummary.previousPeriodSales,
+              }
+            : undefined,
       },
       {
         label: es.reports.netRevenue,
         value: formatCurrency(data.salesSummary.netRevenue),
         icon: <IconRevenue />,
         color: 'success',
+        comparison:
+          showComparison && data.salesSummary.previousPeriodRevenue > 0
+            ? {
+                current: data.salesSummary.netRevenue,
+                previous: data.salesSummary.previousPeriodRevenue,
+              }
+            : undefined,
+      },
+      {
+        label: es.reports.avgTicket,
+        value:
+          data.salesSummary.completedSales > 1
+            ? formatCurrency(avgTicket)
+            : formatCurrency(avgTicket),
+        icon: <IconReceipt />,
+        color: 'brand',
+        comparison:
+          showComparison && prevAvgTicket > 0
+            ? {
+                current: avgTicket,
+                previous: prevAvgTicket,
+              }
+            : undefined,
+      },
+      {
+        label: es.reports.estimatedProfit,
+        value:
+          data.salesSummary.completedSales > 0
+            ? formatCurrency(data.salesSummary.estimatedProfit)
+            : '—',
+        icon: <IconProfit />,
+        color: 'success',
+      },
+      {
+        label: es.reports.profitMargin,
+        value: profitMarginFormatted,
+        icon: <IconPercent />,
+        color: profitMargin >= 25 ? 'success' : profitMargin >= 10 ? 'warning' : 'danger',
       },
       {
         label: es.reports.inventoryValue,
@@ -713,6 +858,12 @@ export function ReportsPage(): JSX.Element {
                 <div className="tc-metric-content">
                   <p className="tc-metric-label">{card.label}</p>
                   <p className="tc-metric-value">{card.value}</p>
+                  {card.comparison && (
+                    <ComparisonBadge
+                      current={card.comparison.current}
+                      previous={card.comparison.previous}
+                    />
+                  )}
                 </div>
               </article>
             ))}
@@ -885,6 +1036,79 @@ export function ReportsPage(): JSX.Element {
             icon={<IconInventory style={{ color: COLORS.red }} />}
           >
             <InventoryTable rows={data.expiringProducts.slice(0, 12)} />
+          </ReportSection>
+
+          {/* ===== No Rotation Section ===== */}
+          <ReportSection
+            title={es.reports.noRotationSection}
+            subtitle={`${data.inventorySummary.noRotationCount} ${es.reports.noRotationSubtitle} · ${formatCurrency(data.inventorySummary.noRotationValue)} ${es.reports.noRotationValue}`}
+            exporting={exporting}
+            reportType="inventory"
+            onExport={handleExport}
+            icon={<IconInventory style={{ color: COLORS.red }} />}
+          >
+            {data.noRotationProducts.length === 0 ? (
+              <EmptyState message="No hay productos sin rotación en los últimos 90 días" />
+            ) : (
+              <div className="tc-table-wrap">
+                <table className="tc-table">
+                  <thead>
+                    <tr>
+                      <th>{es.inventory.code}</th>
+                      <th>{es.inventory.name}</th>
+                      <th>{es.inventory.category}</th>
+                      <th>{es.inventory.stock}</th>
+                      <th>Costo unit.</th>
+                      <th>Costo represado</th>
+                      <th>Días sin venta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.noRotationProducts.slice(0, 12).map((item) => (
+                      <tr key={item.id}>
+                        <td
+                          style={{
+                            fontFamily: 'monospace',
+                            fontWeight: 600,
+                            color: 'var(--gray-800)',
+                          }}
+                        >
+                          {item.code}
+                        </td>
+                        <td style={{ fontWeight: 500 }}>{item.name}</td>
+                        <td>{item.categoryName}</td>
+                        <td>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '2px 10px',
+                              borderRadius: 'var(--radius-full)',
+                              background: 'var(--brand-50)',
+                              color: 'var(--brand-600)',
+                              fontWeight: 600,
+                              fontSize: 'var(--text-xs)',
+                            }}
+                          >
+                            {item.stock}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 600, color: 'var(--gray-800)' }}>
+                          {formatCurrency(item.cost)}
+                        </td>
+                        <td style={{ fontWeight: 700, color: 'var(--danger-600)' }}>
+                          {formatCurrency(item.stockValue)}
+                        </td>
+                        <td>
+                          <span className="tc-badge tc-badge--danger">sin rotación</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </ReportSection>
 
           {/* ===== Audit Section ===== */}

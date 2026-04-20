@@ -26,6 +26,8 @@ import {
 
 type InventoryFilter = 'all' | 'critical' | 'warning' | 'ok' | 'expired';
 
+const COVERAGE_DAYS = 30;
+
 export function InventoryPage(): JSX.Element {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -159,7 +161,12 @@ export function InventoryPage(): JSX.Element {
 
   const handleUpdateProduct = async (
     id: number,
-    data: { price?: number; expiryDate?: string | null; location?: string | null },
+    data: {
+      price?: number;
+      expiryDate?: string | null;
+      location?: string | null;
+      taxRate?: number;
+    },
   ): Promise<void> => {
     try {
       const response = await updateProduct(id, data);
@@ -555,9 +562,16 @@ export function InventoryPage(): JSX.Element {
                   <th>{es.inventory.name}</th>
                   <th>{es.inventory.category}</th>
                   <th style={{ textAlign: 'center' }}>{es.inventory.stock}</th>
+                  <th
+                    style={{ textAlign: 'center' }}
+                    title="Dias que dura el stock al ritmo de ventas de los ultimos 30 dias"
+                  >
+                    COBERTURA
+                  </th>
                   <th style={{ textAlign: 'center' }}>{es.inventory.minStock}</th>
                   <th>{es.inventory.expiryDate}</th>
                   <th style={{ textAlign: 'right' }}>{es.inventory.price}</th>
+                  <th style={{ textAlign: 'center' }}>MARGEN</th>
                   <th style={{ textAlign: 'center' }}>{es.inventory.semaforo}</th>
                   {canManage && <th style={{ textAlign: 'center' }}>Acciones</th>}
                 </tr>
@@ -566,7 +580,7 @@ export function InventoryPage(): JSX.Element {
                 {filteredProducts.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={canManage ? 9 : 8}
+                      colSpan={canManage ? 12 : 11}
                       style={{
                         textAlign: 'center',
                         padding: '48px 16px',
@@ -650,6 +664,36 @@ export function InventoryPage(): JSX.Element {
                         >
                           {product.stock}
                         </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {(() => {
+                            const salesLast30Days = product.salesLast30Days ?? 0;
+                            const stock = product.stock;
+                            if (salesLast30Days === 0) {
+                              return (
+                                <span
+                                  className="tc-badge tc-badge--neutral"
+                                  style={{ padding: '6px 12px' }}
+                                >
+                                  Sin rotación
+                                </span>
+                              );
+                            }
+                            const dailySales = salesLast30Days / COVERAGE_DAYS;
+                            const coverage =
+                              dailySales > 0 ? Math.round(stock / dailySales) : Infinity;
+                            const coverageClass =
+                              coverage >= 15 && coverage <= 60
+                                ? 'tc-badge tc-badge--success'
+                                : coverage > 60
+                                  ? 'tc-badge tc-badge--warning'
+                                  : 'tc-badge tc-badge--danger';
+                            return (
+                              <span className={coverageClass} style={{ padding: '6px 12px' }}>
+                                {coverage === Infinity ? '∞' : `${coverage}d`}
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td style={{ textAlign: 'center', color: 'var(--gray-600)' }}>
                           {product.minStock}
                         </td>
@@ -683,6 +727,34 @@ export function InventoryPage(): JSX.Element {
                           style={{ textAlign: 'right', fontWeight: 700, color: 'var(--gray-900)' }}
                         >
                           {formatCurrency(product.price)}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {(() => {
+                            const cost = product.cost ?? 0;
+                            const price = product.price ?? 0;
+                            if (cost === 0 || price === 0) {
+                              return (
+                                <span
+                                  className="tc-badge tc-badge--neutral"
+                                  style={{ padding: '6px 12px' }}
+                                >
+                                  sin costo
+                                </span>
+                              );
+                            }
+                            const margin = ((price - cost) / price) * 100;
+                            const marginClass =
+                              margin >= 25
+                                ? 'tc-badge tc-badge--success'
+                                : margin >= 10
+                                  ? 'tc-badge tc-badge--warning'
+                                  : 'tc-badge tc-badge--danger';
+                            return (
+                              <span className={marginClass} style={{ padding: '6px 12px' }}>
+                                {margin.toFixed(1)}%
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <span className={badgeClass} style={{ padding: '6px 12px' }}>

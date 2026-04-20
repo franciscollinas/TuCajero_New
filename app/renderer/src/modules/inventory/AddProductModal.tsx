@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getCategories } from '../../shared/api/inventory.api';
 import { es } from '../../shared/i18n';
 import type { InventoryCategory } from '../../shared/types/inventory.types';
+import { useConfig } from '../../shared/context/ConfigContext';
 
 interface AddProductModalProps {
   open: boolean;
@@ -36,6 +37,7 @@ export function AddProductModal({
   onSubmit,
 }: AddProductModalProps): JSX.Element | null {
   const [categories, setCategories] = useState<InventoryCategory[]>([]);
+  const { config } = useConfig();
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayMouseDown = useRef(false);
 
@@ -79,8 +81,15 @@ export function AddProductModal({
         if (res.success) setCategories(res.data);
       });
       setErrors({});
+      // Reset form but keep config IVA if creating new
+      if (config) {
+        setFormData((prev) => ({
+          ...prev,
+          taxRate: config.ivaRate,
+        }));
+      }
     }
-  }, [open]);
+  }, [open, config]);
 
   if (!open) return null;
 
@@ -300,14 +309,15 @@ export function AddProductModal({
             <label className="tc-label">IVA (%)</label>
             <select
               className="tc-select"
-              value={formData.taxRate * 100}
-              onChange={(e) =>
-                setFormData((p) => ({ ...p, taxRate: Number(e.target.value) / 100 }))
-              }
+              value={formData.taxRate}
+              onChange={(e) => setFormData((p) => ({ ...p, taxRate: Number(e.target.value) }))}
             >
               <option value={0}>0% (Exento)</option>
-              <option value={5}>5%</option>
-              <option value={19}>19%</option>
+              {config?.ivaRate && config.ivaRate !== 0.05 && config.ivaRate !== 0.19 && (
+                <option value={config.ivaRate}>{(config.ivaRate * 100).toFixed(0)}% (Global)</option>
+              )}
+              <option value={0.05}>5%</option>
+              <option value={0.19}>19%</option>
             </select>
           </div>
 

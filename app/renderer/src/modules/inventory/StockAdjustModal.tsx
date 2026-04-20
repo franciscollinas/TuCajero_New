@@ -9,6 +9,7 @@ import {
   getInventoryStatusColor,
   getInventoryStatusLabel,
 } from './inventory.utils';
+import { useConfig } from '../../shared/context/ConfigContext';
 
 interface StockAdjustModalProps {
   open: boolean;
@@ -23,7 +24,12 @@ interface StockAdjustModalProps {
   }) => Promise<void> | void;
   onUpdateProduct?: (
     id: number,
-    data: { price?: number; expiryDate?: string | null; location?: string | null },
+    data: {
+      price?: number;
+      expiryDate?: string | null;
+      location?: string | null;
+      taxRate?: number;
+    },
   ) => Promise<void>;
 }
 
@@ -46,6 +52,8 @@ export function StockAdjustModal({
   const [expiryValue, setExpiryValue] = useState('');
   const [locationValue, setLocationValue] = useState('');
   const [updatingProduct, setUpdatingProduct] = useState(false);
+  const [isTaxable, setIsTaxable] = useState(false);
+  const { config } = useConfig();
 
   useEffect(() => {
     if (!open) {
@@ -61,6 +69,7 @@ export function StockAdjustModal({
     setPriceValue(product?.price?.toString() || '');
     setExpiryValue(product?.expiryDate?.split('T')[0] || '');
     setLocationValue(product?.location || '');
+    setIsTaxable(product?.taxRate !== 0);
   }, [open, product]);
 
   if (!open || !product) {
@@ -69,6 +78,23 @@ export function StockAdjustModal({
 
   const status = getInventoryStatus(product);
   const statusColor = getInventoryStatusColor(status);
+
+  const handleToggleTax = async (): Promise<void> => {
+    if (!product || !onUpdateProduct || !config) return;
+
+    setUpdatingProduct(true);
+    try {
+      const newIsTaxable = !isTaxable;
+      const newTaxRate = newIsTaxable ? config.ivaRate || 0.19 : 0;
+
+      await onUpdateProduct(product.id, { taxRate: newTaxRate });
+      setIsTaxable(newIsTaxable);
+    } catch (err) {
+      console.error('Error updating tax status:', err);
+    } finally {
+      setUpdatingProduct(false);
+    }
+  };
 
   const handleUpdateProduct = async (): Promise<void> => {
     if (!product || !onUpdateProduct) return;
@@ -204,6 +230,42 @@ export function StockAdjustModal({
               </p>
             )}
           </article>
+
+          <article style={summaryCardStyle}>
+            <p style={summaryLabelStyle}>{es.inventory.tax}</p>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginTop: '8px',
+              }}
+            >
+              <p style={{ ...summaryValueStyle, margin: 0 }}>
+                {isTaxable
+                  ? `${((product.taxRate || config?.ivaRate || 0.19) * 100).toFixed(0)}%`
+                  : 'No'}
+              </p>
+              <button
+                type="button"
+                onClick={handleToggleTax}
+                disabled={updatingProduct}
+                style={{
+                  ...secondaryButtonStyle,
+                  minHeight: '32px',
+                  padding: '0 12px',
+                  fontSize: '12px',
+                  background: isTaxable ? '#465fff' : '#fff',
+                  color: isTaxable ? '#fff' : '#111827',
+                  border: isTaxable ? 'none' : '1px solid #D1D5DB',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {isTaxable ? 'Quitar IVA' : 'Poner IVA'}
+              </button>
+            </div>
+          </article>
+
           <article style={summaryCardStyle}>
             <p style={summaryLabelStyle}>{es.inventory.expiryDate}</p>
             {editingExpiry ? (
