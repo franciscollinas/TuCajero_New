@@ -14,7 +14,7 @@ const logDir = join(logBasePath, 'logs');
 mkdirSync(logDir, { recursive: true });
 
 export const logger = winston.createLogger({
-  level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
+  level: 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
@@ -32,10 +32,5 @@ export const logger = winston.createLogger({
   ],
 });
 
-if (process.env.NODE_ENV === 'development') {
-  logger.add(
-    new winston.transports.Console({
-      format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
-    }),
-  );
-}
+// Don't add console transport in dev to avoid EPIPE errors
+// It causes broken pipe when renderer closes

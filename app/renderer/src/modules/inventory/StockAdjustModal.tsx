@@ -25,6 +25,7 @@ interface StockAdjustModalProps {
   onUpdateProduct?: (
     id: number,
     data: {
+      name?: string;
       price?: number;
       expiryDate?: string | null;
       location?: string | null;
@@ -45,9 +46,11 @@ export function StockAdjustModal({
   const [quantity, setQuantity] = useState('1');
   const [reason, setReason] = useState('');
   const [mode, setMode] = useState<'entrada' | 'salida'>('entrada');
+  const [editingName, setEditingName] = useState(false);
   const [editingPrice, setEditingPrice] = useState(false);
   const [editingExpiry, setEditingExpiry] = useState(false);
   const [editingLocation, setEditingLocation] = useState(false);
+  const [nameValue, setNameValue] = useState('');
   const [priceValue, setPriceValue] = useState('');
   const [expiryValue, setExpiryValue] = useState('');
   const [locationValue, setLocationValue] = useState('');
@@ -63,9 +66,11 @@ export function StockAdjustModal({
     setQuantity('1');
     setReason('');
     setMode('entrada');
+    setEditingName(false);
     setEditingPrice(false);
     setEditingExpiry(false);
     setEditingLocation(false);
+    setNameValue(product?.name || '');
     setPriceValue(product?.price?.toString() || '');
     setExpiryValue(product?.expiryDate?.split('T')[0] || '');
     setLocationValue(product?.location || '');
@@ -101,7 +106,16 @@ export function StockAdjustModal({
 
     setUpdatingProduct(true);
     try {
-      const updates: { price?: number; expiryDate?: string | null; location?: string | null } = {};
+      const updates: {
+        name?: string;
+        price?: number;
+        expiryDate?: string | null;
+        location?: string | null;
+      } = {};
+
+      if (nameValue && nameValue.trim() !== product.name) {
+        updates.name = nameValue.trim();
+      }
 
       if (priceValue && Number(priceValue) !== product.price) {
         updates.price = Number(priceValue);
@@ -117,7 +131,8 @@ export function StockAdjustModal({
 
       if (Object.keys(updates).length > 0) {
         await onUpdateProduct(product.id, updates);
-        setEditingPrice(false);
+        if (updates.name) setEditingName(false);
+        if (updates.price) setEditingPrice(false);
         setEditingExpiry(false);
         setEditingLocation(false);
       }
@@ -152,7 +167,72 @@ export function StockAdjustModal({
         <header style={headerStyle}>
           <div>
             <p style={eyebrowStyle}>{es.inventory.adjustStock}</p>
-            <h3 style={titleStyle}>{product.name}</h3>
+            {editingName ? (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '4px',
+                  alignItems: 'center',
+                  marginTop: '4px',
+                  marginBottom: '4px',
+                }}
+              >
+                <input
+                  type="text"
+                  value={nameValue}
+                  onChange={(e) => setNameValue(e.target.value)}
+                  style={{
+                    ...inputStyle,
+                    fontSize: '18px',
+                    padding: '0 8px',
+                    minHeight: '40px',
+                    width: '200px',
+                  }}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={handleUpdateProduct}
+                  disabled={updatingProduct}
+                  style={{
+                    minHeight: '20px',
+                    padding: '0 8px',
+                    fontSize: '10px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: '#465fff',
+                    color: '#fff',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ✓
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingName(false)}
+                  style={{
+                    ...secondaryButtonStyle,
+                    minHeight: '20px',
+                    padding: '0 8px',
+                    fontSize: '10px',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <h3
+                style={{
+                  ...titleStyle,
+                  cursor: 'pointer',
+                }}
+                onClick={() => setEditingName(true)}
+                title="Click para editar"
+              >
+                {product.name}
+              </h3>
+            )}
             <p style={subtleStyle}>
               {product.code} · {product.category.name}
             </p>

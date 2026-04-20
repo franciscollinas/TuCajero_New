@@ -81,13 +81,23 @@ export function AddProductModal({
         if (res.success) setCategories(res.data);
       });
       setErrors({});
-      // Reset form but keep config IVA if creating new
-      if (config) {
-        setFormData((prev) => ({
-          ...prev,
-          taxRate: config.ivaRate,
-        }));
-      }
+      setFormData({
+        code: '',
+        barcode: '',
+        name: '',
+        categoryId: 0,
+        price: 0,
+        cost: 0,
+        stock: 0,
+        minStock: 0,
+        criticalStock: 0,
+        taxRate: config?.ivaRate || 19,
+        suggestedPurchaseQty: null,
+        expiryDate: '',
+        location: '',
+        unitType: 'UND',
+        conversionFactor: 1,
+      });
     }
   }, [open, config]);
 
@@ -314,7 +324,9 @@ export function AddProductModal({
             >
               <option value={0}>0% (Exento)</option>
               {config?.ivaRate && config.ivaRate !== 0.05 && config.ivaRate !== 0.19 && (
-                <option value={config.ivaRate}>{(config.ivaRate * 100).toFixed(0)}% (Global)</option>
+                <option value={config.ivaRate}>
+                  {(config.ivaRate * 100).toFixed(0)}% (Global)
+                </option>
               )}
               <option value={0.05}>5%</option>
               <option value={0.19}>19%</option>

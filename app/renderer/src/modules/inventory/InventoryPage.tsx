@@ -40,7 +40,6 @@ export function InventoryPage(): JSX.Element {
   const [category, setCategory] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState<InventoryProduct | null>(null);
   const [showAddProduct, setShowAddProduct] = useState(false);
-  const [addingProduct, setAddingProduct] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +161,7 @@ export function InventoryPage(): JSX.Element {
   const handleUpdateProduct = async (
     id: number,
     data: {
+      name?: string;
       price?: number;
       expiryDate?: string | null;
       location?: string | null;
@@ -184,11 +184,20 @@ export function InventoryPage(): JSX.Element {
   };
 
   const handleDeleteProduct = async (id: number): Promise<void> => {
+    if (!window.confirm('¿Eliminar este producto?')) {
+      return;
+    }
     try {
       const response = await deleteProduct(id);
       if (response.success) {
         const updatedProducts = products.filter((p: InventoryProduct) => p.id !== id);
         setProducts(updatedProducts);
+        setSelectedProduct(null);
+        setShowAddProduct(false);
+        setTimeout(() => {
+          (document.activeElement as HTMLElement)?.blur();
+          document.body.focus();
+        }, 100);
       }
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -217,7 +226,7 @@ export function InventoryPage(): JSX.Element {
       return;
     }
     setError(null);
-    setAddingProduct(true);
+    setShowAddProduct(true);
     try {
       const response = await createProduct({
         ...data,
@@ -238,7 +247,7 @@ export function InventoryPage(): JSX.Element {
       const msg = 'Error desconocido';
       setError(msg);
     } finally {
-      setAddingProduct(false);
+      setShowAddProduct(false);
     }
   };
 
@@ -784,11 +793,7 @@ export function InventoryPage(): JSX.Element {
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
-                                if (window.confirm(`¿Eliminar producto "${product.name}"?`)) {
-                                  handleDeleteProduct(product.id);
-                                }
-                              }}
+                              onClick={() => handleDeleteProduct(product.id)}
                               className="tc-btn tc-btn--danger"
                               style={{ minHeight: '36px', padding: '0 8px' }}
                             >
@@ -830,10 +835,11 @@ export function InventoryPage(): JSX.Element {
         onUpdateProduct={handleUpdateProduct}
       />
 
-      {/* Add Product Modal */}
+      {/* Add Product Modal - key forces re-render to reset form */}
       <AddProductModal
+        key={showAddProduct ? 'add-modal-open' : 'add-modal-closed'}
         open={showAddProduct}
-        loading={addingProduct}
+        loading={submitting}
         error={error}
         onClose={() => {
           setShowAddProduct(false);

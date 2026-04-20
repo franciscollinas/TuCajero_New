@@ -36,8 +36,22 @@ function copyDirSync(src, dest) {
   }
 }
 
-const generatedClientSrc = path.join(projectRoot, 'app', 'main', 'repositories', 'generated-client');
-const generatedClientDest = path.join(projectRoot, 'dist', 'main', 'app', 'main', 'repositories', 'generated-client');
+const generatedClientSrc = path.join(
+  projectRoot,
+  'app',
+  'main',
+  'repositories',
+  'generated-client',
+);
+const generatedClientDest = path.join(
+  projectRoot,
+  'dist',
+  'main',
+  'app',
+  'main',
+  'repositories',
+  'generated-client',
+);
 console.log('[dev-electron] Copiando generated-client a dist...');
 copyDirSync(generatedClientSrc, generatedClientDest);
 console.log('[dev-electron] generated-client copiado correctamente.');

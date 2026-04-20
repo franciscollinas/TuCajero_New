@@ -62,32 +62,21 @@ export function InventoryBulkImportPage(): JSX.Element {
         const buffer = await file.arrayBuffer();
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(buffer);
-        const firstSheet = workbook.worksheets[0];
-        if (!firstSheet) {
-          throw new Error('El archivo no contiene hojas de cálculo.');
-        }
+        const ws = workbook.getWorksheet(1);
+        if (!ws) throw new Error('Sin hoja de cálculo');
 
-        const headerRow = firstSheet.getRow(1);
-        const headers = headerRow.values
-          .slice(1)
-          .map((header) => (header == null ? '' : String(header).trim()));
-
-        sourceRows = [];
-        firstSheet.eachRow((row, rowNumber) => {
-          if (rowNumber === 1) return;
-
-          const values = row.values.slice(1);
+        const rows: Record<string, unknown>[] = [];
+        ws.eachRow({ includeEmpty: false }, (row, num) => {
+          if (num === 1) return;
+          const vals = row.values as (string | number | Date | null)[];
           const obj: Record<string, unknown> = {};
-
-          headers.forEach((header, index) => {
-            if (!header) return;
-            const value = values[index];
-            obj[header] = value == null ? null : value;
+          const keys = (ws.getRow(1).values as (string | null)[]).slice(1);
+          keys.forEach((k, i) => {
+            if (k) obj[k] = vals[i + 1] ?? null;
           });
-
-          const hasAnyValue = Object.values(obj).some((value) => value !== null && value !== '');
-          if (hasAnyValue) sourceRows.push(obj);
+          if (Object.values(obj).some((v) => v != null)) rows.push(obj);
         });
+        sourceRows = rows;
       } else {
         throw new Error('Formato no soportado. Usa CSV, XLSX o XLS.');
       }

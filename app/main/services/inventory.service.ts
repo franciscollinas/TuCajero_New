@@ -607,17 +607,21 @@ export class InventoryService {
       }
     }
 
-    await auditService.log({
-      userId,
-      action: 'product:bulk-imported',
-      entity: 'Product',
-      payload: {
-        success: results.success,
-        created: results.created,
-        updated: results.updated,
-        errors: results.errors.length,
-      },
-    });
+    try {
+      await auditService.log({
+        userId,
+        action: 'product:bulk-imported',
+        entity: 'Product',
+        payload: {
+          success: results.success,
+          created: results.created,
+          updated: results.updated,
+          errors: results.errors.length,
+        },
+      });
+    } catch {
+      // Ignore audit errors
+    }
 
     return results;
   }
