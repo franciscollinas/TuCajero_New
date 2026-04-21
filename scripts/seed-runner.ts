@@ -1,21 +1,21 @@
 import { seedDatabase } from '../app/main/repositories/seed.js';
-import { seedProducts } from '../app/main/repositories/seed-products.js';
 
-async function main() {
+async function main(): Promise<void> {
+  // eslint-disable-next-line no-console
   console.log('🌱 Running database seed...\n');
 
+  // eslint-disable-next-line no-console
   console.log('1️⃣ Seeding base data (admin user, categories)...');
   await seedDatabase();
+  // eslint-disable-next-line no-console
   console.log('✅ Base data seeded.\n');
 
-  console.log('2️⃣ Seeding products...');
-  await seedProducts();
-  console.log('✅ Products seeded.\n');
-
+  // eslint-disable-next-line no-console
   console.log('🎉 Database seed complete!');
 }
 
 main().catch((err) => {
+  // eslint-disable-next-line no-console
   console.error('❌ Seed failed:', err);
   process.exit(1);
 });
