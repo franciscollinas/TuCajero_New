@@ -18,6 +18,7 @@ import type {
   AuditSummary,
 } from '../../renderer/src/shared/types/reports.types';
 import type { WorkerInput, WorkerOutput } from '../workers/report.worker';
+import type { MonthlySalesData } from '../../renderer/src/shared/types/reports.types';
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
 import { assertRoleAccess } from '../utils/prisma-helpers';
@@ -59,11 +60,12 @@ export class ReportsService {
     end: Date;
     normalized: ReportDateRange;
   } {
-    const start = startOfDay(new Date(input.startDate));
-    const end = endOfDay(new Date(input.endDate));
+    // Interpretar fechas como zona local del servidor (POS)
+    const start = new Date(input.startDate + 'T00:00:00');
+    const end = new Date(input.endDate + 'T23:59:59.999');
 
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      throw new AppError(ErrorCode.VALIDATION, 'El rango de fechas no es vÃ¡lido.');
+      throw new AppError(ErrorCode.VALIDATION, 'El rango de fechas no es válido.');
     }
 
     if (start.getTime() > end.getTime()) {
@@ -77,8 +79,8 @@ export class ReportsService {
       start,
       end,
       normalized: {
-        startDate: toIsoDate(start),
-        endDate: toIsoDate(end),
+        startDate: input.startDate,
+        endDate: input.endDate,
       },
     };
   }
@@ -93,15 +95,7 @@ export class ReportsService {
       },
       include: {
         payments: true,
-        items: {
-          include: {
-            product: {
-              select: {
-                cost: true,
-              },
-            },
-          },
-        },
+        items: true,
         user: {
           select: {
             fullName: true,
@@ -138,20 +132,11 @@ export class ReportsService {
           label,
           value: Number(value) as number,
         })),
-        items: sale.items.map((item: any) => ({
-          productId: item.productId,
-          quantity: Number(item.quantity),
-          unitPrice: Number(item.unitPrice),
-          cost: item.product?.cost ? Number(item.product.cost) : 0,
-        })),
       };
     });
   }
 
-  private buildSalesSummary(
-    sales: SalesReportRow[],
-    previousSales?: SalesReportRow[],
-  ): ReportsSummary {
+  private buildSalesSummary(sales: SalesReportRow[]): ReportsSummary {
     const completed = sales.filter((sale) => sale.status === 'COMPLETED' && !sale.isCredit);
     const paymentsByMethod = completed.reduce<Record<string, number>>((acc, sale) => {
       sale.payments.forEach((payment) => {
@@ -163,26 +148,6 @@ export class ReportsService {
     const grossRevenue = completed.reduce((sum, sale) => sum + sale.subtotal + sale.tax, 0);
     const totalDiscount = completed.reduce((sum, sale) => sum + sale.discount, 0);
     const netRevenue = completed.reduce((sum, sale) => sum + sale.total, 0);
-
-    const estimatedProfit = completed.reduce((sum, sale) => {
-      const revenue = sale.items.reduce(
-        (itemSum, item) => itemSum + item.unitPrice * item.quantity,
-        0,
-      );
-      const cost = sale.items.reduce((itemSum, item) => itemSum + item.cost * item.quantity, 0);
-      return sum + revenue - cost;
-    }, 0);
-
-    const profitMargin = netRevenue > 0 ? (estimatedProfit / netRevenue) * 100 : 0;
-
-    const previousCompleted = previousSales?.filter(
-      (sale) => sale.status === 'COMPLETED' && !sale.isCredit,
-    );
-    const previousNetRevenue = previousCompleted?.reduce((sum, sale) => sum + sale.total, 0) ?? 0;
-    const previousAvgTicket =
-      previousCompleted && previousCompleted.length > 0
-        ? previousNetRevenue / previousCompleted.length
-        : 0;
 
     return {
       totalSales: sales.length,
@@ -197,11 +162,6 @@ export class ReportsService {
         label,
         value,
       })),
-      estimatedProfit,
-      profitMargin,
-      previousPeriodSales: previousCompleted?.length ?? 0,
-      previousPeriodRevenue: previousNetRevenue,
-      previousPeriodAvgTicket: previousAvgTicket,
     };
   }
 
@@ -250,21 +210,7 @@ export class ReportsService {
     }));
   }
 
-  private static readonly NO_ROTATION_DAYS = 90;
-
-  private async loadInventory(sales: SalesReportRow[]): Promise<{
-    inventory: InventoryReportRow[];
-    noRotationProducts: Array<{
-      id: number;
-      code: string;
-      name: string;
-      categoryName: string;
-      stock: number;
-      cost: number;
-      stockValue: number;
-      daysWithoutSale: number;
-    }>;
-  }> {
+  private async loadInventory(): Promise<InventoryReportRow[]> {
     const products = await prisma.product.findMany({
       where: {
         isActive: true,
@@ -281,7 +227,7 @@ export class ReportsService {
       },
     });
 
-    const inventory = products.map((product) => ({
+    return products.map((product) => ({
       id: product.id,
       code: product.code,
       barcode: product.barcode,
@@ -297,39 +243,9 @@ export class ReportsService {
       location: product.location,
       status: this.toInventoryStatus(product),
     }));
-
-    const productIdsWithSales = new Set<number>();
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - ReportsService.NO_ROTATION_DAYS);
-    const minSaleDate = ninetyDaysAgo.toISOString();
-
-    const soldProductIds = sales
-      .filter((sale) => sale.createdAt >= minSaleDate)
-      .flatMap((sale) => sale.items.map((item) => item.productId));
-    soldProductIds.forEach((id) => productIdsWithSales.add(id));
-
-    const noRotationProducts = products
-      .filter((product) => product.stock > 0 && !productIdsWithSales.has(product.id))
-      .map((product) => ({
-        id: product.id,
-        code: product.code,
-        name: product.name,
-        categoryName: product.category.name,
-        stock: product.stock,
-        cost: Number(product.cost),
-        stockValue: product.stock * Number(product.cost),
-        daysWithoutSale: ReportsService.NO_ROTATION_DAYS,
-      }))
-      .sort((a, b) => b.stockValue - a.stockValue)
-      .slice(0, 50);
-
-    return { inventory, noRotationProducts };
   }
 
-  private buildInventorySummary(
-    inventory: InventoryReportRow[],
-    noRotationProducts: Array<{ stockValue: number }>,
-  ): InventorySummary {
+  private buildInventorySummary(inventory: InventoryReportRow[]): InventorySummary {
     return {
       totalProducts: inventory.length,
       totalUnits: inventory.reduce((sum, item) => sum + item.stock, 0),
@@ -338,8 +254,6 @@ export class ReportsService {
       criticalStockCount: inventory.filter((item) => item.status === 'critical').length,
       expiredCount: inventory.filter((item) => item.status === 'expired').length,
       expiringCount: inventory.filter((item) => item.status === 'expiring').length,
-      noRotationCount: noRotationProducts.length,
-      noRotationValue: noRotationProducts.reduce((sum, item) => sum + item.stockValue, 0),
     };
   }
 
@@ -408,36 +322,77 @@ export class ReportsService {
     await this.assertReportsAccess(actorUserId);
     const { start, end, normalized } = this.resolveRange(range);
 
-    const [sales, cashSessions, auditLogs] = await Promise.all([
+    const [sales, cashSessions, inventory, auditLogs] = await Promise.all([
       this.loadSales(start, end),
       this.loadCashSessions(start, end),
+      this.loadInventory(),
       this.loadAuditLogs(start, end),
     ]);
-
-    const periodLengthMs = end.getTime() - start.getTime();
-    const prevEnd = new Date(start.getTime() - 1);
-    const prevStart = new Date(prevEnd.getTime() - periodLengthMs);
-
-    const previousSales = await this.loadSales(prevStart, prevEnd);
-
-    const inventoryResult = await this.loadInventory(sales);
-    const { inventory, noRotationProducts } = inventoryResult;
 
     const expiringProducts = inventory.filter(
       (item) => item.status === 'expired' || item.status === 'expiring',
     );
 
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+    const [currentMonthData, previousMonthData] = await Promise.all([
+      this.loadMonthlySales(currentMonthStart, now),
+      this.loadMonthlySales(previousMonthStart, previousMonthEnd),
+    ]);
+
     return {
       range: normalized,
-      salesSummary: this.buildSalesSummary(sales, previousSales),
+      salesSummary: this.buildSalesSummary(sales),
       sales,
       cashSessions,
-      inventorySummary: this.buildInventorySummary(inventory, noRotationProducts),
+      inventorySummary: this.buildInventorySummary(inventory),
       inventory,
       expiringProducts,
-      noRotationProducts,
       auditSummary: this.buildAuditSummary(auditLogs),
       auditLogs,
+      monthlyComparison: {
+        current: currentMonthData,
+        previous: previousMonthData,
+      },
+    };
+  }
+
+  private async loadMonthlySales(start: Date, end: Date): Promise<MonthlySalesData> {
+    const sales = await prisma.sale.findMany({
+      where: {
+        createdAt: { gte: start, lte: end },
+        status: 'COMPLETED',
+      },
+      select: {
+        createdAt: true,
+        total: true,
+        debt: true,
+      },
+    });
+
+    const monthLabel = start.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+
+    const dailyMap = new Map<number, number>();
+    sales
+      .filter((sale) => !sale.debt)
+      .forEach((sale) => {
+        const day = sale.createdAt.getDate();
+        dailyMap.set(day, (dailyMap.get(day) ?? 0) + Number(sale.total));
+      });
+
+    const total = Array.from(dailyMap.values()).reduce((sum, v) => sum + v, 0);
+    const dailySales = Array.from({ length: end.getDate() }, (_, i) => ({
+      day: i + 1,
+      total: dailyMap.get(i + 1) ?? 0,
+    }));
+
+    return {
+      month: monthLabel,
+      total,
+      dailySales,
     };
   }
 

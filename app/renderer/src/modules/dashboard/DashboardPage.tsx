@@ -160,6 +160,7 @@ export function DashboardPage(): JSX.Element {
   const [cashSession, setCashSession] = useState<CashRegister | null>(null);
   const [cashLoading, setCashLoading] = useState(false);
   const [initialCashInput, setInitialCashInput] = useState('');
+  const [debugMode, setDebugMode] = useState(false);
 
   const initials = user
     ? user.fullName
@@ -201,11 +202,17 @@ export function DashboardPage(): JSX.Element {
     const loadSummary = async (): Promise<void> => {
       try {
         const response = await getDashboardSummary();
-        if (!cancelled && response.success) {
-          setSummary(response.data);
+        if (!cancelled) {
+          if (response.success) {
+            setSummary(response.data);
+          } else {
+            console.error('Failed to load dashboard summary:', response.error);
+          }
         }
-      } catch {
-        // Silent fail - dashboard will show loading or empty
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Error loading dashboard summary:', err);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -251,6 +258,22 @@ export function DashboardPage(): JSX.Element {
     }
   };
 
+  const handleReloadSummary = async (): Promise<void> => {
+    setLoading(true);
+    try {
+      const response = await getDashboardSummary();
+      if (response.success) {
+        setSummary(response.data);
+      } else {
+        console.error('Failed to reload summary:', response.error);
+      }
+    } catch (err) {
+      console.error('Error reloading summary:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleCashSession = (): void => {
     if (cashSession) {
       handleCloseCash();
@@ -264,6 +287,73 @@ export function DashboardPage(): JSX.Element {
 
   return (
     <div className="animate-fadeIn">
+      {/* Debug Toggle & Panel */}
+      {debugMode && (
+        <>
+          <button
+            onClick={() => setDebugMode(false)}
+            style={{
+              position: 'fixed',
+              top: '10px',
+              right: '10px',
+              zIndex: 9999,
+              padding: '8px 12px',
+              background: '#111',
+              color: '#0f0',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '12px',
+              cursor: 'pointer',
+            }}
+          >
+            debug OFF
+          </button>
+          <pre
+            style={{
+              position: 'fixed',
+              top: '40px',
+              right: '10px',
+              zIndex: 9999,
+              background: '#111',
+              color: '#0f0',
+              padding: '12px',
+              borderRadius: '8px',
+              fontSize: '11px',
+              maxHeight: '50vh',
+              overflow: 'auto',
+              border: '1px solid #333',
+              maxWidth: '400px',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-all',
+            }}
+          >
+            {JSON.stringify({ summary, loading, todayTotal, todayCount }, null, 2)}
+          </pre>
+        </>
+      )}
+      {!debugMode && (
+        <button
+          onClick={() => setDebugMode(true)}
+          style={{
+            position: 'fixed',
+            top: '10px',
+            right: '10px',
+            zIndex: 9999,
+            padding: '4px 8px',
+            background: '#eee',
+            color: '#333',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            fontSize: '10px',
+            cursor: 'pointer',
+            opacity: 0.3,
+          }}
+          title="Mostrar debug"
+        >
+          🐛
+        </button>
+      )}
+
       {/* Welcome Header */}
       <div
         style={{

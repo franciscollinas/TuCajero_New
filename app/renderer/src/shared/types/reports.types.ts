@@ -26,12 +26,6 @@ export interface SalesReportRow {
   total: number;
   isCredit: boolean;
   payments: ReportMetric[];
-  items: Array<{
-    productId: number;
-    quantity: number;
-    unitPrice: number;
-    cost: number;
-  }>;
 }
 
 export interface CashSessionReportRow {
@@ -76,11 +70,6 @@ export interface ReportsSummary {
   totalDiscount: number;
   averageTicket: number;
   paymentsByMethod: ReportMetric[];
-  estimatedProfit: number;
-  profitMargin: number;
-  previousPeriodSales: number;
-  previousPeriodRevenue: number;
-  previousPeriodAvgTicket: number;
 }
 
 export interface InventorySummary {
@@ -91,8 +80,6 @@ export interface InventorySummary {
   criticalStockCount: number;
   expiredCount: number;
   expiringCount: number;
-  noRotationCount: number;
-  noRotationValue: number;
 }
 
 export interface AuditSummary {
@@ -100,15 +87,10 @@ export interface AuditSummary {
   topActions: ReportMetric[];
 }
 
-export interface NoRotationProduct {
-  id: number;
-  code: string;
-  name: string;
-  categoryName: string;
-  stock: number;
-  cost: number;
-  stockValue: number;
-  daysWithoutSale: number;
+export interface MonthlySalesData {
+  month: string;
+  total: number;
+  dailySales: { day: number; total: number }[];
 }
 
 export interface ReportsDashboardData {
@@ -119,9 +101,12 @@ export interface ReportsDashboardData {
   inventorySummary: InventorySummary;
   inventory: InventoryReportRow[];
   expiringProducts: InventoryReportRow[];
-  noRotationProducts: NoRotationProduct[];
   auditSummary: AuditSummary;
   auditLogs: AuditLogEntry[];
+  monthlyComparison: {
+    current: MonthlySalesData;
+    previous: MonthlySalesData;
+  };
 }
 
 export interface ReportExportResult {

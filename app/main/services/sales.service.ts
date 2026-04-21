@@ -530,20 +530,21 @@ export class SalesService {
   async getDashboardSummary(): Promise<DashboardSummary> {
     const now = new Date();
 
-    // Build "today" range using local timezone components to avoid UTC drift
+    // Build "today" range using server's LOCAL timezone.
+    // POS systems run in local time; DB stores UTC but comparison works because
+    // we compare Date objects (timestamps) directly.
     const year = now.getFullYear();
     const month = now.getMonth();
     const day = now.getDate();
-    const today = new Date(year, month, day, 0, 0, 0, 0);
-    const endOfToday = new Date(year, month, day, 23, 59, 59, 999);
-
+    const todayStart = new Date(year, month, day, 0, 0, 0, 0);
+    const todayEnd = new Date(year, month, day, 23, 59, 59, 999);
     const startOf7Days = new Date(year, month, day - 6, 0, 0, 0, 0);
 
     // Run basic metrics in parallel to eliminate sequential bottlenecks
     const [todaySales, allRecentSales, categoryGroups, recent] = await Promise.all([
       prisma.sale.aggregate({
         where: {
-          createdAt: { gte: today, lte: endOfToday },
+          createdAt: { gte: todayStart, lte: todayEnd },
           status: 'COMPLETED',
         },
         _sum: { total: true },

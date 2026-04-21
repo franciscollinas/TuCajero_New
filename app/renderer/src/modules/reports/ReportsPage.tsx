@@ -49,7 +49,11 @@ const PIE_COLORS = [
 ];
 
 function toInputDate(value: Date): string {
-  return value.toISOString().slice(0, 10);
+  // Formato YYYY-MM-DD en zona horaria local (no UTC)
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function buildDefaultRange(): ReportDateRange {
@@ -431,21 +435,16 @@ interface TooltipPayload {
 interface CustomTooltipProps {
   active?: boolean;
   payload?: TooltipPayload[];
+  children?: React.ReactNode;
 }
 
 function CustomBarTooltip({ active, payload }: CustomTooltipProps): JSX.Element | null {
   if (active && payload && payload.length) {
-    const data = payload[0].payload;
+    const data = payload[0].payload as { day: number; current: number; previous: number };
+    const current = Number(data?.current ?? 0);
+    const previous = Number(data?.previous ?? 0);
     return (
-      <div
-        style={{
-          background: '#fff',
-          padding: 'var(--space-3)',
-          borderRadius: 'var(--radius-lg)',
-          boxShadow: 'var(--shadow-md)',
-          border: '1px solid var(--border-light)',
-        }}
-      >
+      <>
         <p
           style={{
             fontWeight: 600,
@@ -454,12 +453,15 @@ function CustomBarTooltip({ active, payload }: CustomTooltipProps): JSX.Element 
             fontSize: 'var(--text-sm)',
           }}
         >
-          {String(data?.day ?? data?.name ?? '')}
+          Dia {data?.day}
         </p>
         <p style={{ color: COLORS.blue, fontWeight: 700, fontSize: 'var(--text-sm)' }}>
-          {formatCurrency(payload[0].value ?? 0)}
+          Actual: {formatCurrency(current)}
         </p>
-      </div>
+        <p style={{ color: COLORS.orange, fontWeight: 700, fontSize: 'var(--text-sm)' }}>
+          Anterior: {formatCurrency(previous)}
+        </p>
+      </>
     );
   }
   return null;
@@ -632,30 +634,18 @@ export function ReportsPage(): JSX.Element {
     ];
   }, [data]);
 
-  // Prepare data for BarChart (sales by day)
+  // Prepare data for BarChart (sales by day) - comparing current vs previous month
   const salesByDayData = useMemo(() => {
-    if (!data || data.sales.length === 0) return [];
+    if (!data || !data.monthlyComparison) return [];
 
-    const dayMap = new Map<string, { date: Date; total: number }>();
-    data.sales
-      .filter((sale) => !sale.isCredit)
-      .forEach((sale) => {
-        const date = new Date(sale.createdAt);
-        const dayKey = date.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' });
-        const existing = dayMap.get(dayKey);
-        if (existing) {
-          existing.total += sale.total;
-        } else {
-          dayMap.set(dayKey, { date, total: sale.total });
-        }
-      });
+    const { current, previous } = data.monthlyComparison;
+    const maxDays = Math.max(current.dailySales.length, previous.dailySales.length);
 
-    const sortedData = Array.from(dayMap.entries())
-      .slice(0, 7)
-      .map(([day, data]) => ({ day, total: data.total, sortDate: data.date.getTime() }))
-      .sort((a, b) => a.sortDate - b.sortDate);
-
-    return sortedData;
+    return Array.from({ length: maxDays }, (_, i) => ({
+      day: i + 1,
+      current: current.dailySales[i]?.total ?? 0,
+      previous: previous.dailySales[i]?.total ?? 0,
+    }));
   }, [data]);
 
   // Prepare data for PieChart (payment methods)
@@ -885,14 +875,12 @@ export function ReportsPage(): JSX.Element {
                 }}
               >
                 <IconChart style={{ color: COLORS.blue }} />
-                <h3 className="tc-chart-title">Ventas por dia</h3>
+                <h3 className="tc-chart-title">Comparacion Mensual</h3>
               </div>
-              <p className="tc-chart-subtitle">
-                Distribucion de ingresos en el periodo seleccionado
-              </p>
+              <p className="tc-chart-subtitle">Mes actual vs mes anterior</p>
               {salesByDayData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={salesByDayData}>
+                  <BarChart data={salesByDayData} barGap={4}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--gray-100)" />
                     <XAxis
                       dataKey="day"
@@ -908,11 +896,20 @@ export function ReportsPage(): JSX.Element {
                     />
                     <Tooltip content={<CustomBarTooltip />} />
                     <Bar
-                      dataKey="total"
+                      dataKey="current"
+                      name="Mes Actual"
                       fill="url(#blueGradient)"
-                      radius={[6, 6, 0, 0]}
-                      maxBarSize={50}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={40}
                     />
+                    <Bar
+                      dataKey="previous"
+                      name="Mes Anterior"
+                      fill={COLORS.orange}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={40}
+                    />
+                    <Legend />
                     <defs>
                       <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={COLORS.blue} />
