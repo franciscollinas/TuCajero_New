@@ -83,7 +83,11 @@ function mapProduct(product: {
     name: product.name,
     description: product.description,
     categoryId: product.categoryId,
-    category: product.category,
+    category: {
+      id: product.category.id,
+      name: product.category.name,
+      color: product.category.color,
+    },
     price: Number(product.price),
     cost: Number(product.cost),
     stock: product.stock,

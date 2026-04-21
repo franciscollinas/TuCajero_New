@@ -44,19 +44,12 @@ export function registerInventoryIpc(): void {
       },
     ): Promise<ApiResponse<Product[]>> => {
       try {
-        // Only cache if no search/filter to avoid stale results
-        const cacheKey =
-          options?.search || options?.categoryId
-            ? null
-            : `inventory:all:${options?.page || 1}:${options?.pageSize || 'all'}:${options?.orderBySales ? 'top' : 'alpha'}`;
+        const result = await inventoryService.getAllProducts(options);
 
-        const result = cacheKey
-          ? await cache.getOrSet(cacheKey, CACHE_TTL.INVENTORY, () =>
-              inventoryService.getAllProducts(options),
-            )
-          : await inventoryService.getAllProducts(options);
+        // Safety serialization in case any objects slip through
+        const serialized = JSON.parse(JSON.stringify(result));
 
-        return { success: true, data: result };
+        return { success: true, data: serialized };
       } catch (err) {
         return { success: false, error: toApiError(err) };
       }

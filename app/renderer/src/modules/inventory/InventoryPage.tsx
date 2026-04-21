@@ -12,7 +12,6 @@ import { useAuth } from '../../shared/context/AuthContext';
 import { es } from '../../shared/i18n';
 import type { InventoryProduct } from '../../shared/types/inventory.types';
 import { useInventoryStore } from '../../shared/store/inventory.store';
-import { InventoryAlerts } from './InventoryAlerts';
 import { StockAdjustModal } from './StockAdjustModal';
 import { AddProductModal } from './AddProductModal';
 import {
@@ -25,8 +24,6 @@ import {
 } from './inventory.utils';
 
 type InventoryFilter = 'all' | 'critical' | 'warning' | 'ok' | 'expired';
-
-const COVERAGE_DAYS = 30;
 
 export function InventoryPage(): JSX.Element {
   const navigate = useNavigate();
@@ -43,7 +40,39 @@ export function InventoryPage(): JSX.Element {
   const [syncing, setSyncing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const canManage = user?.role !== 'CASHIER';
+
+  // Global focus recovery - prevents focus traps
+  useEffect(() => {
+    let recoveryTimeout: ReturnType<typeof setTimeout>;
+
+    const handleFocusRecovery = (): void => {
+      clearTimeout(recoveryTimeout);
+      recoveryTimeout = setTimeout(() => {
+        const active = document.activeElement;
+        // If focus is on something that's not a typical focusable element, recover it
+        if (!active || active === document.body || active === document.documentElement) {
+          const firstInput = document.querySelector<HTMLElement>(
+            'input:not([type="hidden"]), select, textarea, button',
+          );
+          if (firstInput) {
+            firstInput.focus();
+          }
+        }
+      }, 50);
+    };
+
+    // Listen for focus events
+    document.addEventListener('focusin', handleFocusRecovery);
+    document.addEventListener('focusout', handleFocusRecovery);
+
+    return (): void => {
+      document.removeEventListener('focusin', handleFocusRecovery);
+      document.removeEventListener('focusout', handleFocusRecovery);
+      clearTimeout(recoveryTimeout);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -184,25 +213,51 @@ export function InventoryPage(): JSX.Element {
   };
 
   const handleDeleteProduct = async (id: number): Promise<void> => {
-    if (!window.confirm('¿Eliminar este producto?')) {
-      return;
-    }
+    // Use custom confirmation instead of window.confirm to avoid focus issues
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = async (): Promise<void> => {
+    const id = deleteConfirmId;
+    if (id === null) return;
+
+    // Close confirmation first
+    setDeleteConfirmId(null);
+
     try {
       const response = await deleteProduct(id);
       if (response.success) {
-        const updatedProducts = products.filter((p: InventoryProduct) => p.id !== id);
-        setProducts(updatedProducts);
+        // Close any open modals
         setSelectedProduct(null);
         setShowAddProduct(false);
+        setError(null);
+
+        // Update the product list
+        const updatedProducts = products.filter((p: InventoryProduct) => p.id !== id);
+        setProducts(updatedProducts);
+
+        // Force focus recovery
         setTimeout(() => {
-          (document.activeElement as HTMLElement)?.blur();
-          document.body.focus();
-        }, 100);
+          const btn = document.querySelector<HTMLButtonElement>('.tc-btn-primary');
+          if (btn) {
+            btn.focus();
+          } else {
+            document.body.focus();
+          }
+        }, 50);
       }
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Error deleting product:', err);
     }
+  };
+
+  const cancelDelete = (): void => {
+    setDeleteConfirmId(null);
+    // Recover focus after closing modal
+    setTimeout(() => {
+      document.body.focus();
+    }, 50);
   };
 
   const handleAddProduct = async (data: {
@@ -571,12 +626,6 @@ export function InventoryPage(): JSX.Element {
                   <th>{es.inventory.name}</th>
                   <th>{es.inventory.category}</th>
                   <th style={{ textAlign: 'center' }}>{es.inventory.stock}</th>
-                  <th
-                    style={{ textAlign: 'center' }}
-                    title="Dias que dura el stock al ritmo de ventas de los ultimos 30 dias"
-                  >
-                    COBERTURA
-                  </th>
                   <th style={{ textAlign: 'center' }}>{es.inventory.minStock}</th>
                   <th>{es.inventory.expiryDate}</th>
                   <th style={{ textAlign: 'right' }}>{es.inventory.price}</th>
@@ -673,36 +722,6 @@ export function InventoryPage(): JSX.Element {
                         >
                           {product.stock}
                         </td>
-                        <td style={{ textAlign: 'center' }}>
-                          {(() => {
-                            const salesLast30Days = product.salesLast30Days ?? 0;
-                            const stock = product.stock;
-                            if (salesLast30Days === 0) {
-                              return (
-                                <span
-                                  className="tc-badge tc-badge--neutral"
-                                  style={{ padding: '6px 12px' }}
-                                >
-                                  Sin rotación
-                                </span>
-                              );
-                            }
-                            const dailySales = salesLast30Days / COVERAGE_DAYS;
-                            const coverage =
-                              dailySales > 0 ? Math.round(stock / dailySales) : Infinity;
-                            const coverageClass =
-                              coverage >= 15 && coverage <= 60
-                                ? 'tc-badge tc-badge--success'
-                                : coverage > 60
-                                  ? 'tc-badge tc-badge--warning'
-                                  : 'tc-badge tc-badge--danger';
-                            return (
-                              <span className={coverageClass} style={{ padding: '6px 12px' }}>
-                                {coverage === Infinity ? '∞' : `${coverage}d`}
-                              </span>
-                            );
-                          })()}
-                        </td>
                         <td style={{ textAlign: 'center', color: 'var(--gray-600)' }}>
                           {product.minStock}
                         </td>
@@ -738,32 +757,34 @@ export function InventoryPage(): JSX.Element {
                           {formatCurrency(product.price)}
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          {(() => {
-                            const cost = product.cost ?? 0;
-                            const price = product.price ?? 0;
-                            if (cost === 0 || price === 0) {
+                          {
+                            /* eslint-disable @typescript-eslint/explicit-function-return-type */ (() => {
+                              const cost = product.cost ?? 0;
+                              const price = product.price ?? 0;
+                              if (cost === 0 || price === 0) {
+                                return (
+                                  <span
+                                    className="tc-badge tc-badge--neutral"
+                                    style={{ padding: '6px 12px' }}
+                                  >
+                                    sin costo
+                                  </span>
+                                );
+                              }
+                              const margin = ((price - cost) / price) * 100;
+                              const marginClass =
+                                margin >= 25
+                                  ? 'tc-badge tc-badge--success'
+                                  : margin >= 10
+                                    ? 'tc-badge tc-badge--warning'
+                                    : 'tc-badge tc-badge--danger';
                               return (
-                                <span
-                                  className="tc-badge tc-badge--neutral"
-                                  style={{ padding: '6px 12px' }}
-                                >
-                                  sin costo
+                                <span className={marginClass} style={{ padding: '6px 12px' }}>
+                                  {margin.toFixed(1)}%
                                 </span>
                               );
-                            }
-                            const margin = ((price - cost) / price) * 100;
-                            const marginClass =
-                              margin >= 25
-                                ? 'tc-badge tc-badge--success'
-                                : margin >= 10
-                                  ? 'tc-badge tc-badge--warning'
-                                  : 'tc-badge tc-badge--danger';
-                            return (
-                              <span className={marginClass} style={{ padding: '6px 12px' }}>
-                                {margin.toFixed(1)}%
-                              </span>
-                            );
-                          })()}
+                            })()
+                          }
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <span className={badgeClass} style={{ padding: '6px 12px' }}>
@@ -819,9 +840,6 @@ export function InventoryPage(): JSX.Element {
             </table>
           </div>
         </div>
-
-        {/* Alerts Sidebar */}
-        <InventoryAlerts products={products} compact={false} showActions={false} />
       </div>
 
       {/* Stock Adjust Modal */}
@@ -847,6 +865,68 @@ export function InventoryPage(): JSX.Element {
         }}
         onSubmit={handleAddProduct}
       />
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId !== null && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={cancelDelete}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '90%',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 12px', fontSize: '18px' }}>Confirmar eliminación</h3>
+            <p style={{ margin: '0 0 24px', color: '#666' }}>
+              ¿Está seguro de que desea eliminar este producto?
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={cancelDelete}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: '1px solid #ddd',
+                  background: 'white',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                autoFocus
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#dc2626',
+                  color: 'white',
+                  cursor: 'pointer',
+                }}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -16,7 +16,9 @@ import {
   Banknote,
   Tag,
   Timer,
+  Download,
 } from 'lucide-react';
+import ExcelJS from 'exceljs';
 
 import {
   closeCashRegister,
@@ -36,7 +38,7 @@ export function CashRegisterPage(): JSX.Element {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeCash, setActiveCash] = useState<CashRegister | null>(null);
-  const [summary, setSummary] = useState<any>(null);
+  const [summary, setSummary] = useState<CashCloseSummary | null>(null);
   const [todayTotal, setTodayTotal] = useState(0);
   const [monthTotal, setMonthTotal] = useState(0);
   const [initialCash, setInitialCash] = useState('');
@@ -71,6 +73,7 @@ export function CashRegisterPage(): JSX.Element {
           if (monthResp.success) setMonthTotal(monthResp.data);
         }
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error(error);
       }
     };
@@ -96,6 +99,75 @@ export function CashRegisterPage(): JSX.Element {
       setClosuresError(err instanceof Error ? err.message : es.errors.unknown);
     } finally {
       setClosuresLoading(false);
+    }
+  };
+
+  const handleExportExcel = async (): Promise<void> => {
+    if (closures.length === 0) return;
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'MPointOfSale';
+      workbook.created = new Date();
+
+      const ws = workbook.addWorksheet('Cierres de Caja');
+
+      ws.columns = [
+        { header: 'Fecha', key: 'fecha', width: 12 },
+        { header: 'Hora', key: 'hora', width: 10 },
+        { header: 'Usuario', key: 'usuario', width: 20 },
+        { header: 'Base', key: 'base', width: 14 },
+        { header: 'Esperado', key: 'esperado', width: 14 },
+        { header: 'Contado', key: 'conteo', width: 14 },
+        { header: 'Diferencia', key: 'diferencia', width: 14 },
+        { header: 'Ventas del Día', key: 'ventasDia', width: 14 },
+        { header: 'Acumulado Mes', key: 'acumulado', width: 16 },
+      ];
+
+      const now = new Date();
+
+      const acumulado = monthTotal;
+      const sortedClosures = [...closures].sort(
+        (a, b) => new Date(a.closedAt).getTime() - new Date(b.closedAt).getTime(),
+      );
+
+      sortedClosures.forEach((c) => {
+        const closedDate = new Date(c.closedAt);
+        const ventasDia = Number(c.finalCash || 0) - Number(c.initialCash);
+        ws.addRow({
+          fecha: closedDate.toLocaleDateString('es-CO'),
+          hora: closedDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+          usuario: c.user?.fullName || c.user?.username || 'N/A',
+          base: Number(c.initialCash),
+          esperado: Number(c.expectedCash),
+          conteo: Number(c.finalCash),
+          diferencia: Number(c.difference),
+          ventasDia,
+          acumulado,
+        });
+      });
+
+      ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      ws.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF1F2937' },
+      };
+      ws.getRow(1).alignment = { horizontal: 'center' };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cierres_caja_${now.toISOString().split('T')[0]}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Export error:', err);
     }
   };
 
@@ -457,14 +529,16 @@ export function CashRegisterPage(): JSX.Element {
                 }}
               >
                 <Timer size={12} />
-                {(() => {
-                  const opened = new Date(activeCash.openedAt).getTime();
-                  const now = Date.now();
-                  const diff = Math.floor((now - opened) / 60000);
-                  const hours = Math.floor(diff / 60);
-                  const mins = diff % 60;
-                  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-                })()}
+                {
+                  /* eslint-disable @typescript-eslint/explicit-function-return-type */ (() => {
+                    const opened = new Date(activeCash.openedAt).getTime();
+                    const now = Date.now();
+                    const diff = Math.floor((now - opened) / 60000);
+                    const hours = Math.floor(diff / 60);
+                    const mins = diff % 60;
+                    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+                  })()
+                }
               </div>
             </div>
           </div>
@@ -862,17 +936,31 @@ export function CashRegisterPage(): JSX.Element {
               >
                 Cargar más
               </button>
+              <button
+                type="button"
+                onClick={() => void handleExportExcel()}
+                className="tc-btn tc-btn--secondary"
+                disabled={closuresLoading || closures.length === 0}
+                title="Exportar a Excel"
+              >
+                <Download size={16} style={{ marginRight: '4px' }} />
+                Excel
+              </button>
             </div>
           </div>
 
           {closuresError ? (
             <div className="tc-notice tc-notice--error">{closuresError}</div>
           ) : closuresLoading && closures.length === 0 ? (
-            <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--gray-500)' }}>
+            <div
+              style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--gray-500)' }}
+            >
               {es.common.loading}
             </div>
           ) : closures.length === 0 ? (
-            <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--gray-500)' }}>
+            <div
+              style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--gray-500)' }}
+            >
               Aún no hay cierres de caja registrados.
             </div>
           ) : (
@@ -903,14 +991,31 @@ export function CashRegisterPage(): JSX.Element {
                               year: 'numeric',
                             })}
                           </div>
-                          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-400)', marginTop: 2 }}>
-                            {closedDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                          <div
+                            style={{
+                              fontSize: 'var(--text-xs)',
+                              color: 'var(--gray-400)',
+                              marginTop: 2,
+                            }}
+                          >
+                            {closedDate.toLocaleTimeString('es-CO', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
                           </div>
                         </td>
 
                         <td>
-                          <div style={{ fontWeight: 700, color: 'var(--gray-900)' }}>{c.user.fullName}</div>
-                          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-400)', marginTop: 2 }}>
+                          <div style={{ fontWeight: 700, color: 'var(--gray-900)' }}>
+                            {c.user.fullName}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 'var(--text-xs)',
+                              color: 'var(--gray-400)',
+                              marginTop: 2,
+                            }}
+                          >
                             {c.user.username} &middot; {c.user.role}
                           </div>
                         </td>
@@ -921,16 +1026,26 @@ export function CashRegisterPage(): JSX.Element {
                         <td style={{ whiteSpace: 'nowrap', fontWeight: 700 }}>
                           {c.expectedCash == null ? '—' : formatCurrency(c.expectedCash)}
                         </td>
-                        <td style={{ whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--gray-900)' }}>
+                        <td
+                          style={{
+                            whiteSpace: 'nowrap',
+                            fontWeight: 800,
+                            color: 'var(--gray-900)',
+                          }}
+                        >
                           {c.finalCash == null ? '—' : formatCurrency(c.finalCash)}
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}>
                           {diff == null ? (
                             <span className="tc-badge tc-badge--neutral">—</span>
                           ) : diff === 0 ? (
-                            <span className="tc-badge tc-badge--success">{formatSignedCurrency(diff)}</span>
+                            <span className="tc-badge tc-badge--success">
+                              {formatSignedCurrency(diff)}
+                            </span>
                           ) : (
-                            <span className="tc-badge tc-badge--danger">{formatSignedCurrency(diff)}</span>
+                            <span className="tc-badge tc-badge--danger">
+                              {formatSignedCurrency(diff)}
+                            </span>
                           )}
                         </td>
                       </tr>

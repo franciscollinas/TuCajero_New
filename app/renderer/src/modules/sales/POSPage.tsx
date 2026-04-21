@@ -156,6 +156,10 @@ export function POSPage(): JSX.Element {
   const [showCashInput, setShowCashInput] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
 
+  // MIXTO payment flow
+  const [mixtoStep, setMixtoStep] = useState<1 | 2 | null>(null);
+  const [mixtoCashAmount, setMixtoCashAmount] = useState<number>(0);
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error' | 'info'>('info');
@@ -339,6 +343,34 @@ export function POSPage(): JSX.Element {
     setShowPaymentMethods(false);
   };
 
+  // MIXTO Step 1: Validate cash amount entered
+  const confirmMixtoCash = (): void => {
+    if (mixtoCashAmount <= 0) {
+      setMessageType('error');
+      setMessage('Ingrese un monto mayor a $0');
+      return;
+    }
+    if (mixtoCashAmount >= total) {
+      setMessageType('error');
+      setMessage('Para pagar todo, use "Efectivo" directamente');
+      return;
+    }
+    setMixtoStep(2);
+  };
+
+  // MIXTO Step 2: Add second payment method
+  const addMixtoSecondPayment = (method: PaymentMethod): void => {
+    const finalPayments: PaymentInput[] = [
+      { method: 'efectivo', amount: mixtoCashAmount },
+      { method, amount: total - mixtoCashAmount },
+    ];
+    setMixtoStep(null);
+    setMixtoCashAmount(0);
+    setPayments(finalPayments);
+    setShowPaymentMethods(false);
+    void processCompleteSale(finalPayments, false);
+  };
+
   const confirmCashPayment = async (): Promise<void> => {
     if (!selectedMethod || cashReceived < remaining) {
       setMessageType('error');
@@ -347,20 +379,19 @@ export function POSPage(): JSX.Element {
     }
 
     const change = cashReceived - remaining;
-    setPayments((prev) => [...prev, { method: selectedMethod, amount: remaining }]);
+    const cashAmount = Math.min(cashReceived, remaining);
+    setPayments((prev) => [...prev, { method: selectedMethod, amount: cashAmount }]);
     setShowCashInput(false);
-    setShowPaymentMethods(false);
     setCashReceived(0);
     setSelectedMethod(null);
 
     if (change > 0) {
       setMessageType('success');
       setMessage(`Cambio a devolver: ${formatCurrency(change)}`);
+      setShowPaymentMethods(false);
+    } else {
+      setShowPaymentMethods(true);
     }
-
-    // Process sale with cash payment
-    const finalPayments = [...payments, { method: selectedMethod!, amount: remaining }];
-    await processCompleteSale(finalPayments, false);
   };
 
   const handleCompleteSale = async (): Promise<void> => {
@@ -447,11 +478,7 @@ export function POSPage(): JSX.Element {
 
       // Calculate total cash received from cash payments
       const cashPayment = finalPayments.find((p) => p.method === 'efectivo');
-      const actualCashReceived = cashPayment
-        ? cashReceived > 0
-          ? cashReceived
-          : cashPayment.amount
-        : 0;
+      const actualCashReceived = cashPayment ? cashPayment.amount : 0;
       const change = actualCashReceived > total ? actualCashReceived - total : 0;
 
       const response = await createSale(
@@ -1495,8 +1522,11 @@ export function POSPage(): JSX.Element {
                     </button>
                     <button
                       onClick={() => {
-                        addPayment('tarjeta');
-                        setShowPaymentMethods(false);
+                        if (cart.length > 0) {
+                          setMixtoStep(1);
+                          setMixtoCashAmount(0);
+                          setShowPaymentMethods(false);
+                        }
                       }}
                       disabled={cart.length === 0}
                       style={{
@@ -1732,6 +1762,241 @@ export function POSPage(): JSX.Element {
                       background: 'transparent',
                       border: '1px solid var(--gray-200)',
                       color: 'var(--gray-600)',
+                      fontWeight: 600,
+                      fontSize: 'var(--text-xs)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+
+              {/* MIXTO Step 1: Cash Amount Input */}
+              {mixtoStep === 1 && (
+                <div
+                  style={{
+                    padding: 'var(--space-4)',
+                    background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '2px solid #f59e0b',
+                    marginBottom: 'var(--space-3)',
+                    animation: 'slideDown 0.2s ease',
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 700,
+                      color: '#92400e',
+                      marginBottom: 'var(--space-3)',
+                      textAlign: 'center',
+                    }}
+                  >
+                    ¿Cuánto paga en efectivo?
+                  </p>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: 'var(--space-2)',
+                      padding: 'var(--space-2)',
+                      background: '#fff',
+                      borderRadius: 'var(--radius-md)',
+                    }}
+                  >
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-600)' }}>
+                      Total a pagar:
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 'var(--text-sm)',
+                        fontWeight: 700,
+                        color: 'var(--gray-800)',
+                      }}
+                    >
+                      {formatCurrency(total)}
+                    </span>
+                  </div>
+
+                  <input
+                    type="number"
+                    value={mixtoCashAmount || ''}
+                    onChange={(e) => setMixtoCashAmount(Math.max(0, Number(e.target.value)))}
+                    placeholder="Monto en efectivo"
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      padding: 'var(--space-3)',
+                      fontSize: 'var(--text-lg)',
+                      fontWeight: 700,
+                      textAlign: 'center',
+                      border: '2px solid #f59e0b',
+                      borderRadius: 'var(--radius-md)',
+                      marginBottom: 'var(--space-3)',
+                      outline: 'none',
+                    }}
+                  />
+
+                  <button
+                    onClick={confirmMixtoCash}
+                    disabled={mixtoCashAmount <= 0 || mixtoCashAmount >= total}
+                    style={{
+                      width: '100%',
+                      padding: 'var(--space-3)',
+                      borderRadius: 'var(--radius-md)',
+                      background:
+                        mixtoCashAmount > 0 && mixtoCashAmount < total
+                          ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                          : 'var(--gray-300)',
+                      border: 'none',
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: 'var(--text-sm)',
+                      cursor:
+                        mixtoCashAmount > 0 && mixtoCashAmount < total ? 'pointer' : 'not-allowed',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Confirmar monto en efectivo
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setMixtoStep(null);
+                      setMixtoCashAmount(0);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: 'var(--space-2)',
+                      marginTop: 'var(--space-2)',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'transparent',
+                      border: '1px solid #d97706',
+                      color: '#92400e',
+                      fontWeight: 600,
+                      fontSize: 'var(--text-xs)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+
+              {/* MIXTO Step 2: Select Second Payment Method */}
+              {mixtoStep === 2 && (
+                <div
+                  style={{
+                    padding: 'var(--space-4)',
+                    background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '2px solid #f59e0b',
+                    marginBottom: 'var(--space-3)',
+                    animation: 'slideDown 0.2s ease',
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 700,
+                      color: '#92400e',
+                      marginBottom: 'var(--space-3)',
+                      textAlign: 'center',
+                    }}
+                  >
+                    Efectivo: {formatCurrency(mixtoCashAmount)} — Seleccione segundo método
+                  </p>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: 'var(--space-3)',
+                      padding: 'var(--space-2)',
+                      background: '#fff',
+                      borderRadius: 'var(--radius-md)',
+                    }}
+                  >
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-600)' }}>
+                      Resta por pagar:
+                    </span>
+                    <span style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: '#dc2626' }}>
+                      {formatCurrency(total - mixtoCashAmount)}
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: 'var(--space-2)',
+                    }}
+                  >
+                    <button
+                      onClick={() => addMixtoSecondPayment('nequi')}
+                      style={{
+                        padding: 'var(--space-3)',
+                        borderRadius: 'var(--radius-md)',
+                        background: '#fff',
+                        border: '2px solid #9333ea',
+                        color: '#9333ea',
+                        fontWeight: 700,
+                        fontSize: 'var(--text-xs)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      NEQUI
+                    </button>
+                    <button
+                      onClick={() => addMixtoSecondPayment('daviplata')}
+                      style={{
+                        padding: 'var(--space-3)',
+                        borderRadius: 'var(--radius-md)',
+                        background: '#fff',
+                        border: '2px solid #dc2626',
+                        color: '#dc2626',
+                        fontWeight: 700,
+                        fontSize: 'var(--text-xs)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      DAVIPLATA
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => addMixtoSecondPayment('transferencia')}
+                    style={{
+                      width: '100%',
+                      padding: 'var(--space-3)',
+                      marginTop: 'var(--space-2)',
+                      borderRadius: 'var(--radius-md)',
+                      background: '#fff',
+                      border: '2px solid var(--brand-500)',
+                      color: 'var(--brand-600)',
+                      fontWeight: 700,
+                      fontSize: 'var(--text-xs)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    TRANSFERENCIA
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setMixtoStep(null);
+                      setMixtoCashAmount(0);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: 'var(--space-2)',
+                      marginTop: 'var(--space-2)',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'transparent',
+                      border: '1px solid #d97706',
+                      color: '#92400e',
                       fontWeight: 600,
                       fontSize: 'var(--text-xs)',
                       cursor: 'pointer',

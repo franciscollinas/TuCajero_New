@@ -85,7 +85,7 @@ function renderMetricList(metrics: ReportMetric[]): string {
 }
 
 // ===== Icon Components =====
-function IconSales(props: { className?: string; style?: React.CSSProperties }) {
+function IconSales(props: { className?: string; style?: React.CSSProperties }): JSX.Element {
   return (
     <svg
       width="24"
@@ -106,7 +106,7 @@ function IconSales(props: { className?: string; style?: React.CSSProperties }) {
   );
 }
 
-function IconRevenue(props: { className?: string; style?: React.CSSProperties }) {
+function IconRevenue(props: { className?: string; style?: React.CSSProperties }): JSX.Element {
   return (
     <svg
       width="24"
@@ -127,7 +127,7 @@ function IconRevenue(props: { className?: string; style?: React.CSSProperties })
   );
 }
 
-function IconInventory(props: { className?: string; style?: React.CSSProperties }) {
+function IconInventory(props: { className?: string; style?: React.CSSProperties }): JSX.Element {
   return (
     <svg
       width="24"
@@ -148,7 +148,7 @@ function IconInventory(props: { className?: string; style?: React.CSSProperties 
   );
 }
 
-function IconAudit(props: { className?: string; style?: React.CSSProperties }) {
+function IconAudit(props: { className?: string; style?: React.CSSProperties }): JSX.Element {
   return (
     <svg
       width="24"
@@ -169,7 +169,7 @@ function IconAudit(props: { className?: string; style?: React.CSSProperties }) {
   );
 }
 
-function IconProfit(props: { className?: string; style?: React.CSSProperties }) {
+function IconProfit(props: { className?: string; style?: React.CSSProperties }): JSX.Element {
   return (
     <svg
       width="24"
@@ -190,7 +190,7 @@ function IconProfit(props: { className?: string; style?: React.CSSProperties }) 
   );
 }
 
-function IconPercent(props: { className?: string; style?: React.CSSProperties }) {
+function IconPercent(props: { className?: string; style?: React.CSSProperties }): JSX.Element {
   return (
     <svg
       width="24"
@@ -211,7 +211,7 @@ function IconPercent(props: { className?: string; style?: React.CSSProperties })
   );
 }
 
-function IconReceipt(props: { className?: string; style?: React.CSSProperties }) {
+function IconReceipt(props: { className?: string; style?: React.CSSProperties }): JSX.Element {
   return (
     <svg
       width="24"
@@ -255,7 +255,7 @@ function ComparisonBadge({ current, previous }: ComparisonBadgeProps): JSX.Eleme
   );
 }
 
-function IconCalendar(props: { className?: string; style?: React.CSSProperties }) {
+function IconCalendar(props: { className?: string; style?: React.CSSProperties }): JSX.Element {
   return (
     <svg
       width="20"
@@ -276,7 +276,7 @@ function IconCalendar(props: { className?: string; style?: React.CSSProperties }
   );
 }
 
-function IconExport(props: { className?: string }) {
+function IconExport(props: { className?: string }): JSX.Element {
   return (
     <svg
       width="18"
@@ -297,7 +297,7 @@ function IconExport(props: { className?: string }) {
   );
 }
 
-function IconChart(props: { className?: string; style?: React.CSSProperties }) {
+function IconChart(props: { className?: string; style?: React.CSSProperties }): JSX.Element {
   return (
     <svg
       width="20"
@@ -318,7 +318,7 @@ function IconChart(props: { className?: string; style?: React.CSSProperties }) {
   );
 }
 
-function IconPieChart(props: { className?: string; style?: React.CSSProperties }) {
+function IconPieChart(props: { className?: string; style?: React.CSSProperties }): JSX.Element {
   return (
     <svg
       width="20"
@@ -339,7 +339,7 @@ function IconPieChart(props: { className?: string; style?: React.CSSProperties }
   );
 }
 
-function IconEmpty(props: { className?: string; style?: React.CSSProperties }) {
+function IconEmpty(props: { className?: string; style?: React.CSSProperties }): JSX.Element {
   return (
     <svg
       width="64"
@@ -360,7 +360,7 @@ function IconEmpty(props: { className?: string; style?: React.CSSProperties }) {
   );
 }
 
-function IconArrowLeft(props: { className?: string; style?: React.CSSProperties }) {
+function IconArrowLeft(props: { className?: string; style?: React.CSSProperties }): JSX.Element {
   return (
     <svg
       width="18"
@@ -632,30 +632,50 @@ export function ReportsPage(): JSX.Element {
     ];
   }, [data]);
 
-  // Prepare data for BarChart (sales by day)
+  // Prepare data for BarChart (monthly comparison: current vs previous month)
   const salesByDayData = useMemo(() => {
     if (!data || data.sales.length === 0) return [];
 
-    const dayMap = new Map<string, { date: Date; total: number }>();
+    // Get current month from endDate
+    const endDate = new Date(data.range.endDate);
+    const currentMonth = endDate.getMonth();
+    const currentYear = endDate.getFullYear();
+
+    // Calculate previous month
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    // Create maps for both months
+    const currentMonthMap = new Map<number, number>(); // day -> total
+    const prevMonthMap = new Map<number, number>();
+
     data.sales
       .filter((sale) => !sale.isCredit)
       .forEach((sale) => {
-        const date = new Date(sale.createdAt);
-        const dayKey = date.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' });
-        const existing = dayMap.get(dayKey);
-        if (existing) {
-          existing.total += sale.total;
-        } else {
-          dayMap.set(dayKey, { date, total: sale.total });
+        const saleDate = new Date(sale.createdAt);
+        const month = saleDate.getMonth();
+        const year = saleDate.getFullYear();
+        const day = saleDate.getDate();
+
+        if (month === currentMonth && year === currentYear) {
+          currentMonthMap.set(day, (currentMonthMap.get(day) || 0) + sale.total);
+        } else if (month === prevMonth && year === prevYear) {
+          prevMonthMap.set(day, (prevMonthMap.get(day) || 0) + sale.total);
         }
       });
 
-    const sortedData = Array.from(dayMap.entries())
-      .slice(0, 7)
-      .map(([day, data]) => ({ day, total: data.total, sortDate: data.date.getTime() }))
-      .sort((a, b) => a.sortDate - b.sortDate);
+    // Build array for all days of the current month
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const result = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      result.push({
+        day: day.toString(),
+        currentMonth: currentMonthMap.get(day) || 0,
+        previousMonth: prevMonthMap.get(day) || 0,
+      });
+    }
 
-    return sortedData;
+    return result;
   }, [data]);
 
   // Prepare data for PieChart (payment methods)
@@ -846,18 +866,64 @@ export function ReportsPage(): JSX.Element {
       {/* ===== Data Loaded ===== */}
       {!loading && data ? (
         <>
-          {/* ===== Metric Cards with Gradients & Icons ===== */}
-          <div className="tc-grid-4 animate-slideUp" style={{ marginBottom: 'var(--space-6)' }}>
-            {summaryCards.map((card, index) => (
+          {/* ===== Metric Cards: Row 1 (4 cards) ===== */}
+          <div
+            className="animate-slideUp"
+            style={{
+              marginBottom: 'var(--space-4)',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 'var(--space-4)',
+            }}
+          >
+            {summaryCards.slice(0, 4).map((card, index) => (
               <article
                 key={card.label}
                 className={`tc-metric-card tc-metric-card--${card.color}`}
-                style={{ animationDelay: `${index * 100}ms` }}
+                style={{ animationDelay: `${index * 100}ms`, minWidth: 0 }}
               >
                 <div className={`tc-metric-icon tc-metric-icon--${card.color}`}>{card.icon}</div>
                 <div className="tc-metric-content">
                   <p className="tc-metric-label">{card.label}</p>
-                  <p className="tc-metric-value">{card.value}</p>
+                  <p className="tc-metric-value" style={{ wordBreak: 'break-word', minWidth: 0 }}>
+                    {card.value}
+                  </p>
+                  {card.comparison && (
+                    <ComparisonBadge
+                      current={card.comparison.current}
+                      previous={card.comparison.previous}
+                    />
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+
+          {/* ===== Metric Cards: Row 2 (3 cards, centered) ===== */}
+          <div
+            className="animate-slideUp"
+            style={{
+              marginBottom: 'var(--space-6)',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 'var(--space-4)',
+              maxWidth: '75%',
+              marginLeft: 'auto',
+              marginRight: 'auto',
+            }}
+          >
+            {summaryCards.slice(4, 7).map((card, index) => (
+              <article
+                key={card.label}
+                className={`tc-metric-card tc-metric-card--${card.color}`}
+                style={{ animationDelay: `${(index + 4) * 100}ms`, minWidth: 0 }}
+              >
+                <div className={`tc-metric-icon tc-metric-icon--${card.color}`}>{card.icon}</div>
+                <div className="tc-metric-content">
+                  <p className="tc-metric-label">{card.label}</p>
+                  <p className="tc-metric-value" style={{ wordBreak: 'break-word', minWidth: 0 }}>
+                    {card.value}
+                  </p>
                   {card.comparison && (
                     <ComparisonBadge
                       current={card.comparison.current}
@@ -885,11 +951,23 @@ export function ReportsPage(): JSX.Element {
                 }}
               >
                 <IconChart style={{ color: COLORS.blue }} />
-                <h3 className="tc-chart-title">Ventas por dia</h3>
+                <h3 className="tc-chart-title">Ventas por día — mes actual vs mes anterior</h3>
               </div>
-              <p className="tc-chart-subtitle">
-                Distribucion de ingresos en el periodo seleccionado
-              </p>
+              <p className="tc-chart-subtitle">Comparación de ingresos diarios (días 1-31)</p>
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '8px', fontSize: '12px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span
+                    style={{ width: 12, height: 12, background: COLORS.orange, borderRadius: 2 }}
+                  />
+                  Mes actual
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span
+                    style={{ width: 12, height: 12, background: COLORS.blue, borderRadius: 2 }}
+                  />
+                  Mes anterior
+                </span>
+              </div>
               {salesByDayData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={salesByDayData}>
@@ -908,17 +986,19 @@ export function ReportsPage(): JSX.Element {
                     />
                     <Tooltip content={<CustomBarTooltip />} />
                     <Bar
-                      dataKey="total"
-                      fill="url(#blueGradient)"
-                      radius={[6, 6, 0, 0]}
-                      maxBarSize={50}
+                      dataKey="currentMonth"
+                      fill={COLORS.orange}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={20}
+                      name="Mes actual"
                     />
-                    <defs>
-                      <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={COLORS.blue} />
-                        <stop offset="100%" stopColor="#3641f5" />
-                      </linearGradient>
-                    </defs>
+                    <Bar
+                      dataKey="previousMonth"
+                      fill={COLORS.blue}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={20}
+                      name="Mes anterior"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
