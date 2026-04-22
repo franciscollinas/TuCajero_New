@@ -133,7 +133,7 @@ async function ensurePackagedDatabase(): Promise<void> {
 
   const dbPath = getDatabasePath();
   const hasValidFile = isValidSQLiteFile(dbPath);
-  if (hasValidFile && (await hasRequiredSchema(dbPath))) {
+  if (hasValidFile && (await hasRequiredSchema(dbPath)) && !(await hasUserData(dbPath))) {
     return;
   }
 
@@ -149,6 +149,27 @@ async function ensurePackagedDatabase(): Promise<void> {
   copyFileSync(templatePath, dbPath);
   // eslint-disable-next-line no-console
   console.log('Plantilla copiada con exito.');
+}
+
+async function hasUserData(dbPath: string): Promise<boolean> {
+  const originalUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = `file:${dbPath}`;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { PrismaClient } = require('./repositories/generated-client');
+    const prisma = new PrismaClient();
+
+    try {
+      const userCount = await prisma.user.count();
+      return userCount > 0;
+    } finally {
+      await prisma.$disconnect();
+    }
+  } catch {
+    return false;
+  } finally {
+    process.env.DATABASE_URL = originalUrl;
+  }
 }
 
 function registerIpcHandlers(): void {

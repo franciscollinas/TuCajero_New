@@ -91,7 +91,7 @@ export const AboutModal = memo(function AboutModal({
             }}
           >
             <img
-              src="/isotipo.png"
+              src="./isotipo.png"
               alt="TuCajero"
               style={{ width: 60, height: 60, objectFit: 'contain' }}
             />

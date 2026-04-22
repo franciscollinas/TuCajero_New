@@ -76,78 +76,169 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
   return (
     <div className="tc-modal-overlay animate-fadeIn">
       <div
-        className="tc-modal animate-scaleIn"
+        className="tc-modal tc-modal--lg animate-scaleIn"
         style={{
-          maxWidth: '900px',
-          width: '100%',
-          height: '85vh',
+          maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
         }}
       >
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-brand-50 text-brand-600 shadow-sm border border-brand-100">
+        <div className="tc-modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <div className="tc-modal-icon">
               <FileText size={26} />
             </div>
             <div>
               <h2 className="tc-modal-title">Historial de Compras</h2>
-              <p className="text-sm text-gray-500">
-                <span className="font-semibold text-gray-700">{customer?.fullName}</span> • Registro
-                cronológico de consumos
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--gray-500)' }}>
+                <span style={{ fontWeight: 600, color: 'var(--gray-700)' }}>
+                  {customer?.fullName}
+                </span>{' '}
+                • Registro cronológico de consumos
               </p>
             </div>
           </div>
           <button
-            className="tc-btn tc-btn--ghost min-h-0 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="tc-btn tc-btn--ghost"
+            style={{ minHeight: 0, padding: 'var(--space-2)', color: 'var(--gray-400)' }}
             onClick={onClose}
           >
             <X size={24} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+        <div className="tc-modal-content">
           {error && (
-            <div className="tc-notice tc-notice--error mb-6 flex items-center gap-2">
-              <X className="shrink-0" size={18} />
+            <div
+              className="tc-notice tc-notice--error"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                marginBottom: 'var(--space-6)',
+              }}
+            >
+              <X size={18} style={{ flexShrink: 0 }} />
               <span>{error}</span>
             </div>
           )}
 
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <div className="tc-spinner w-10 h-10 border-4"></div>
-              <p className="text-gray-500 animate-pulse font-medium">
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 'var(--space-20)',
+                gap: 'var(--space-4)',
+              }}
+            >
+              <div className="tc-spinner" style={{ width: 40, height: 40, borderWidth: 4 }} />
+              <p
+                style={{
+                  color: 'var(--gray-500)',
+                  fontWeight: 500,
+                  animation: 'pulse 2s infinite',
+                }}
+              >
                 Sincronizando transacciones...
               </p>
             </div>
           ) : sales.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4 border-2 border-dashed border-gray-200">
-                <Package size={40} className="text-gray-300" />
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 'var(--space-16)',
+                textAlign: 'center',
+              }}
+            >
+              <div
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 'var(--radius-full)',
+                  background: 'var(--gray-50)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 'var(--space-4)',
+                  border: '2px dashed var(--gray-200)',
+                }}
+              >
+                <Package size={40} style={{ color: 'var(--gray-300)' }} />
               </div>
-              <h3 className="text-lg font-bold text-gray-800">Sin historial registrado</h3>
-              <p className="text-gray-500 max-w-xs mx-auto">
+              <h3
+                style={{
+                  fontSize: 'var(--text-lg)',
+                  fontWeight: 700,
+                  color: 'var(--gray-800)',
+                  marginBottom: 'var(--space-2)',
+                }}
+              >
+                Sin historial registrado
+              </h3>
+              <p style={{ color: 'var(--gray-500)', maxWidth: 320 }}>
                 Este cliente aún no ha realizado compras en el sistema.
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               {sales.map((sale) => (
                 <div
                   key={sale.id}
-                  className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 group"
+                  style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: 'var(--radius-2xl)',
+                    padding: 'var(--space-5)',
+                    boxShadow: 'var(--shadow-xs)',
+                    transition: 'all 0.3s',
+                  }}
                 >
-                  <div className="flex justify-between items-start mb-5 pb-4 border-b border-gray-50">
-                    <div className="flex items-center gap-4">
-                      <div className="bg-gray-50 p-2.5 rounded-lg group-hover:bg-brand-50 transition-colors">
-                        <Calendar size={20} className="text-gray-400 group-hover:text-brand-500" />
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      marginBottom: 'var(--space-5)',
+                      paddingBottom: 'var(--space-4)',
+                      borderBottom: '1px solid var(--gray-50)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+                      <div
+                        style={{
+                          background: 'var(--gray-50)',
+                          padding: '10px',
+                          borderRadius: 'var(--radius-lg)',
+                        }}
+                      >
+                        <Calendar size={20} style={{ color: 'var(--gray-400)' }} />
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">
+                        <div
+                          style={{
+                            fontSize: 'var(--text-xs)',
+                            fontWeight: 700,
+                            color: 'var(--gray-400)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            marginBottom: 2,
+                          }}
+                        >
                           Fecha y Hora
                         </div>
-                        <div className="text-sm font-semibold text-gray-700">
+                        <div
+                          style={{
+                            fontSize: 'var(--text-sm)',
+                            fontWeight: 600,
+                            color: 'var(--gray-700)',
+                          }}
+                        >
                           {new Date(sale.createdAt).toLocaleString('es-CO', {
                             day: 'numeric',
                             month: 'short',
@@ -157,41 +248,132 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
                           })}
                         </div>
                       </div>
-                      <div className="h-10 w-px bg-gray-100 mx-1"></div>
+                      <div
+                        style={{
+                          width: 1,
+                          height: 40,
+                          background: 'var(--gray-100)',
+                          margin: '0 var(--space-1)',
+                        }}
+                      />
                       <div>
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">
+                        <div
+                          style={{
+                            fontSize: 'var(--text-xs)',
+                            fontWeight: 700,
+                            color: 'var(--gray-400)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            marginBottom: 2,
+                          }}
+                        >
                           Identificador
                         </div>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-50 text-brand-700">
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '2px 10px',
+                            borderRadius: 'var(--radius-full)',
+                            fontSize: 'var(--text-xs)',
+                            fontWeight: 700,
+                            background: 'var(--brand-50)',
+                            color: 'var(--brand-700)',
+                          }}
+                        >
                           #{sale.saleNumber || sale.id.toString().slice(-8).toUpperCase()}
                         </span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">
+                    <div style={{ textAlign: 'right' }}>
+                      <div
+                        style={{
+                          fontSize: 'var(--text-xs)',
+                          fontWeight: 700,
+                          color: 'var(--gray-400)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          marginBottom: 2,
+                        }}
+                      >
                         Monto Total
                       </div>
-                      <div className="text-xl font-bold text-success-600 tracking-tight">
+                      <div
+                        style={{
+                          fontSize: 'var(--text-xl)',
+                          fontWeight: 700,
+                          color: 'var(--success-600)',
+                          letterSpacing: '-0.02em',
+                        }}
+                      >
                         {formatCurrency(Number(sale.total))}
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                      gap: 'var(--space-6)',
+                    }}
+                  >
                     <div>
-                      <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <h4
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: 'var(--gray-400)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.1em',
+                          marginBottom: 'var(--space-3)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 'var(--space-2)',
+                        }}
+                      >
                         <Package size={14} /> Detalle de Artículos
                       </h4>
-                      <div className="space-y-2 bg-gray-50/50 rounded-xl p-3 border border-gray-50">
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 'var(--space-2)',
+                          background: 'rgba(244, 245, 247, 0.5)',
+                          borderRadius: 'var(--radius-xl)',
+                          padding: 'var(--space-3)',
+                          border: '1px solid var(--gray-50)',
+                        }}
+                      >
                         {sale.items.map((item, idx: number) => (
-                          <div key={idx} className="flex justify-between items-center text-sm">
-                            <span className="text-gray-600 font-medium">
-                              <span className="text-brand-600 font-bold mr-1">
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              fontSize: 'var(--text-sm)',
+                            }}
+                          >
+                            <span style={{ color: 'var(--gray-600)', fontWeight: 500 }}>
+                              <span
+                                style={{
+                                  color: 'var(--brand-600)',
+                                  fontWeight: 700,
+                                  marginRight: 4,
+                                }}
+                              >
                                 {item.quantity}x
                               </span>{' '}
                               {item.productName || item.product?.name}
                             </span>
-                            <span className="text-gray-900 font-bold tabular-nums">
+                            <span
+                              style={{
+                                color: 'var(--gray-900)',
+                                fontWeight: 700,
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
+                            >
                               {formatCurrency(Number(item.subtotal))}
                             </span>
                           </div>
@@ -199,21 +381,51 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div
+                      style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}
+                    >
                       {sale.payments && sale.payments.length > 0 && (
                         <div>
-                          <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                          <h4
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: 'var(--gray-400)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.1em',
+                              marginBottom: 'var(--space-3)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 'var(--space-2)',
+                            }}
+                          >
                             <DollarSign size={14} /> Distribución de Pago
                           </h4>
-                          <div className="flex flex-wrap gap-2">
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                             {sale.payments.map((p) => (
                               <div
                                 key={p.id}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold ${
-                                  p.method === 'credito'
-                                    ? 'bg-amber-50 border-amber-100 text-amber-700'
-                                    : 'bg-emerald-50 border-emerald-100 text-emerald-700'
-                                }`}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  padding: '6px 12px',
+                                  borderRadius: 'var(--radius-lg)',
+                                  border: '1px solid',
+                                  fontSize: 'var(--text-xs)',
+                                  fontWeight: 700,
+                                  ...(p.method === 'credito'
+                                    ? {
+                                        background: 'var(--warning-50)',
+                                        borderColor: 'var(--warning-100)',
+                                        color: 'var(--warning-700)',
+                                      }
+                                    : {
+                                        background: 'var(--success-50)',
+                                        borderColor: 'var(--success-100)',
+                                        color: 'var(--success-700)',
+                                      }),
+                                }}
                               >
                                 {p.method.charAt(0).toUpperCase() + p.method.slice(1)}:{' '}
                                 {formatCurrency(Number(p.amount))}
@@ -224,16 +436,45 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
                       )}
 
                       {sale.debt && (
-                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-start gap-3">
-                          <DollarSign className="text-amber-500 shrink-0 mt-0.5" size={18} />
+                        <div
+                          style={{
+                            background: 'var(--warning-50)',
+                            border: '1px solid var(--warning-100)',
+                            borderRadius: 'var(--radius-xl)',
+                            padding: 'var(--space-4)',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 'var(--space-3)',
+                          }}
+                        >
+                          <DollarSign
+                            style={{ color: 'var(--warning-500)', flexShrink: 0, marginTop: 2 }}
+                            size={18}
+                          />
                           <div>
-                            <div className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1">
+                            <div
+                              style={{
+                                fontSize: 'var(--text-xs)',
+                                fontWeight: 700,
+                                color: 'var(--warning-700)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                                marginBottom: 4,
+                              }}
+                            >
                               Saldo Pendiente
                             </div>
-                            <div className="text-sm text-amber-600 font-medium leading-tight">
+                            <div
+                              style={{
+                                fontSize: 'var(--text-sm)',
+                                color: 'var(--warning-600)',
+                                fontWeight: 500,
+                                lineHeight: 1.4,
+                              }}
+                            >
                               Se generó un crédito por {formatCurrency(Number(sale.debt.amount))}.
                               Saldo actual:{' '}
-                              <span className="font-bold">
+                              <span style={{ fontWeight: 700 }}>
                                 {formatCurrency(Number(sale.debt.balance))}
                               </span>
                             </div>
@@ -248,8 +489,15 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
           )}
         </div>
 
-        <div className="tc-modal-actions mt-8 pt-6 border-t border-gray-100">
-          <button className="tc-btn tc-btn--secondary w-full md:w-auto" onClick={onClose}>
+        <div
+          className="tc-modal-actions"
+          style={{
+            marginTop: 'var(--space-8)',
+            paddingTop: 'var(--space-6)',
+            borderTop: '1px solid var(--gray-100)',
+          }}
+        >
+          <button className="tc-btn tc-btn--secondary" style={{ width: '100%' }} onClick={onClose}>
             Finalizar Revisión
           </button>
         </div>

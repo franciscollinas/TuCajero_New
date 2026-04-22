@@ -4,6 +4,7 @@ directories:
   output: release
 files:
   - dist/**/*
+  - app/renderer/public/**/*
   - node_modules/**/*
   - package.json
   - from: app/main/repositories/generated-client

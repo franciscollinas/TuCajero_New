@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import bcrypt from 'bcryptjs';
 import path from 'path';
 
 async function main(): Promise<void> {
@@ -44,8 +45,25 @@ async function main(): Promise<void> {
     await prisma.config.deleteMany();
     await prisma.user.deleteMany();
 
+    // Create admin user
+    const adminPassword = await bcrypt.hash('admin123', 12);
+    await prisma.user.create({
+      data: {
+        username: 'admin',
+        password: adminPassword,
+        fullName: 'Administrador',
+        role: 'ADMIN',
+        active: true,
+        mustChangePassword: true,
+      },
+    });
+
     // eslint-disable-next-line no-console
-    console.log('Base de datos lista.');
+    console.log('Base de datos limpia. Usuario admin creado.');
+    // eslint-disable-next-line no-console
+    console.log('  Username: admin');
+    // eslint-disable-next-line no-console
+    console.log('  Password: admin123');
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Error preparando plantilla:', error);

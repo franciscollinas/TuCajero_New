@@ -33,11 +33,14 @@ import {
 } from '../../shared/api/cash.api';
 
 import { getDashboardSummary } from '../../shared/api/sales.api';
+import { getAlertSummary } from '../../shared/api/alert.api';
 import { formatCurrency } from '../../shared/utils/formatters';
 import { useAuth } from '../../shared/context/AuthContext';
 import { es } from '../../shared/i18n';
 import { useInventoryStore } from '../../shared/store/inventory.store';
 import type { DashboardSummary, SaleRecord } from '../../shared/types/sales.types';
+import type { CashRegister } from '../../shared/types/cash.types';
+import type { AlertSummary } from '../../shared/types/alert.types';
 
 const CHART_COLORS = ['#465fff', '#12b76a', '#f79009', '#f04438', '#7c3aed', '#06b6d4', '#667085'];
 
@@ -160,6 +163,7 @@ export function DashboardPage(): JSX.Element {
   const [cashSession, setCashSession] = useState<CashRegister | null>(null);
   const [cashLoading, setCashLoading] = useState(false);
   const [initialCashInput, setInitialCashInput] = useState('');
+  const [alertSummary, setAlertSummary] = useState<AlertSummary | null>(null);
 
   const initials = user
     ? user.fullName
@@ -211,6 +215,24 @@ export function DashboardPage(): JSX.Element {
       }
     };
     void loadSummary();
+    return (): void => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadAlerts = async (): Promise<void> => {
+      try {
+        const response = await getAlertSummary();
+        if (!cancelled && response.success) {
+          setAlertSummary(response.data);
+        }
+      } catch {
+        // Silent fail
+      }
+    };
+    void loadAlerts();
     return (): void => {
       cancelled = true;
     };
@@ -437,7 +459,7 @@ export function DashboardPage(): JSX.Element {
         </div>
 
         <div
-          className="tc-metric-card tc-metric-card--danger animate-slideUp"
+          className={`tc-metric-card tc-metric-card--danger animate-slideUp ${alertSummary && alertSummary.totalAlerts > 0 ? 'tc-metric-card--warning' : ''}`}
           style={{ animationDelay: '50ms' }}
         >
           <div className="tc-metric-icon tc-metric-icon--danger">
@@ -445,8 +467,12 @@ export function DashboardPage(): JSX.Element {
           </div>
           <div className="tc-metric-content">
             <p className="tc-metric-label">{es.dashboard.activeAlerts}</p>
-            <p className="tc-metric-value">0</p>
-            <p className="tc-metric-sub">Sin alertas activas</p>
+            <p className="tc-metric-value">{alertSummary?.totalAlerts ?? '...'}</p>
+            <p className="tc-metric-sub">
+              {alertSummary?.totalAlerts === 0 || !alertSummary
+                ? 'Sin alertas activas'
+                : `${alertSummary.stockCritical + alertSummary.stockLow} productos con stock bajo`}
+            </p>
           </div>
         </div>
 

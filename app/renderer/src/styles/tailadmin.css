@@ -1086,6 +1086,7 @@ body {
 
 .tc-modal {
   width: min(480px, 100%);
+  max-height: 90vh;
   border-radius: var(--radius-xl);
   background: #fff;
   padding: var(--space-6);
@@ -1093,6 +1094,15 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  overflow: hidden;
+}
+
+.tc-modal--lg {
+  width: min(900px, 95vw);
+}
+
+.tc-modal--xl {
+  width: min(1100px, 95vw);
 }
 
 .tc-modal-title {
@@ -1136,6 +1146,33 @@ body {
     --sidebar-width: 240px;
     --header-height: 60px;
   }
+}
+
+/* ===== Utility Classes for Modals ===== */
+.tc-modal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: var(--space-2);
+}
+
+.tc-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+}
+
+.tc-modal-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-xl);
+  background: var(--brand-50);
+  color: var(--brand-600);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--brand-100);
 }
 
 @media (max-width: 1024px) {
