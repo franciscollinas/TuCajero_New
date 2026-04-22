@@ -93,16 +93,12 @@ function configureDatabaseEnv(): void {
 }
 
 async function hasRequiredSchema(dbPath: string): Promise<boolean> {
+  const originalUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = `file:${dbPath}`;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { PrismaClient } = require('./repositories/generated-client');
-    const prisma = new PrismaClient({
-      datasources: {
-        db: {
-          url: `file:${dbPath}`,
-        },
-      },
-    });
+    const prisma = new PrismaClient();
 
     try {
       const rows = await prisma.$queryRaw<Array<{ name: string }>>`
@@ -118,6 +114,8 @@ async function hasRequiredSchema(dbPath: string): Promise<boolean> {
     }
   } catch {
     return false;
+  } finally {
+    process.env.DATABASE_URL = originalUrl;
   }
 }
 
