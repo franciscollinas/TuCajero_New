@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { printer, CharacterSet, PrinterTypes } from 'node-thermal-printer';
+import { ensureDir, getPrinterDir, getTempInvoicesDir } from '../utils/paths';
 
 export interface InvoiceData {
   invoiceNumber: string;
@@ -52,8 +53,20 @@ const DEFAULT_PRINTER_CONFIG: PrinterConfig = {
   characterSet: 'PC860_PORTUGUESE',
 };
 
+function getPrinterBaseDir(): string {
+  return getPrinterDir();
+}
+
+function ensurePrinterBaseDir(): string {
+  return ensureDir(getPrinterBaseDir());
+}
+
+function getPrinterConfigPath(): string {
+  return path.join(ensurePrinterBaseDir(), 'printer-config.json');
+}
+
 function loadPrinterConfig(): PrinterConfig {
-  const configPath = path.join(process.resourcesPath ?? process.cwd(), 'printer-config.json');
+  const configPath = getPrinterConfigPath();
   if (fs.existsSync(configPath)) {
     try {
       const raw = fs.readFileSync(configPath, 'utf8');
@@ -66,7 +79,7 @@ function loadPrinterConfig(): PrinterConfig {
 }
 
 function savePrinterConfig(config: PrinterConfig): void {
-  const configPath = path.join(process.resourcesPath ?? process.cwd(), 'printer-config.json');
+  const configPath = getPrinterConfigPath();
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
 }
 
@@ -115,10 +128,12 @@ export class PrinterService {
   private readonly invoiceDir: string;
 
   constructor() {
-    this.invoiceDir = path.join(process.resourcesPath ?? process.cwd(), 'tmp-invoices');
-    if (!fs.existsSync(this.invoiceDir)) {
-      fs.mkdirSync(this.invoiceDir, { recursive: true });
-    }
+    ensurePrinterBaseDir();
+    this.invoiceDir = ensureDir(getTempInvoicesDir());
+  }
+
+  getInvoiceDir(): string {
+    return this.invoiceDir;
   }
 
   generateInvoiceHTML(invoice: InvoiceData): string {
@@ -203,14 +218,18 @@ export class PrinterService {
     <div class="grand-total"><span>Total</span><span>${this.formatCurrency(invoice.total)}</span></div>
   </div>
 
-  ${invoice.payments.length > 0 ? `
+  ${
+    invoice.payments.length > 0
+      ? `
   <div style="margin-top:16px">
     <strong>Pagos:</strong>
     <table style="width:260px;margin-left:auto">
       ${paymentRows}
     </table>
     ${invoice.change !== undefined && invoice.change > 0 ? `<p style="text-align:right;margin-top:8px"><strong>Cambio:</strong> ${this.formatCurrency(invoice.change)}</p>` : ''}
-  </div>` : ''}
+  </div>`
+      : ''
+  }
 
   <div class="footer">
     <p>Gracias por su compra</p>
@@ -298,7 +317,8 @@ export class PrinterService {
     if (!config.connection) {
       return {
         success: false,
-        message: 'No hay una impresora térmica configurada. Configura la conexión en el panel de impresora.',
+        message:
+          'No hay una impresora térmica configurada. Configura la conexión en el panel de impresora.',
       };
     }
 
@@ -331,7 +351,9 @@ export class PrinterService {
       // Items
       for (const item of invoice.items) {
         thermalPrinter.println(item.name);
-        thermalPrinter.println(`  ${item.quantity} x ${this.formatCurrency(item.unitPrice)}  ${this.formatCurrency(item.total)}`);
+        thermalPrinter.println(
+          `  ${item.quantity} x ${this.formatCurrency(item.unitPrice)}  ${this.formatCurrency(item.total)}`,
+        );
       }
 
       thermalPrinter.drawLine();

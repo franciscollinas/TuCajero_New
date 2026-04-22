@@ -1,5 +1,3 @@
-import { app } from 'electron';
-import fs from 'fs';
 import path from 'path';
 import { Worker } from 'worker_threads';
 
@@ -20,6 +18,7 @@ import type {
 import type { WorkerInput, WorkerOutput } from '../workers/report.worker';
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
+import { ensureDir, getReportsDir } from '../utils/paths';
 import { assertRoleAccess } from '../utils/prisma-helpers';
 import { startOfDay, endOfDay, toFileDate, toIsoDate } from '../utils/date';
 import { AuditService } from './audit.service';
@@ -114,11 +113,14 @@ export class ReportsService {
       },
     });
 
-    return (sales as any[]).map((sale: any) => {
-      const paymentMap = sale.payments.reduce((acc, payment) => {
-        acc[payment.method] = (acc[payment.method] ?? 0) + Number(payment.amount);
-        return acc;
-      }, {});
+    return sales.map((sale) => {
+      const paymentMap = sale.payments.reduce(
+        (acc: Record<string, number>, payment) => {
+          acc[payment.method] = (acc[payment.method] ?? 0) + Number(payment.amount);
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
 
       const isCredit = !!sale.debt;
 
@@ -138,7 +140,7 @@ export class ReportsService {
           label,
           value: Number(value) as number,
         })),
-        items: sale.items.map((item: any) => ({
+        items: sale.items.map((item) => ({
           productId: item.productId,
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
@@ -442,9 +444,7 @@ export class ReportsService {
   }
 
   private ensureOutputDir(): string {
-    const reportsDir = path.join(app.getPath('downloads'), 'TuCajero-reportes');
-    fs.mkdirSync(reportsDir, { recursive: true });
-    return reportsDir;
+    return ensureDir(getReportsDir());
   }
 
   /**

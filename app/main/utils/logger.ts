@@ -1,17 +1,8 @@
-import { app } from 'electron';
-import { mkdirSync } from 'fs';
-import { join } from 'path';
 import winston from 'winston';
 
-const logBasePath =
-  typeof app?.getPath === 'function'
-    ? app.getPath('userData')
-    : process.env.APPDATA
-      ? join(process.env.APPDATA, 'tucajero')
-      : process.cwd();
-const logDir = join(logBasePath, 'logs');
+import { ensureDir, getLogsDir } from './paths';
 
-mkdirSync(logDir, { recursive: true });
+const logDir = ensureDir(getLogsDir());
 
 export const logger = winston.createLogger({
   level: 'info',
@@ -22,15 +13,12 @@ export const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.File({
-      filename: join(logDir, 'error.log'),
+      filename: `${logDir}/error.log`,
       level: 'error',
     }),
     new winston.transports.File({
-      filename: join(logDir, `app-${new Date().toISOString().split('T')[0]}.log`),
+      filename: `${logDir}/app-${new Date().toISOString().split('T')[0]}.log`,
       maxFiles: 30,
     }),
   ],
 });
-
-// Don't add console transport in dev to avoid EPIPE errors
-// It causes broken pipe when renderer closes

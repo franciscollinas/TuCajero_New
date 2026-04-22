@@ -49,10 +49,7 @@ export function registerSalesIpc(): void {
           saleNumber: result.saleNumber,
           userId,
         });
-        // Invalidate inventory cache so POS shows updated stock
-        Array.from(cache['store'].keys())
-          .filter((k) => k.startsWith('inventory:'))
-          .forEach((k) => cache.invalidate(k));
+        cache.invalidateByPrefix('inventory:');
         return { success: true, data: result };
       } catch (err) {
         logger.error('sales:create-error', { err, userId, cashSessionId });

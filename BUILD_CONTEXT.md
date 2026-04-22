@@ -1,93 +1,108 @@
-# Contexto del Proyecto TuCajero POS
+# BUILD_CONTEXT
 
-## Estado Actual
+## Estado del build
 
-- **Commit actual**: `d6809b4` - "arreglos finales OK"
-- **Rama**: main
-- **Último push**: a origin/main
+Estado actual validado en esta sesion:
 
-## Objetivo
+- `npm run build:electron` -> OK
+- `npm run clean:template` -> OK
+- `npm run dist` -> OK
 
-Generar el instalador (NSIS) para distribución en PCs de bajos recursos.
+Salida generada:
 
-## Problema Actual
+- `release\TuCajero Setup 1.0.0.exe`
+- `release\TuCajero 1.0.0.exe`
+- `release\win-unpacked\TuCajero.exe`
 
-El build falla con error:
+## Problema pendiente
 
-```
-Error: remove ...\dist\win-unpacked\resources\app.asar: El proceso no tiene acceso al archivo porque está siendo utilizado por otro proceso.
-```
+El paquete se construye correctamente, pero el ejecutable empaquetado:
 
-El archivo `app.asar` está bloqueado por un proceso de Electron.
+`release\win-unpacked\TuCajero.exe`
 
-## Cambios Realizados Recientemente
+sale rapidamente con `ExitCode 0`.
 
-### 1. electron-builder.config.js
+Eso significa que el problema pendiente ya no es:
 
-- Cambiado `output` de `release` a `release-build` (para evitar conflicto)
-- Configuración optimizada para PCs de bajos recursos:
-  - `compression: 'store'` (más rápido que 'maximum')
-  - `asar.unpackDir` para node_modules/sharp
-  - NSIS con `compression: 'lzma'`
-- Agregado icono desde `build/icon.ico`
+- falta de Prisma engine
+- falta de renderer empaquetado
+- falta de plantilla DB
 
-### 2. Limpieza de archivos
+Es mas probable:
 
-- Eliminada carpeta `tailadmin-free-tailwind-dashboard-template-main/` (~600KB)
-- Eliminados archivos no utilizados del build
+- cierre temprano del proceso Electron
+- problema de bootstrap
+- fallo de carga de ventana/renderer sin crash duro
 
-### 3. Migración V1
+## Confirmaciones tecnicas ya hechas
 
-- Agregada ruta de base de datos V1:
-  ```
-  C:\Users\UserMaster\Documents\Proyectos\TuCajeroPOS\tucajero\tucajero.db
-  ```
+### Dentro de `app.asar`
 
-### 4. UI/UX
+Existen:
 
-- AboutModal integrado en Layout.tsx
-- Botón de "Acerca de" junto al botón de logout
-- Favicon agregado (icon.ico + isotipo.png en public/)
-- index.html actualizado con ambos favicons
+- `\package.json`
+- `\dist\main\app\main\main.js`
+- `\dist\renderer\index.html`
+- `\database\tucajero.db`
 
-## Archivos Modificados
+### Dentro de `app.asar.unpacked`
 
-```
-app/main/services/backup.service.ts     - Agregada ruta V1
-app/renderer/index.html                - Favicon agregado
-app/renderer/src/shared/components/Layout.tsx - AboutModal integrado
-build/icon.ico                         - Creado desde isotipo.png
-electron-builder.config.js             - Optimizado para PCs de bajos recursos
-```
+Existe:
 
-## Comandos para Build
+- `query_engine-windows.dll.node`
 
-```bash
-# Build completo (frontend + electron + installer)
+## Cambios de build que no deben revertirse
+
+- [build/installer.nsh](/c:/Users/UserMaster/Documents/MPointOfSale/build/installer.nsh:1) ya no toca DB/config/logs dentro de `$INSTDIR`
+- [scripts/clean-template.ts](/c:/Users/UserMaster/Documents/MPointOfSale/scripts/clean-template.ts:1) ya no falla silenciosamente con tablas faltantes
+- [app/main/utils/paths.ts](/c:/Users/UserMaster/Documents/MPointOfSale/app/main/utils/paths.ts:1) centraliza rutas
+
+## Diagnostico ya preparado
+
+`main.ts` ahora escribe una traza muy temprana en:
+
+`%TEMP%\tucajero-boot.log`
+
+Ademas loggea:
+
+- init de DB
+- carga del renderer
+- `did-fail-load`
+- `render-process-gone`
+- `child-process-gone`
+- excepciones no atrapadas
+
+## Proximo paso exacto para quien continue
+
+1. Ejecutar:
+
+```powershell
 npm run dist
-
-# Solo build (sin installer)
-npm run build
-
-# Build solo renderer (React/Vite)
-npm run build:renderer
-
-# Build solo electron (TypeScript)
-npm run build:electron
 ```
 
-## Notas Importantes
+2. Lanzar:
 
-1. **Ejecutar `npm run dist` después de reiniciar** el PC para evitar el archivo bloqueado
-2. El build genera el instalador en `release-build/` (no en `release/`)
-3. El instalador NSIS pesará ~150MB (Electron runtime + app)
-4. Para PCs de bajos recursos, el código ya tiene optimizaciones:
-   - Lazy loading de chunks (PDF, Excel)
-   - Terser con drop_console y drop_debugger
-   - Code splitting por vendor
+```powershell
+release\win-unpacked\TuCajero.exe
+```
 
-## Pendiente
+3. Revisar:
 
-- [ ] Ejecutar build después de reiniciar PC
-- [ ] Verificar que el instalador se genera correctamente
-- [ ] Probar el exe en PC de bajos recursos
+```powershell
+Get-Content "$env:TEMP\tucajero-boot.log"
+```
+
+4. Si no existe esa traza:
+
+- investigar bootstrap antes del `main.js`
+
+5. Si existe:
+
+- seguir el ultimo evento y arreglar ese punto exacto
+
+## Incidente de sesion que NO se debe repetir
+
+Se sobrescribio accidentalmente el `package.json` raiz del repo al extraer `app.asar`.
+Ya fue restaurado.
+
+No extraer `app.asar` encima del workspace raiz.

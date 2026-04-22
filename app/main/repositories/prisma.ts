@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 import { app } from 'electron';
-import path from 'path';
+
+import { getDatabasePath, getPrismaEnginePath } from '../utils/paths';
 
 // eslint-disable-next-line no-var
 declare global {
@@ -9,33 +10,17 @@ declare global {
   var __tucajeroPrisma__: any | undefined;
 }
 
-// Usar require para poder importar dinámicamente según el entorno
 const getPrismaClient = (): any => {
-  let dbPath: string;
+  const dbPath = getDatabasePath();
 
   if (app.isPackaged) {
-    const appPath = app.getAppPath();
-    const unpackedPath = appPath.replace('app.asar', 'app.asar.unpacked');
-    const enginePath = path.join(
-      unpackedPath,
-      'dist',
-      'main',
-      'app',
-      'main',
-      'repositories',
-      'generated-client',
-      'query_engine-windows.dll.node',
-    );
-
+    const enginePath = getPrismaEnginePath();
     // eslint-disable-next-line no-console
     console.log('[Prisma] Engine path (packaged):', enginePath);
     process.env.PRISMA_QUERY_ENGINE_LIBRARY = enginePath;
-    dbPath = path.join(app.getPath('userData'), 'tucajero.db');
   } else {
     // eslint-disable-next-line no-console
     console.log('[Prisma] Running in development mode');
-    // En desarrollo, usar la base de datos en la carpeta database/
-    dbPath = path.join(process.cwd(), 'database', 'tucajero.db');
   }
 
   // eslint-disable-next-line no-console

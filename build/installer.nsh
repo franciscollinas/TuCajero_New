@@ -10,44 +10,22 @@
   ; Check minimum system requirements
   ; Minimum 2GB RAM recommended
   ; Minimum 500MB disk space
-  
+
   ; Check if TuCajero is already running
   FindWindow $0 "TuCajero POS" ""
   IntCmp $0 0 continue_install
-    MessageBox MB_OK|MB_ICONEXCLAMATION "TuCajero está en ejecución. Por favor, ciérrelo antes de continuar."
+    MessageBox MB_OK|MB_ICONEXCLAMATION "TuCajero esta en ejecucion. Por favor, cierrelo antes de continuar."
     Abort
   continue_install:
 !macroend
 
 !macro customInstall
-  ; Create database directory
-  CreateDirectory "$INSTDIR\database"
-  
-  ; Create config directory
-  CreateDirectory "$INSTDIR\config"
-  
-  ; Create logs directory
-  CreateDirectory "$INSTDIR\logs"
-  
-  ; Set environment file
-  IfFileExists "$INSTDIR\.env" env_exists create_env
-    create_env:
-    FileOpen $0 "$INSTDIR\.env" w
-    FileWrite $0 "DATABASE_URL=file:$INSTDIR\resources\app\database\tucajero.db$\r$\n"
-    FileClose $0
-  env_exists:
+  ; Runtime data now lives under Electron userData (AppData), not inside Program Files.
+  ; Do not create mutable data folders under $INSTDIR or override DATABASE_URL here.
 !macroend
 
 !macro customUnInstall
-  ; Ask if user wants to delete database
-  MessageBox MB_YESNO|MB_ICONQUESTION "¿Desea conservar la base de datos y configuraciones?" IDNO delete_data
-    ; Keep data
-    Goto end_uninstall
-  delete_data:
-    RMDir /r "$INSTDIR\database"
-    RMDir /r "$INSTDIR\config"
-    RMDir /r "$INSTDIR\logs"
-  end_uninstall:
+  ; Runtime data is stored outside $INSTDIR, so uninstall should not remove user data here.
 !macroend
 
 !macro customUnPageShow

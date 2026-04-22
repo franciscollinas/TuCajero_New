@@ -1,9 +1,9 @@
-import { app } from 'electron';
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
 
 import type { SaleRecord } from '../../renderer/src/shared/types/sales.types';
+import { getDownloadsDir } from '../utils/paths';
 import type { BusinessConfig } from './config.service';
 
 // ============================================================
@@ -35,9 +35,12 @@ function paymentMethodLabel(method: string): string {
 // GENERADOR DE FACTURA PDF
 // ============================================================
 
-export async function generateInvoicePDF(sale: SaleRecord, config?: BusinessConfig): Promise<string> {
+export async function generateInvoicePDF(
+  sale: SaleRecord,
+  config?: BusinessConfig,
+): Promise<string> {
   const fileName = `Factura_${sale.saleNumber}.pdf`;
-  const filePath = path.join(app.getPath('downloads'), fileName);
+  const filePath = path.join(getDownloadsDir(), fileName);
 
   // Calcular tasa de IVA efectiva desde los items
   const effectiveTaxRate = sale.subtotal > 0 ? sale.tax / sale.subtotal : 0;
@@ -83,18 +86,34 @@ export async function generateInvoicePDF(sale: SaleRecord, config?: BusinessConf
   const businessPhone = config?.phone || '';
   const businessNit = config?.nit || '';
 
-  doc.fillColor('#000000').fontSize(18).font('Helvetica-Bold').text(businessName.toUpperCase(), MARGIN, y, { align: 'center', width: CONTENT_W });
+  doc
+    .fillColor('#000000')
+    .fontSize(18)
+    .font('Helvetica-Bold')
+    .text(businessName.toUpperCase(), MARGIN, y, { align: 'center', width: CONTENT_W });
   y += 20;
   if (businessAddress) {
-    doc.fontSize(9).font('Helvetica').fillColor('#333333').text(businessAddress, MARGIN, y, { align: 'center', width: CONTENT_W });
+    doc
+      .fontSize(9)
+      .font('Helvetica')
+      .fillColor('#333333')
+      .text(businessAddress, MARGIN, y, { align: 'center', width: CONTENT_W });
     y += 14;
   }
   if (businessPhone) {
-    doc.fontSize(9).font('Helvetica').fillColor('#333333').text(`Tel: ${businessPhone}`, MARGIN, y, { align: 'center', width: CONTENT_W });
+    doc
+      .fontSize(9)
+      .font('Helvetica')
+      .fillColor('#333333')
+      .text(`Tel: ${businessPhone}`, MARGIN, y, { align: 'center', width: CONTENT_W });
     y += 14;
   }
   if (businessNit) {
-    doc.fontSize(9).font('Helvetica').fillColor('#333333').text(`NIT: ${businessNit}`, MARGIN, y, { align: 'center', width: CONTENT_W });
+    doc
+      .fontSize(9)
+      .font('Helvetica')
+      .fillColor('#333333')
+      .text(`NIT: ${businessNit}`, MARGIN, y, { align: 'center', width: CONTENT_W });
     y += 14;
   }
 
@@ -102,14 +121,25 @@ export async function generateInvoicePDF(sale: SaleRecord, config?: BusinessConf
   // 2. LINEA DE INFORMACION DE LA FACTURA
   // ============================================================
   y += 30;
-  const dateStr = new Date(sale.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const timeStr = new Date(sale.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
-  const methodsStr = sale.payments.map(p => paymentMethodLabel(p.method)).join(', ');
+  const dateStr = new Date(sale.createdAt).toLocaleDateString('es-CO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  const timeStr = new Date(sale.createdAt).toLocaleTimeString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const methodsStr = sale.payments.map((p) => paymentMethodLabel(p.method)).join(', ');
 
-  doc.fillColor('#000000').fontSize(10).font('Helvetica-Bold').text(
-    `${sale.saleNumber} - ${dateStr} ${timeStr} - Metodo: ${methodsStr}`,
-    MARGIN, y, { width: CONTENT_W }
-  );
+  doc
+    .fillColor('#000000')
+    .fontSize(10)
+    .font('Helvetica-Bold')
+    .text(`${sale.saleNumber} - ${dateStr} ${timeStr} - Metodo: ${methodsStr}`, MARGIN, y, {
+      width: CONTENT_W,
+    });
 
   // ============================================================
   // 3. LINEA SEPARADORA GRUESA
@@ -122,10 +152,15 @@ export async function generateInvoicePDF(sale: SaleRecord, config?: BusinessConf
   // ============================================================
   if (sale.customer) {
     y += 18;
-    doc.fillColor('#333333').fontSize(9).font('Helvetica').text(
-      `Cliente: ${sale.customer.name}${sale.customer.phone ? ' | Tel: ' + sale.customer.phone : ''}`,
-      MARGIN, y
-    );
+    doc
+      .fillColor('#333333')
+      .fontSize(9)
+      .font('Helvetica')
+      .text(
+        `Cliente: ${sale.customer.name}${sale.customer.phone ? ' | Tel: ' + sale.customer.phone : ''}`,
+        MARGIN,
+        y,
+      );
   }
 
   // ============================================================
@@ -153,8 +188,14 @@ export async function generateInvoicePDF(sale: SaleRecord, config?: BusinessConf
     doc.fillColor('#000000').fontSize(9).font('Helvetica');
     doc.text(item.product.name, COL_PROD_X, y + 5, { width: COL_PROD_W });
     doc.text(String(item.quantity), COL_QTY_X, y + 5, { width: COL_QTY_W, align: 'center' });
-    doc.text(formatCurrency(item.unitPrice), COL_PRICE_X, y + 5, { width: COL_PRICE_W, align: 'right' });
-    doc.text(formatCurrency(item.total), COL_TOTAL_X, y + 5, { width: COL_TOTAL_W, align: 'right' });
+    doc.text(formatCurrency(item.unitPrice), COL_PRICE_X, y + 5, {
+      width: COL_PRICE_W,
+      align: 'right',
+    });
+    doc.text(formatCurrency(item.total), COL_TOTAL_X, y + 5, {
+      width: COL_TOTAL_W,
+      align: 'right',
+    });
 
     y += 20;
   });
@@ -168,36 +209,97 @@ export async function generateInvoicePDF(sale: SaleRecord, config?: BusinessConf
   y += 15;
 
   // Subtotal
-  doc.fillColor('#333333').fontSize(9).font('Helvetica').text('Subtotal:', TOT_LABEL_LEFT, y, { width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT, align: 'right' });
-  doc.fillColor('#000000').fontSize(9).text(formatCurrency(sale.subtotal), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
+  doc
+    .fillColor('#333333')
+    .fontSize(9)
+    .font('Helvetica')
+    .text('Subtotal:', TOT_LABEL_LEFT, y, {
+      width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT,
+      align: 'right',
+    });
+  doc
+    .fillColor('#000000')
+    .fontSize(9)
+    .text(formatCurrency(sale.subtotal), TOT_VALUE_LEFT, y, {
+      width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT,
+      align: 'right',
+    });
 
   // IVA
   if (sale.tax > 0) {
     y += 16;
-    doc.fillColor('#333333').fontSize(9).font('Helvetica').text(`IVA (${taxRatePercent}%):`, TOT_LABEL_LEFT, y, { width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT, align: 'right' });
-    doc.fillColor('#000000').fontSize(9).text(formatCurrency(sale.tax), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
+    doc
+      .fillColor('#333333')
+      .fontSize(9)
+      .font('Helvetica')
+      .text(`IVA (${taxRatePercent}%):`, TOT_LABEL_LEFT, y, {
+        width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT,
+        align: 'right',
+      });
+    doc
+      .fillColor('#000000')
+      .fontSize(9)
+      .text(formatCurrency(sale.tax), TOT_VALUE_LEFT, y, {
+        width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT,
+        align: 'right',
+      });
   }
 
   // Descuento
   if (sale.discount > 0) {
     y += 16;
-    doc.fillColor('#333333').fontSize(9).font('Helvetica').text('Descuento:', TOT_LABEL_LEFT, y, { width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT, align: 'right' });
-    doc.fillColor('#e74c3c').fontSize(9).text('-' + formatCurrency(sale.discount), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
+    doc
+      .fillColor('#333333')
+      .fontSize(9)
+      .font('Helvetica')
+      .text('Descuento:', TOT_LABEL_LEFT, y, {
+        width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT,
+        align: 'right',
+      });
+    doc
+      .fillColor('#e74c3c')
+      .fontSize(9)
+      .text('-' + formatCurrency(sale.discount), TOT_VALUE_LEFT, y, {
+        width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT,
+        align: 'right',
+      });
   }
 
   // Delivery
   if (sale.deliveryFee > 0) {
     y += 16;
-    doc.fillColor('#333333').fontSize(9).font('Helvetica').text('Delivery:', TOT_LABEL_LEFT, y, { width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT, align: 'right' });
-    doc.fillColor('#000000').fontSize(9).text(formatCurrency(sale.deliveryFee), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
+    doc
+      .fillColor('#333333')
+      .fontSize(9)
+      .font('Helvetica')
+      .text('Delivery:', TOT_LABEL_LEFT, y, {
+        width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT,
+        align: 'right',
+      });
+    doc
+      .fillColor('#000000')
+      .fontSize(9)
+      .text(formatCurrency(sale.deliveryFee), TOT_VALUE_LEFT, y, {
+        width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT,
+        align: 'right',
+      });
   }
 
   // TOTAL (linea arriba y abajo)
   y += 16;
   doc.rect(MARGIN, y, CONTENT_W, 1).fill(DARK_HEADER);
   y += 10;
-  doc.fillColor('#000000').fontSize(11).font('Helvetica-Bold').text('TOTAL:', TOT_LABEL_LEFT, y, { width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT, align: 'right' });
-  doc.fontSize(12).text(formatCurrency(sale.total), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
+  doc
+    .fillColor('#000000')
+    .fontSize(11)
+    .font('Helvetica-Bold')
+    .text('TOTAL:', TOT_LABEL_LEFT, y, { width: TOT_LABEL_RIGHT - TOT_LABEL_LEFT, align: 'right' });
+  doc
+    .fontSize(12)
+    .text(formatCurrency(sale.total), TOT_VALUE_LEFT, y, {
+      width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT,
+      align: 'right',
+    });
   y += 18;
   doc.rect(MARGIN, y, CONTENT_W, 1).fill(DARK_HEADER);
 
@@ -206,11 +308,26 @@ export async function generateInvoicePDF(sale: SaleRecord, config?: BusinessConf
   // ============================================================
   if (sale.payments.length > 1) {
     y += 20;
-    doc.fillColor('#000000').fontSize(9).font('Helvetica-Bold').text('Detalle de pagos:', MARGIN, y);
+    doc
+      .fillColor('#000000')
+      .fontSize(9)
+      .font('Helvetica-Bold')
+      .text('Detalle de pagos:', MARGIN, y);
     y += 14;
     sale.payments.forEach((payment) => {
-      doc.fillColor('#333333').fontSize(9).font('Helvetica').text(paymentMethodLabel(payment.method) + ':', MARGIN, y);
-      doc.fillColor('#000000').fontSize(9).font('Helvetica-Bold').text(formatCurrency(payment.amount), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
+      doc
+        .fillColor('#333333')
+        .fontSize(9)
+        .font('Helvetica')
+        .text(paymentMethodLabel(payment.method) + ':', MARGIN, y);
+      doc
+        .fillColor('#000000')
+        .fontSize(9)
+        .font('Helvetica-Bold')
+        .text(formatCurrency(payment.amount), TOT_VALUE_LEFT, y, {
+          width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT,
+          align: 'right',
+        });
       y += 14;
     });
   }
@@ -221,10 +338,24 @@ export async function generateInvoicePDF(sale: SaleRecord, config?: BusinessConf
   if (cashReceived && change && change > 0) {
     y += 8;
     doc.fillColor('#333333').fontSize(9).font('Helvetica').text('Efectivo recibido:', MARGIN, y);
-    doc.fillColor('#000000').fontSize(9).font('Helvetica-Bold').text(formatCurrency(cashReceived), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
+    doc
+      .fillColor('#000000')
+      .fontSize(9)
+      .font('Helvetica-Bold')
+      .text(formatCurrency(cashReceived), TOT_VALUE_LEFT, y, {
+        width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT,
+        align: 'right',
+      });
     y += 14;
     doc.fillColor('#333333').fontSize(9).font('Helvetica').text('Cambio:', MARGIN, y);
-    doc.fillColor('#e74c3c').fontSize(10).font('Helvetica-Bold').text(formatCurrency(change), TOT_VALUE_LEFT, y, { width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT, align: 'right' });
+    doc
+      .fillColor('#e74c3c')
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .text(formatCurrency(change), TOT_VALUE_LEFT, y, {
+        width: TOT_VALUE_RIGHT - TOT_VALUE_LEFT,
+        align: 'right',
+      });
     y += 18;
   }
 
@@ -234,9 +365,20 @@ export async function generateInvoicePDF(sale: SaleRecord, config?: BusinessConf
   const footerY = PAGE_H - 60;
   doc.rect(MARGIN, footerY, CONTENT_W, 1).fill(DARK_HEADER);
   y = footerY + 18;
-  doc.fillColor('#27ae60').fontSize(10).font('Helvetica-Bold').text('Gracias por su compra!', MARGIN, y, { align: 'center', width: CONTENT_W });
+  doc
+    .fillColor('#27ae60')
+    .fontSize(10)
+    .font('Helvetica-Bold')
+    .text('Gracias por su compra!', MARGIN, y, { align: 'center', width: CONTENT_W });
   y += 14;
-  doc.fillColor('#666666').fontSize(7).font('Helvetica').text('Comprobante generado automaticamente por TuCajero POS', MARGIN, y, { align: 'center', width: CONTENT_W });
+  doc
+    .fillColor('#666666')
+    .fontSize(7)
+    .font('Helvetica')
+    .text('Comprobante generado automaticamente por TuCajero POS', MARGIN, y, {
+      align: 'center',
+      width: CONTENT_W,
+    });
 
   // Finalizar documento
   doc.end();

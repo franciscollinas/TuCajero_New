@@ -1,129 +1,189 @@
-# CONTEXTO_SESION — Backend Architecture & Data Integrity
+# CONTEXTO_SESION
 
-> **Última actualización:** 12 de abril de 2026
-> **Fase actual:** Phase 5-6 COMPLETADA — Correcciones aplicadas y verificadas
+> Ultima actualizacion: 21 de abril de 2026
+> Objetivo actual: estabilizar instalacion, runtime empaquetado y rutas de datos
 
----
+## 1. Estado real del proyecto
 
-## 1. Estado actual (post-correcciones)
+El problema principal ya no es la UI. El problema real ha sido la mezcla de:
 
-### ✅ CORREGIDO
-| # | Fallo | Archivo(s) | Fix aplicado |
-|---|---|---|---|
-| 1 | IVA hardcodeado 0.19 en `sales.service.ts` | `sales.service.ts` | Usa `configService.getIvaRate()` |
-| 2 | IVA hardcodeado 0.19 en `inventory.service.ts` | `inventory.service.ts` | Usa `configService.getIvaRate()` |
-| 3 | IVA hardcodeado 0.19 fallback en UI | `POSPage.tsx` | Usa `config?.ivaRate ?? 0.19` via `useConfig()` |
-| 4 | Texto "IVA (19%)" fijo en factura PDF | `invoice.service.ts` | Calcula `effectiveTaxRate` dinámico desde `sale.tax / sale.subtotal` |
-| 5 | No existía `ivaRate` en config | `config.service.ts`, `config.ipc.ts`, `config.types.ts` | Agregado `ivaRate`, `getIvaRate()`, IPC handler `config:getIvaRate` |
-| 6 | Schema: `stock` era `Int` | `schema.prisma` | `Product.stock` → `Float`, `StockMovement.quantity/previousStock/newStock` → `Float` |
-| 7 | Settings sin campo IVA | `SettingsPage.tsx` | Agregado input "Tasa IVA (%)" en formulario |
-| 8 | 31 errores TypeScript pre-existentes | 6 archivos del renderer | Imports limpiados, types corregidos, dead code eliminado |
-| 9 | **Sin protección contra fuerza bruta** | `auth.service.ts`, `auth.ipc.ts` | **Rate limiting DB-level + account lockout 5 intentos → bloqueo 15 min** |
-| 10 | Login sin tracking de intentos | `schema.prisma` | `User.failedLoginAttempts` + `User.lockedUntil` |
-| 11 | Factura con datos hardcodeados ("TU CAJERO") | `invoice.service.ts`, `sales.ipc.ts` | Usa `ConfigService.getConfig()` — muestra nombre, dirección, teléfono y NIT del negocio real |
+- rutas de desarrollo
+- rutas de instalacion
+- datos mutables escritos dentro de `Program Files` o `resources`
+- scripts de build que fallaban o escondian fallos
 
-### 🔒 Seguridad de Login — Implementada
-| Característica | Valor |
-|---|---|
-| Intentos máximos antes de bloqueo | **5** |
-| Duración del bloqueo | **15 minutos** |
-| Circuit breaker (en memoria, adicional) | **10 intentos en 10 min** |
-| Auto-reset en login exitoso | ✅ |
-| Auto-reset tras expirar bloqueo | ✅ |
-| Desbloqueo manual por admin | ✅ (`auth:unlockAccount`) |
-| Auditoría de bloqueos | ✅ (`auth:account-locked` log) |
-| Mensaje genérico de error | ✅ "Credenciales inválidas" (no enumera usuario) |
+La prioridad de esta fase fue dejar una sola logica coherente para:
 
-### 🟡 ERRORES DE TYPESCRIPT PRE-EXISTENTES (no introducidos por nosotros)
-~~- **POSPage.tsx**: 16 errores — tipos de `SalePayment` vs `PaymentInput`, imports no usados, comparación con `'mixto'`~~
-~~- **DashboardPage.tsx**: 6 errores — imports no usados, `SalePayment` no importado, `customer.fullName` no existe~~
-~~- **CustomersPage.tsx**: 2 errores — imports no usados (`Trash2`, `Mail`)~~
-~~- **UsersPage.tsx**: 2 errores — `statsLoading` no usado, tipo de `Tooltip formatter`~~
-~~- **AboutModal.tsx**: 4 errores — `Github` no existe en lucide-react, imports no usados~~
+- base de datos
+- licencia
+- impresora
+- backups
+- logs
+- reportes
+- instalador
 
-### ✅ BUILD STATUS
-- `tsc --noEmit --project tsconfig.main.json` → **0 errores**
-- `tsc --noEmit --project tsconfig.json` → **0 errores** (31 errores corregidos)
+## 2. Cambios ya aplicados y que NO se deben revertir
 
-### 🔴 PENDIENTE: Migración de BD
-~~El schema cambió (`Int` → `Float`). Se debe ejecutar:~~
-```bash
-✅ COMPLETADO: npx prisma migrate dev --name fix_float_stock
-✅ COMPLETADO: npx prisma generate
-✅ COMPLETADO: seed ejecutado — admin user + 100 productos en 12 categorías
+### Rutas centralizadas
+
+Se creo [app/main/utils/paths.ts](/c:/Users/UserMaster/Documents/MPointOfSale/app/main/utils/paths.ts:1).
+
+Ese archivo es ahora la fuente de verdad para:
+
+- `.env`
+- ruta de DB
+- plantilla de DB
+- engine path de Prisma
+- logs
+- backups
+- impresora
+- facturas temporales
+- licencia
+- downloads
+- reportes
+
+### Main process saneado
+
+Se reescribio [app/main/main.ts](/c:/Users/UserMaster/Documents/MPointOfSale/app/main/main.ts:1) para:
+
+- cargar `.env` desde un helper
+- fijar `DATABASE_URL` de forma coherente
+- validar DB empaquetada antes de iniciar
+- respaldar DB incompatible con sufijo `.bak`
+- copiar plantilla si la DB empaquetada no existe o tiene schema incompleto
+- agregar diagnostico de proceso principal
+
+### Prisma saneado
+
+Se reescribio [app/main/repositories/prisma.ts](/c:/Users/UserMaster/Documents/MPointOfSale/app/main/repositories/prisma.ts:1) para usar `paths.ts`.
+
+### Impresora corregida
+
+Se movio configuracion y temporales de impresora fuera de `Program Files`:
+
+- [app/main/services/printer.service.ts](/c:/Users/UserMaster/Documents/MPointOfSale/app/main/services/printer.service.ts:1)
+- [app/main/ipc/printer.ipc.ts](/c:/Users/UserMaster/Documents/MPointOfSale/app/main/ipc/printer.ipc.ts:1)
+
+### Backup corregido
+
+[app/main/services/backup.service.ts](/c:/Users/UserMaster/Documents/MPointOfSale/app/main/services/backup.service.ts:1) ya no usa rutas hardcodeadas del PC del desarrollador.
+
+### Instalador corregido
+
+[build/installer.nsh](/c:/Users/UserMaster/Documents/MPointOfSale/build/installer.nsh:1) ya NO:
+
+- crea carpetas mutables en `$INSTDIR`
+- escribe `.env`
+- fuerza `DATABASE_URL` hacia `resources\app\database`
+
+### Script de plantilla corregido
+
+[scripts/clean-template.ts](/c:/Users/UserMaster/Documents/MPointOfSale/scripts/clean-template.ts:1) ya no falla en silencio con tablas faltantes.
+
+## 3. Verificaciones ya hechas
+
+Estos comandos ya pasaron varias veces durante esta sesion:
+
+- `npm run build:electron`
+- `npm run clean:template`
+- `npm run dist`
+
+El instalador y el portable se generaron en:
+
+- `release\TuCajero Setup 1.0.0.exe`
+- `release\TuCajero 1.0.0.exe`
+- `release\win-unpacked\TuCajero.exe`
+
+Tambien se verifico que `app.asar` incluye:
+
+- `dist/main/app/main/main.js`
+- `dist/renderer/index.html`
+- `database/tucajero.db`
+- `query_engine-windows.dll.node` en `app.asar.unpacked`
+
+## 4. Problema actual exacto
+
+El ejecutable empaquetado:
+
+- `release\win-unpacked\TuCajero.exe`
+
+esta cerrando rapido con `ExitCode 0`.
+
+Eso significa:
+
+- no parece crash duro de Prisma ni de DLL faltante
+- no parece error clasico de permisos
+- probablemente es bootstrap temprano de Electron, carga del renderer o cierre limpio antes de que la app quede visible
+
+## 5. Diagnostico ya agregado para continuar
+
+En [app/main/main.ts](/c:/Users/UserMaster/Documents/MPointOfSale/app/main/main.ts:1) se agrego:
+
+- `uncaughtException`
+- `unhandledRejection`
+- `did-fail-load`
+- `render-process-gone`
+- `child-process-gone`
+- logs de carga de ventana
+- logs de init DB
+- `bootTrace()` escribiendo en:
+
+`%TEMP%\tucajero-boot.log`
+
+### Hipotesis actual
+
+Si al lanzar el exe empaquetado NO aparece o no cambia `%TEMP%\tucajero-boot.log`, entonces el problema ocurre antes de ejecutar nuestro `main.js`.
+
+Si SI aparece, esa traza debe decir en que punto exacto sale.
+
+## 6. Siguiente paso exacto para OpenCode
+
+1. Verificar que `package.json` del repo siga correcto.
+   Nota: durante esta sesion, al extraer `app.asar`, se sobrescribio accidentalmente el `package.json` raiz con el del paquete. Ya fue restaurado.
+
+2. Ejecutar:
+
+```powershell
+npm run dist
 ```
 
-**Credenciales admin:** `admin` / `c282367ac3ee88d25f37dc599c3bc76b` (cambiar en primer login)
+3. Lanzar:
 
----
+```powershell
+release\win-unpacked\TuCajero.exe
+```
 
-## 2. Gaps del contexto anterior — RESUELTOS
+4. Revisar:
 
-Los gaps del documento anterior fueron basados en un supuesto proyecto Python que **no existe**. El proyecto real es **Electron + TypeScript + Prisma**. Los gaps reales fueron identificados y corregidos arriba.
+```powershell
+Get-Content "$env:TEMP\tucajero-boot.log"
+```
 
-### Lo que el contexto anterior asumía incorrectamente:
-| Suposición | Realidad |
-|---|---|
-| Proyecto Python con SQLAlchemy | Electron + TypeScript + Prisma ORM |
-| `InventarioRepository` duplicado en `venta_repo.py` e `inventario_repo.py` | No existen archivos `.py`. Repositorios en `repositories/prisma.ts` |
-| `producto_service.py` con dead imports | No existe. Lógica en `inventory.service.ts` y `sales.service.ts` |
-| `ventas_view.py` con IVA | IVA hardcodeado estaba en `POSPage.tsx`, `sales.service.ts`, `inventory.service.ts` |
-| No existía `alembic.ini` | Correcto — usa Prisma migrations, no Alembic |
-| `SettingsService().get_iva()` | No existía. Ahora existe `ConfigService.getIvaRate()` |
+5. Tomar decision:
 
----
+- Si no existe traza: investigar bootstrap de Electron, entrypoint empaquetado y lanzamiento del binario.
+- Si existe traza: seguir el ultimo evento y corregir esa salida temprana.
 
-## 3. Archivos Modificados en esta Sesión
+## 7. Reglas para OpenCode
 
-| Archivo | Cambio |
-|---|---|
-| `app/main/services/config.service.ts` | + `ivaRate` en `BusinessConfig`, + `getIvaRate()` |
-| `app/main/ipc/config.ipc.ts` | + handler `config:getIvaRate` |
-| `app/main/services/sales.service.ts` | Import `ConfigService`, usa `getIvaRate()` en vez de `0.19` |
-| `app/main/services/inventory.service.ts` | Import `ConfigService`, usa `getIvaRate()` en vez de `0.19` |
-| `app/main/services/invoice.service.ts` | IVA label dinámico: `IVA (${taxRatePercent}%)` |
-| `app/renderer/src/shared/types/config.types.ts` | + `ivaRate: number` |
-| `app/renderer/src/modules/sales/POSPage.tsx` | Import `useConfig`, tax usa `config?.ivaRate ?? 0.19` |
-| `app/renderer/src/modules/settings/SettingsPage.tsx` | + `ivaRate` en estado inicial, + input de tasa IVA |
-| `database/schema.prisma` | `Product.stock` → `Float`, `StockMovement` campos → `Float` |
+- No revertir `paths.ts`, `main.ts`, `prisma.ts`, `installer.nsh`, `printer.service.ts`, `backup.service.ts`.
+- No volver a meter logica de DB/config dentro del instalador.
+- No hardcodear rutas de `C:\Users\UserMaster\...`
+- No tocar features de UI antes de cerrar el problema del runtime empaquetado.
+- No extraer `app.asar` encima del workspace raiz otra vez.
 
----
+## 8. Archivos mas importantes ahora
 
-## 4. Orden de Ejeccción — Próxima Sesión
+- [app/main/main.ts](/c:/Users/UserMaster/Documents/MPointOfSale/app/main/main.ts:1)
+- [app/main/utils/paths.ts](/c:/Users/UserMaster/Documents/MPointOfSale/app/main/utils/paths.ts:1)
+- [app/main/repositories/prisma.ts](/c:/Users/UserMaster/Documents/MPointOfSale/app/main/repositories/prisma.ts:1)
+- [build/installer.nsh](/c:/Users/UserMaster/Documents/MPointOfSale/build/installer.nsh:1)
+- [package.json](/c:/Users/UserMaster/Documents/MPointOfSale/package.json:1)
 
-| # | Acción | Tiempo est. | Riesgo si se omite |
-|---|---|---|---|
-| ~~1~~ | ~~Ejecutar `npx prisma migrate dev --name fix_float_stock`~~ | ✅ **Hecho** | ✅ |
-| ~~2~~ | ~~Ejecutar `npx prisma generate`~~ | ✅ **Hecho** | ✅ |
-| ~~3~~ | ~~Limpiar errores pre-existentes de TypeScript~~ | ✅ **Hecho** | ✅ |
-| ~~4~~ | ~~Configurar `ivaRate` en BD~~ | ✅ **Auto** | ✅ |
-| 5 | Testear flujo completo: Login → Dashboard → POS → Venta → Factura | 10 min | 🔴 Bugs en producción |
+## 9. Comando de busqueda util
 
----
+```powershell
+rg -n "app\.getPath\(|process\.cwd\(|process\.resourcesPath|app\.getAppPath\(" app\main -S
+```
 
-## 5. Reglas de Oro para esta Fase
-
-1. **SSOT (Single Source of Truth):** Todo cambio de stock pasa por `InventoryService`. Nunca llamadas directas desde UI.
-2. **IVA desde Config:** Nunca hardcodear `0.19`. Siempre `configService.getIvaRate()` o `config?.ivaRate`.
-3. **Float para stock:** `Product.stock` y `StockMovement` campos ahora son `Float`. Permiten stock fraccional.
-4. **Labels dinámicos en facturas:** El IVA en facturas PDF se calcula dinámicamente desde `sale.tax / sale.subtotal`.
-
----
-
-## 6. Estado del Plan Original
-
-### Phase 5: Inventory & Service Cleanup
-- [x] Extract InventarioService to standalone file (ya existía como `inventory.service.ts`)
-- [x] Remove redundant services from producto_service.py (no aplica — no existe Python)
-- [x] Update VentaService to use the new InventarioService (lógica integrada en `sales.service.ts`)
-- [x] IVA_RATE desde SettingsService en ventas_view.py → Hecho con `ConfigService.getIvaRate()`
-
-### Phase 6: Model Type Migration
-- [x] Update models/producto.py (Numeric for money, Float for quantities) → `schema.prisma`: `stock` → `Float`
-- [x] Verify arithmetic precision → TypeScript usa `number` (float nativo), correcto
-
-### Final Verification & Walkthrough
-- [x] Main process compila sin errores (`tsc --noEmit --project tsconfig.main.json` ✅)
-- [x] Renderer compila sin errores (`tsc --noEmit --project tsconfig.json` ✅ — 31 errores corregidos)
-- [x] Migrar BD con Prisma (migrate reset + fix_float_stock + seed ✅)
-- [ ] Testear flujo completo
+Lo esperado es que casi todo quede concentrado en `paths.ts`.

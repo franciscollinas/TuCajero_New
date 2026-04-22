@@ -31,15 +31,17 @@ export function registerPrinterIpc(): void {
     async (_event, filePath: string): Promise<ApiResponse<{ success: boolean }>> => {
       try {
         const pathMod = await import('path');
-        // Only allow files from the tmp-invoices directory
-        const invoiceDir = pathMod.join(process.cwd(), 'tmp-invoices');
         const resolved = pathMod.resolve(filePath);
-        const resolvedDir = pathMod.resolve(invoiceDir);
+        const resolvedDir = pathMod.resolve(printerService.getInvoiceDir());
+        const relativePath = pathMod.relative(resolvedDir, resolved);
 
-        if (!resolved.startsWith(resolvedDir)) {
+        if (relativePath.startsWith('..') || pathMod.isAbsolute(relativePath)) {
           return {
             success: false,
-            error: { code: 'FORBIDDEN', message: 'Acceso denegado: archivo fuera del directorio permitido.' },
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Acceso denegado: archivo fuera del directorio permitido.',
+            },
           };
         }
 
@@ -80,23 +82,22 @@ export function registerPrinterIpc(): void {
     },
   );
 
-  ipcMain.handle(
-    'printer:getConfig',
-    async (): Promise<ApiResponse<PrinterConfig>> => {
-      try {
-        const config = printerService.getPrinterConfig();
-        return { success: true, data: config };
-      } catch (err) {
-        return { success: false, error: toApiError(err) };
-      }
-    },
-  );
+  ipcMain.handle('printer:getConfig', async (): Promise<ApiResponse<PrinterConfig>> => {
+    try {
+      const config = printerService.getPrinterConfig();
+      return { success: true, data: config };
+    } catch (err) {
+      return { success: false, error: toApiError(err) };
+    }
+  });
 
   ipcMain.handle(
     'printer:updateConfig',
     async (_event, config: Partial<PrinterConfig>): Promise<ApiResponse<PrinterConfig>> => {
       try {
-        const updated = printerService.updatePrinterConfig(config as Parameters<typeof printerService.updatePrinterConfig>[0]);
+        const updated = printerService.updatePrinterConfig(
+          config as Parameters<typeof printerService.updatePrinterConfig>[0],
+        );
         return { success: true, data: updated };
       } catch (err) {
         return { success: false, error: toApiError(err) };
@@ -104,15 +105,12 @@ export function registerPrinterIpc(): void {
     },
   );
 
-  ipcMain.handle(
-    'printer:testPrinter',
-    async (): Promise<ApiResponse<PrintResult>> => {
-      try {
-        const result = await printerService.testPrinter();
-        return { success: true, data: result };
-      } catch (err) {
-        return { success: false, error: toApiError(err) };
-      }
-    },
-  );
+  ipcMain.handle('printer:testPrinter', async (): Promise<ApiResponse<PrintResult>> => {
+    try {
+      const result = await printerService.testPrinter();
+      return { success: true, data: result };
+    } catch (err) {
+      return { success: false, error: toApiError(err) };
+    }
+  });
 }

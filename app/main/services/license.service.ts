@@ -1,9 +1,8 @@
-import { app } from 'electron';
 import fs from 'fs';
-import path from 'path';
 
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
+import { getLicensePath } from '../utils/paths';
 import {
   generateFingerprint,
   generateLicense,
@@ -14,13 +13,7 @@ import {
 } from '../utils/fingerprint';
 import { AuditService } from './audit.service';
 
-const LICENSE_FILE = 'license.dat';
-
 const auditService = new AuditService();
-
-function getLicensePath(): string {
-  return path.join(app.getPath('userData'), LICENSE_FILE);
-}
 
 function saveLicenseToFile(license: LicenseData): void {
   const filePath = getLicensePath();

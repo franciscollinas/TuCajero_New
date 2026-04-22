@@ -1,4 +1,3 @@
-import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
@@ -10,48 +9,35 @@ import type {
 import { prisma } from '../repositories/prisma';
 import { AppError, ErrorCode } from '../utils/errors';
 import { toFileDate } from '../utils/date';
+import {
+  getBackupsDir,
+  getDatabasePath as getDefaultDatabasePath,
+  isValidSQLiteFile,
+} from '../utils/paths';
 import { AuditService } from './audit.service';
 
 const auditService = new AuditService();
 
-function getDatabasePath(): string {
+function resolveDatabasePath(): string {
   const databaseUrl = process.env.DATABASE_URL ?? '';
   const match = databaseUrl.match(/file:(.+)/);
-  if (match && fs.existsSync(match[1])) {
-    return path.resolve(match[1]);
-  }
-  const possiblePaths = [
-    path.join(__dirname, '../../database/tucajero.db'),
-    path.join(__dirname, '../../../database/tucajero.db'),
-    path.join(
-      process.env.USERPROFILE || '',
-      'Documents',
-      'MPointOfSale',
-      'database',
-      'tucajero.db',
-    ),
-    path.join(
-      app.getPath('userData'),
-      '..',
-      '..',
-      '..',
-      'Documents',
-      'MPointOfSale',
-      'database',
-      'tucajero.db',
-    ),
-    'C:\\Users\\UserMaster\\Documents\\MPointOfSale\\database\\tucajero.db',
-  ];
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      return p;
+  if (match?.[1]) {
+    const resolvedPath = path.resolve(match[1]);
+    if (fs.existsSync(resolvedPath)) {
+      return resolvedPath;
     }
+  }
+
+  const fallbackPath = getDefaultDatabasePath();
+
+  if (fs.existsSync(fallbackPath)) {
+    return fallbackPath;
   }
   throw new AppError(ErrorCode.DATABASE_ERROR, 'No se encontró la base de datos actual.');
 }
 
 function getBackupDir(): string {
-  return path.join(app.getPath('userData'), 'backups');
+  return getBackupsDir();
 }
 
 function ensureBackupDir(): string {
@@ -76,17 +62,7 @@ function formatFileSize(bytes: number): string {
 }
 
 function isValidBackupFile(filePath: string): boolean {
-  try {
-    if (!fs.existsSync(filePath)) return false;
-
-    const content = fs.readFileSync(filePath);
-    if (content.length < 100) return false;
-
-    const header = content.slice(0, 16).toString('latin1');
-    return header.startsWith('SQLite format 3');
-  } catch {
-    return false;
-  }
+  return isValidSQLiteFile(filePath);
 }
 
 export class BackupService {
@@ -120,7 +96,7 @@ export class BackupService {
   async createBackup(actorUserId: number, description?: string): Promise<BackupInfo> {
     await this.assertBackupAccess(actorUserId);
 
-    const dbPath = getDatabasePath();
+    const dbPath = resolveDatabasePath();
     if (!fs.existsSync(dbPath)) {
       throw new AppError(ErrorCode.DATABASE_ERROR, 'No se encontró la base de datos actual.');
     }
@@ -230,7 +206,7 @@ export class BackupService {
     files.sort().reverse();
 
     const backups: BackupMetadata[] = [];
-    const dbPath = getDatabasePath();
+    const dbPath = resolveDatabasePath();
     let totalSize = 0;
 
     for (const fileName of files) {
@@ -272,7 +248,7 @@ export class BackupService {
 
     const backupDir = getBackupDir();
     const backupPath = path.join(backupDir, safeFileName);
-    const dbPath = getDatabasePath();
+    const dbPath = resolveDatabasePath();
 
     let dbExists: boolean;
     try {
@@ -361,7 +337,7 @@ export class BackupService {
   }> {
     await this.assertBackupAccess(actorUserId);
 
-    const dbPath = getDatabasePath();
+    const dbPath = resolveDatabasePath();
     let dbSize = 0;
     try {
       dbSize = fs.existsSync(dbPath) ? getFileSize(dbPath) : 0;
