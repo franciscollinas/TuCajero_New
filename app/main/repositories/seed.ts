@@ -4,23 +4,13 @@ import { prisma } from './prisma';
 
 const BCRYPT_ROUNDS = 12;
 
-/**
- * Generates a cryptographically random default password.
- * The admin user will be forced to change this on first login.
- */
-function generateDefaultPassword(): string {
-  return 'admin123';
-}
-
 export async function seedDatabase(): Promise<void> {
   const existingAdmin = await prisma.user.findFirst({
     where: { role: 'ADMIN' },
   });
 
-  // Only create admin if it doesn't exist yet
   if (!existingAdmin) {
-    const defaultPassword = generateDefaultPassword();
-    const adminPassword = await bcrypt.hash(defaultPassword, BCRYPT_ROUNDS);
+    const adminPassword = await bcrypt.hash('admin123', BCRYPT_ROUNDS);
 
     await prisma.user.create({
       data: {
@@ -33,25 +23,19 @@ export async function seedDatabase(): Promise<void> {
       },
     });
 
-    // Log the default password to console ONCE
+    // eslint-disable-next-line no-console
     console.log('═══════════════════════════════════════════════════');
+    // eslint-disable-next-line no-console
     console.log('  TuCajero - Default Admin Account Created');
+    // eslint-disable-next-line no-console
     console.log('═══════════════════════════════════════════════════');
-    console.log(`  Username: admin`);
-    console.log(`  Password: ${defaultPassword}`);
-    console.log('');
-    console.log('  ⚠️  This password was auto-generated.');
+    // eslint-disable-next-line no-console
+    console.log('  Username: admin');
+    // eslint-disable-next-line no-console
+    console.log('  Password: admin123');
+    // eslint-disable-next-line no-console
     console.log('  You will be required to change it on first login.');
+    // eslint-disable-next-line no-console
     console.log('═══════════════════════════════════════════════════');
   }
-
-  // Create default category if it doesn't exist
-  await prisma.category.upsert({
-    where: { name: 'General' },
-    update: {},
-    create: {
-      name: 'General',
-      color: '#2563EB',
-    },
-  });
 }
