@@ -111,6 +111,7 @@ export class ReportsService {
       orderBy: {
         createdAt: 'desc',
       },
+      take: 15000,
     });
 
     return sales.map((sale) => {
@@ -234,6 +235,7 @@ export class ReportsService {
       orderBy: {
         openedAt: 'desc',
       },
+      take: 2000,
     });
 
     return sessions.map((session) => ({

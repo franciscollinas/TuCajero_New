@@ -264,7 +264,7 @@ export function InventoryPage(): JSX.Element {
     code: string;
     barcode: string;
     name: string;
-    categoryId: number;
+    categoryName: string;
     price: number;
     cost: number;
     stock: number;
@@ -281,7 +281,6 @@ export function InventoryPage(): JSX.Element {
       return;
     }
     setError(null);
-    setShowAddProduct(true);
     try {
       const response = await createProduct({
         ...data,
@@ -292,8 +291,11 @@ export function InventoryPage(): JSX.Element {
         const productsResponse = await getAllProducts();
         if (productsResponse.success) {
           replaceFromBackend(productsResponse.data);
+          setShowAddProduct(false);
+        } else {
+          const msg = productsResponse.error?.message || 'Error al cargar productos';
+          setError(msg);
         }
-        setShowAddProduct(false);
       } else {
         const msg = response.error?.message || 'Error desconocido';
         setError(msg);
@@ -301,8 +303,6 @@ export function InventoryPage(): JSX.Element {
     } catch {
       const msg = 'Error desconocido';
       setError(msg);
-    } finally {
-      setShowAddProduct(false);
     }
   };
 

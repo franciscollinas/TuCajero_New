@@ -85,7 +85,6 @@ export function registerInventoryIpc(): void {
     async (_event, data: ProductInput): Promise<ApiResponse<Product>> => {
       try {
         const result = await inventoryService.createProduct(data);
-        // Invalidate all inventory caches
         cache.invalidateByPrefix('inventory:');
         return { success: true, data: result };
       } catch (err) {

@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-import { getCategories } from '../../shared/api/inventory.api';
 import { es } from '../../shared/i18n';
-import type { InventoryCategory } from '../../shared/types/inventory.types';
 import { useConfig } from '../../shared/context/ConfigContext';
 
 interface AddProductModalProps {
@@ -14,7 +12,7 @@ interface AddProductModalProps {
     code: string;
     barcode: string;
     name: string;
-    categoryId: number;
+    categoryName: string;
     price: number;
     cost: number;
     stock: number;
@@ -36,7 +34,6 @@ export function AddProductModal({
   onClose,
   onSubmit,
 }: AddProductModalProps): JSX.Element | null {
-  const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const { config } = useConfig();
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayMouseDown = useRef(false);
@@ -60,7 +57,7 @@ export function AddProductModal({
     code: '',
     barcode: '',
     name: '',
-    categoryId: 1,
+    categoryName: '',
     price: 0,
     cost: 0,
     stock: 0,
@@ -77,15 +74,12 @@ export function AddProductModal({
 
   useEffect(() => {
     if (open) {
-      void getCategories().then((res) => {
-        if (res.success) setCategories(res.data);
-      });
       setErrors({});
       setFormData({
         code: '',
         barcode: '',
         name: '',
-        categoryId: 0,
+        categoryName: '',
         price: 0,
         cost: 0,
         stock: 0,
@@ -107,6 +101,7 @@ export function AddProductModal({
     const newErrors: Record<string, string> = {};
     if (!formData.code.trim()) newErrors.code = 'El código es obligatorio';
     if (!formData.name.trim()) newErrors.name = 'El nombre es obligatorio';
+    if (!formData.categoryName.trim()) newErrors.categoryName = 'La categoría es obligatoria';
     if (formData.price <= 0) newErrors.price = 'El precio debe ser mayor a 0';
     if (formData.cost < 0) newErrors.cost = 'El costo no puede ser negativo';
     if (formData.stock < 0) newErrors.stock = 'El stock no puede ser negativo';
@@ -122,6 +117,7 @@ export function AddProductModal({
       ...formData,
       expiryDate: formData.expiryDate || null,
       suggestedPurchaseQty: formData.suggestedPurchaseQty || null,
+      categoryName: formData.categoryName,
     });
   };
 
@@ -228,18 +224,19 @@ export function AddProductModal({
           </div>
 
           <div className="tc-field">
-            <label className="tc-label">{es.inventory.category}</label>
-            <select
-              className="tc-select"
-              value={formData.categoryId}
-              onChange={(e) => setFormData((p) => ({ ...p, categoryId: Number(e.target.value) }))}
-            >
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+            <label className="tc-label">{es.inventory.category} *</label>
+            <input
+              className="tc-input"
+              value={formData.categoryName}
+              onChange={(e) => setFormData((p) => ({ ...p, categoryName: e.target.value }))}
+              placeholder="Ej: Medicamentos"
+              style={fieldError('categoryName') ? { borderColor: 'var(--danger-500)' } : undefined}
+            />
+            {fieldError('categoryName') && (
+              <span style={{ color: 'var(--danger-600)', fontSize: 'var(--text-xs)' }}>
+                {fieldError('categoryName')}
+              </span>
+            )}
           </div>
 
           <div className="tc-field">
@@ -257,6 +254,7 @@ export function AddProductModal({
             <input
               className="tc-input"
               type="number"
+              min="0"
               value={formData.price || ''}
               onChange={(e) => setFormData((p) => ({ ...p, price: Number(e.target.value) }))}
               placeholder="0"
@@ -274,6 +272,7 @@ export function AddProductModal({
             <input
               className="tc-input"
               type="number"
+              min="0"
               value={formData.cost || ''}
               onChange={(e) => setFormData((p) => ({ ...p, cost: Number(e.target.value) }))}
               placeholder="0"
@@ -285,6 +284,7 @@ export function AddProductModal({
             <input
               className="tc-input"
               type="number"
+              min="0"
               value={formData.stock}
               onChange={(e) => setFormData((p) => ({ ...p, stock: Number(e.target.value) }))}
               placeholder="0"
@@ -296,6 +296,7 @@ export function AddProductModal({
             <input
               className="tc-input"
               type="number"
+              min="0"
               value={formData.minStock}
               onChange={(e) => setFormData((p) => ({ ...p, minStock: Number(e.target.value) }))}
               placeholder="5"
@@ -307,6 +308,7 @@ export function AddProductModal({
             <input
               className="tc-input"
               type="number"
+              min="0"
               value={formData.criticalStock}
               onChange={(e) =>
                 setFormData((p) => ({ ...p, criticalStock: Number(e.target.value) }))

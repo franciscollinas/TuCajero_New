@@ -16,4 +16,10 @@ export class AuditService {
   getRecentLogs(limit = 100): Promise<AuditLogWithUser[]> {
     return auditRepository.list(limit);
   }
+
+  async cleanOldLogs(monthsToKeep = 6): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setMonth(cutoffDate.getMonth() - monthsToKeep);
+    return auditRepository.deleteOlderThan(cutoffDate);
+  }
 }

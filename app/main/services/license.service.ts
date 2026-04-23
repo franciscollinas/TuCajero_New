@@ -159,12 +159,16 @@ export class LicenseService {
     let trialRemainingMinutes = 0;
     let trialRemainingSeconds = 0;
 
-    const configFirstRun = await prisma.config.findUnique({ where: { key: 'first_run_at' } });
+    let configFirstRun = await prisma.config.findUnique({ where: { key: 'first_run_at' } });
     if (!configFirstRun) {
-      // Primer arranque absoluto: registrar fecha
+      // Primer arranque absoluto: registrar fecha (usando upsert para evitar race conditions)
       const now = new Date();
-      await prisma.config.create({ data: { key: 'first_run_at', value: now.toISOString() } });
-      firstRunDate = now;
+      configFirstRun = await prisma.config.upsert({
+        where: { key: 'first_run_at' },
+        update: {},
+        create: { key: 'first_run_at', value: now.toISOString() },
+      });
+      firstRunDate = new Date(configFirstRun.value);
       trialRemainingHours = 24;
     } else {
       firstRunDate = new Date(configFirstRun.value);

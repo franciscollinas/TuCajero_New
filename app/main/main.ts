@@ -8,6 +8,7 @@ import { registerAuthIpc } from './ipc/auth.ipc';
 import { registerAuditIpc } from './ipc/audit.ipc';
 import { registerBackupIpc } from './ipc/backup.ipc';
 import { registerCashSessionIpc } from './ipc/cash-session.ipc';
+import { AuditService } from './services/audit.service';
 import { registerConfigIpc } from './ipc/config.ipc';
 import { registerCustomersIpc } from './ipc/customers.ipc';
 import { registerInventoryIpc } from './ipc/inventory.ipc';
@@ -133,7 +134,7 @@ async function ensurePackagedDatabase(): Promise<void> {
 
   const dbPath = getDatabasePath();
   const hasValidFile = isValidSQLiteFile(dbPath);
-  if (hasValidFile && (await hasRequiredSchema(dbPath)) && !(await hasUserData(dbPath))) {
+  if (hasValidFile && (await hasRequiredSchema(dbPath))) {
     return;
   }
 
@@ -149,27 +150,6 @@ async function ensurePackagedDatabase(): Promise<void> {
   copyFileSync(templatePath, dbPath);
   // eslint-disable-next-line no-console
   console.log('Plantilla copiada con exito.');
-}
-
-async function hasUserData(dbPath: string): Promise<boolean> {
-  const originalUrl = process.env.DATABASE_URL;
-  process.env.DATABASE_URL = `file:${dbPath}`;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaClient } = require('./repositories/generated-client');
-    const prisma = new PrismaClient();
-
-    try {
-      const userCount = await prisma.user.count();
-      return userCount > 0;
-    } finally {
-      await prisma.$disconnect();
-    }
-  } catch {
-    return false;
-  } finally {
-    process.env.DATABASE_URL = originalUrl;
-  }
 }
 
 function registerIpcHandlers(): void {
@@ -303,6 +283,18 @@ app.whenReady().then(async () => {
     console.log('Base de datos inicializada correctamente');
     logger.info('main:database-init-success');
     bootTrace('main:database-init-success');
+
+    try {
+      const auditService = new AuditService();
+      const deletedLogs = await auditService.cleanOldLogs(6);
+      if (deletedLogs > 0) {
+        logger.info('main:audit-logs-cleaned', { deletedLogs });
+        // eslint-disable-next-line no-console
+        console.log(`Se eliminaron ${deletedLogs} logs de auditoría antiguos.`);
+      }
+    } catch (auditErr) {
+      logger.error('main:audit-logs-clean-error', { err: auditErr });
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('ERROR CRITICO AL INICIALIZAR DB:', err);

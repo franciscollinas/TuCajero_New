@@ -54,4 +54,15 @@ export class AuditRepository {
       take: limit,
     });
   }
+
+  async deleteOlderThan(date: Date): Promise<number> {
+    const result = await prisma.auditLog.deleteMany({
+      where: {
+        createdAt: {
+          lt: date,
+        },
+      },
+    });
+    return result.count;
+  }
 }

@@ -866,13 +866,16 @@ export function POSPage(): JSX.Element {
         </div>
 
         {/* Right Column: Cart + Payment Panel */}
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}
+        >
           <div
             className="tc-card"
             style={{
               display: 'flex',
               flexDirection: 'column',
-              height: '100%',
+              minHeight: '100%',
+              height: 'auto',
               border: '2px solid var(--brand-100)',
               boxShadow: 'var(--shadow-xl)',
               padding: 0,
@@ -979,7 +982,7 @@ export function POSPage(): JSX.Element {
                 overflowY: 'auto',
                 padding: 'var(--space-4)',
                 background: 'var(--gray-50)',
-                minHeight: 0,
+                minHeight: '200px',
               }}
             >
               {cart.length > 0 ? (
