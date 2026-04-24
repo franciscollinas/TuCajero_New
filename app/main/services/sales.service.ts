@@ -420,6 +420,14 @@ export class SalesService {
   }
 
   async getSalesByDateRange(startDate: Date, endDate: Date): Promise<SaleRecord[]> {
+    // eslint-disable-next-line no-console
+    console.log('[DEBUG SERVICE] getSalesByDateRange llamado:', {
+      startDate,
+      endDate,
+      startUTC: startDate.toISOString(),
+      endUTC: endDate.toISOString(),
+    });
+
     const sales = await prisma.sale.findMany({
       where: {
         createdAt: {
@@ -433,6 +441,16 @@ export class SalesService {
       },
       take: 5000,
     });
+
+    // eslint-disable-next-line no-console
+    console.log('[DEBUG SERVICE] Ventas encontradas en BD:', sales.length);
+    if (sales.length > 0) {
+      // eslint-disable-next-line no-console
+      console.log('[DEBUG SERVICE] Primera venta:', {
+        id: sales[0].id,
+        createdAt: sales[0].createdAt,
+      });
+    }
 
     return sales.map(mapSale);
   }

@@ -237,7 +237,7 @@ export function SalesHistoryPage(): JSX.Element {
 
   // Claves de fecha para hoy y ayer
   const todayKey = getDateKey(new Date());
-  const yesterdayKey = (() => {
+  const yesterdayKey = ((): string => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return getDateKey(d);
@@ -272,6 +272,7 @@ export function SalesHistoryPage(): JSX.Element {
 
     const loadSales = async (): Promise<void> => {
       setLoading(true);
+
       // Admin sees ALL sales; cashiers only see their own
       if (user.role === 'ADMIN') {
         // Load all sales from last 90 days for admin
@@ -279,10 +280,11 @@ export function SalesHistoryPage(): JSX.Element {
         const startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
         const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-        const dateRangeResponse = await getSalesByDateRange(
-          startDate.toISOString().split('T')[0],
-          endDate.toISOString().split('T')[0],
-        );
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+
+        const dateRangeResponse = await getSalesByDateRange(startStr, endStr);
+
         if (!cancelled) {
           if (dateRangeResponse.success) {
             setSales(dateRangeResponse.data);
@@ -293,6 +295,7 @@ export function SalesHistoryPage(): JSX.Element {
         }
       } else {
         const salesResponse = await getSalesByUser(user.id);
+
         if (!cancelled) {
           if (salesResponse.success) {
             setSales(salesResponse.data);
@@ -310,7 +313,9 @@ export function SalesHistoryPage(): JSX.Element {
           }
         }
       }
-      if (!cancelled) setLoading(false);
+      if (!cancelled) {
+        setLoading(false);
+      }
     };
 
     void loadSales();
@@ -532,6 +537,7 @@ export function SalesHistoryPage(): JSX.Element {
             </div>
 
             {/* Grupos por fecha */}
+            {/* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */}
             {(() => {
               // Verificar si hay algún grupo visible con el filtro actual
               const hasVisible = sortedDates.some((dateKey) => {

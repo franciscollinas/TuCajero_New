@@ -155,6 +155,7 @@ export function POSPage(): JSX.Element {
   const [cashReceived, setCashReceived] = useState<number>(0);
   const [showCashInput, setShowCashInput] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
 
   // MIXTO payment flow
   const [mixtoStep, setMixtoStep] = useState<1 | 2 | null>(null);
@@ -192,6 +193,7 @@ export function POSPage(): JSX.Element {
     setCashReceived(0);
     setShowCashInput(false);
     setSelectedMethod(null);
+    setShowCheckoutModal(false);
   };
 
   // Barcode scanner integration
@@ -514,6 +516,7 @@ export function POSPage(): JSX.Element {
         setSelectedCustomerId(null);
         setCashReceived(0);
         setShowCashInput(false);
+        setShowCheckoutModal(false);
         void refreshProducts();
       } else {
         setMessageType('error');
@@ -1345,45 +1348,36 @@ export function POSPage(): JSX.Element {
                 </div>
               </div>
 
-              {/* Payment Method Toggle Button */}
+              {/* Payment Method Toggle Button - Ahora abre el Modal de Cobro */}
               <button
-                onClick={() => setShowPaymentMethods(!showPaymentMethods)}
+                onClick={() => setShowCheckoutModal(true)}
                 disabled={cart.length === 0}
                 style={{
                   width: '100%',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 'var(--space-3)',
-                  borderRadius: 'var(--radius-lg)',
-                  background: showPaymentMethods
-                    ? 'var(--brand-50)'
-                    : 'linear-gradient(135deg, var(--brand-600) 0%, var(--brand-500) 100%)',
+                  justifyContent: 'center',
+                  gap: 'var(--space-3)',
+                  padding: 'var(--space-4)',
+                  borderRadius: 'var(--radius-xl)',
+                  background:
+                    cart.length > 0
+                      ? 'linear-gradient(135deg, var(--success-600) 0%, var(--success-500) 100%)'
+                      : 'var(--gray-300)',
                   border: 'none',
                   color: '#fff',
-                  fontWeight: 700,
-                  fontSize: 'var(--text-sm)',
+                  fontWeight: 800,
+                  fontSize: 'var(--text-lg)',
                   cursor: cart.length === 0 ? 'not-allowed' : 'pointer',
                   opacity: cart.length === 0 ? 0.5 : 1,
                   transition: 'all var(--transition-fast)',
-                  boxShadow: '0 2px 8px rgba(54, 65, 245, 0.3)',
-                  marginBottom: showPaymentMethods ? 'var(--space-3)' : 'var(--space-3)',
+                  boxShadow: cart.length > 0 ? '0 4px 16px rgba(18, 183, 106, 0.5)' : 'none',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                  <CreditCard size={18} />
-                  <span>Seleccionar Metodo de Pago</span>
-                </div>
-                <div
-                  style={{
-                    fontSize: 'var(--text-xs)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 'var(--space-1)',
-                  }}
-                >
-                  {showPaymentMethods ? '▲' : '▼'}
-                </div>
+                <Banknote size={24} />
+                <span>COBRAR {formatCurrency(total)}</span>
               </button>
 
               {/* Payment Methods Card (Collapsible) */}
@@ -1775,8 +1769,8 @@ export function POSPage(): JSX.Element {
                 </div>
               )}
 
-              {/* MIXTO Step 1: Cash Amount Input */}
-              {mixtoStep === 1 && (
+              {/* MIXTO Step 1: Cash Amount Input - Solo dentro del modal */}
+              {showCheckoutModal && mixtoStep === 1 && (
                 <div
                   style={{
                     padding: 'var(--space-4)',
@@ -1888,8 +1882,8 @@ export function POSPage(): JSX.Element {
                 </div>
               )}
 
-              {/* MIXTO Step 2: Select Second Payment Method */}
-              {mixtoStep === 2 && (
+              {/* MIXTO Step 2: Select Second Payment Method - Solo dentro del modal */}
+              {showCheckoutModal && mixtoStep === 2 && (
                 <div
                   style={{
                     padding: 'var(--space-4)',
@@ -2177,6 +2171,751 @@ export function POSPage(): JSX.Element {
           </div>
         </div>
       </div>
+
+      {/* CHECKOUT MODAL - Modal de Cobro para pantallas pequeñas */}
+      {showCheckoutModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCheckoutModal(false);
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--gray-50)',
+              borderRadius: 'var(--radius-2xl)',
+              width: '95vw',
+              maxWidth: '900px',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: 'var(--space-4)',
+                background: 'linear-gradient(135deg, var(--brand-600) 0%, var(--brand-500) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  fontWeight: 800,
+                  fontSize: 'var(--text-xl)',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-3)',
+                }}
+              >
+                <Banknote size={28} />
+                Cobro - Total: {formatCurrency(total)}
+              </h2>
+              <button
+                onClick={() => setShowCheckoutModal(false)}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: 'var(--radius-lg)',
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body - Two Columns */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 'var(--space-4)',
+                padding: 'var(--space-4)',
+              }}
+            >
+              {/* Left: Ajustes */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                {/* Cliente */}
+                <div
+                  className="tc-card"
+                  style={{ padding: 'var(--space-3)', border: '2px solid var(--brand-100)' }}
+                >
+                  <h4
+                    style={{
+                      margin: '0 0 var(--space-2)',
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 700,
+                      color: 'var(--brand-700)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--space-2)',
+                    }}
+                  >
+                    <User size={16} />
+                    Cliente
+                  </h4>
+                  <select
+                    value={selectedCustomerId || ''}
+                    onChange={(e) => setSelectedCustomerId(Number(e.target.value) || null)}
+                    className="tc-input"
+                    style={{ width: '100%', minHeight: '44px', fontWeight: 700 }}
+                  >
+                    <option value="">Consumidor Final</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.fullName} ({c.phone || 'S/T'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Delivery & Descuento */}
+                <div
+                  className="tc-card"
+                  style={{ padding: 'var(--space-3)', border: '2px solid var(--brand-100)' }}
+                >
+                  <h4
+                    style={{
+                      margin: '0 0 var(--space-3)',
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 700,
+                      color: 'var(--brand-700)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--space-2)',
+                    }}
+                  >
+                    <Tag size={16} />
+                    Ajustes
+                  </h4>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: 'var(--space-2)',
+                    }}
+                  >
+                    <div style={{ position: 'relative' }}>
+                      <Truck
+                        style={{
+                          position: 'absolute',
+                          left: 'var(--space-2)',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: 'var(--gray-400)',
+                        }}
+                        size={14}
+                      />
+                      <input
+                        type="number"
+                        placeholder="Delivery"
+                        value={deliveryFee || ''}
+                        onChange={(e) => setDeliveryFee(Number(e.target.value))}
+                        className="tc-input"
+                        style={{ paddingLeft: '32px', minHeight: '40px', background: '#fff' }}
+                      />
+                    </div>
+                    <div style={{ position: 'relative', display: 'flex', gap: '4px' }}>
+                      {discountType === 'percentage' ? (
+                        <Percent
+                          style={{
+                            position: 'absolute',
+                            left: 'var(--space-2)',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: 'var(--gray-400)',
+                          }}
+                          size={14}
+                        />
+                      ) : (
+                        <DollarSign
+                          style={{
+                            position: 'absolute',
+                            left: 'var(--space-2)',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: 'var(--gray-400)',
+                          }}
+                          size={14}
+                        />
+                      )}
+                      <input
+                        type="number"
+                        placeholder={discountType === 'percentage' ? '%' : '$'}
+                        value={globalDiscount || ''}
+                        onChange={(e) => setGlobalDiscount(Number(e.target.value))}
+                        className="tc-input"
+                        style={{
+                          paddingLeft: '32px',
+                          minHeight: '40px',
+                          background: '#fff',
+                          width: '80px',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDiscountType(discountType === 'percentage' ? 'fixed' : 'percentage')
+                        }
+                        style={{
+                          minHeight: '40px',
+                          padding: '0 var(--space-2)',
+                          border: '1px solid var(--gray-300)',
+                          borderRadius: 'var(--radius-md)',
+                          background: 'var(--gray-100)',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {discountType === 'percentage' ? '%' : '$'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Totales */}
+                <div
+                  className="tc-card"
+                  style={{
+                    padding: 'var(--space-4)',
+                    border: '2px solid var(--brand-200)',
+                    background: 'linear-gradient(135deg, var(--gray-50) 0%, #f0f4ff 100%)',
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 'var(--text-sm)', color: 'var(--gray-600)' }}>
+                        Subtotal
+                      </span>
+                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+                        {formatCurrency(subtotal)}
+                      </span>
+                    </div>
+                    {(config?.ivaRate ?? 0) > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--gray-600)' }}>
+                          IVA
+                        </span>
+                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+                          {formatCurrency(tax)}
+                        </span>
+                      </div>
+                    )}
+                    {globalDiscount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--gray-600)' }}>
+                          Descuento
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 'var(--text-sm)',
+                            fontWeight: 700,
+                            color: 'var(--success-600)',
+                          }}
+                        >
+                          -{formatCurrency(calculatedDiscount)}
+                        </span>
+                      </div>
+                    )}
+                    {deliveryFee > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--gray-600)' }}>
+                          Delivery
+                        </span>
+                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+                          {formatCurrency(deliveryFee)}
+                        </span>
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        borderTop: '2px solid var(--brand-300)',
+                        marginTop: 'var(--space-2)',
+                        paddingTop: 'var(--space-2)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: 'var(--brand-100)',
+                        padding: 'var(--space-3)',
+                        borderRadius: 'var(--radius-lg)',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 'var(--text-lg)',
+                          fontWeight: 800,
+                          color: 'var(--brand-800)',
+                        }}
+                      >
+                        TOTAL
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 'var(--text-3xl)',
+                          fontWeight: 900,
+                          color: 'var(--brand-600)',
+                        }}
+                      >
+                        {formatCurrency(total)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pagos registrados */}
+                {payments.length > 0 && (
+                  <div
+                    style={{
+                      padding: 'var(--space-3)',
+                      background: 'linear-gradient(135deg, var(--success-50) 0%, #d1fae5 100%)',
+                      borderRadius: 'var(--radius-lg)',
+                      border: '2px solid var(--success-200)',
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: 'var(--text-xs)',
+                        fontWeight: 700,
+                        color: 'var(--success-700)',
+                        marginBottom: 'var(--space-2)',
+                      }}
+                    >
+                      ✓ Pagos: {formatCurrency(totalPaid)} / {formatCurrency(total)}
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
+                      {payments.map((p, idx) => (
+                        <span key={idx} className="tc-badge tc-badge--success">
+                          {p.method} {formatCurrency(p.amount)}
+                        </span>
+                      ))}
+                    </div>
+                    {remaining > 0.1 && (
+                      <p
+                        style={{
+                          fontSize: 'var(--text-sm)',
+                          color: 'var(--warning-600)',
+                          fontWeight: 700,
+                          marginTop: 'var(--space-2)',
+                        }}
+                      >
+                        Falta: {formatCurrency(remaining)}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Right: Payment Methods */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div
+                  className="tc-card"
+                  style={{
+                    padding: 'var(--space-4)',
+                    border: '2px solid var(--brand-200)',
+                    flex: 1,
+                  }}
+                >
+                  <h4
+                    style={{
+                      margin: '0 0 var(--space-3)',
+                      fontSize: 'var(--text-base)',
+                      fontWeight: 700,
+                      color: 'var(--brand-700)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--space-2)',
+                    }}
+                  >
+                    <CreditCard size={20} />
+                    Método de Pago
+                  </h4>
+
+                  {/* Si no está en efectivo, mostrar métodos */}
+                  {!showCashInput ? (
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: 'var(--space-2)',
+                      }}
+                    >
+                      <button
+                        onClick={() => addPayment('efectivo')}
+                        disabled={remaining <= 0.1}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 'var(--space-4)',
+                          borderRadius: 'var(--radius-lg)',
+                          background: '#fff',
+                          border: '2px solid var(--success-300)',
+                          color: 'var(--success-600)',
+                          fontWeight: 700,
+                          fontSize: 'var(--text-base)',
+                          cursor: remaining <= 0.1 ? 'not-allowed' : 'pointer',
+                          opacity: remaining <= 0.1 ? 0.5 : 1,
+                        }}
+                      >
+                        <Banknote size={32} />
+                        EFECTIVO
+                      </button>
+                      <button
+                        onClick={() => addPayment('nequi')}
+                        disabled={remaining <= 0.1}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 'var(--space-4)',
+                          borderRadius: 'var(--radius-lg)',
+                          background: '#fff',
+                          border: '2px solid #e9d5ff',
+                          color: '#9333ea',
+                          fontWeight: 700,
+                          fontSize: 'var(--text-base)',
+                          cursor: remaining <= 0.1 ? 'not-allowed' : 'pointer',
+                          opacity: remaining <= 0.1 ? 0.5 : 1,
+                        }}
+                      >
+                        <Smartphone size={32} />
+                        NEQUI
+                      </button>
+                      <button
+                        onClick={() => addPayment('daviplata')}
+                        disabled={remaining <= 0.1}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 'var(--space-4)',
+                          borderRadius: 'var(--radius-lg)',
+                          background: '#fff',
+                          border: '2px solid #fecaca',
+                          color: '#dc2626',
+                          fontWeight: 700,
+                          fontSize: 'var(--text-base)',
+                          cursor: remaining <= 0.1 ? 'not-allowed' : 'pointer',
+                          opacity: remaining <= 0.1 ? 0.5 : 1,
+                        }}
+                      >
+                        <CreditCard size={32} />
+                        DAVIPLATA
+                      </button>
+                      <button
+                        onClick={() => addPayment('transferencia')}
+                        disabled={remaining <= 0.1}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 'var(--space-4)',
+                          borderRadius: 'var(--radius-lg)',
+                          background: '#fff',
+                          border: '2px solid var(--brand-300)',
+                          color: 'var(--brand-600)',
+                          fontWeight: 700,
+                          fontSize: 'var(--text-base)',
+                          cursor: remaining <= 0.1 ? 'not-allowed' : 'pointer',
+                          opacity: remaining <= 0.1 ? 0.5 : 1,
+                        }}
+                      >
+                        <Navigation size={32} />
+                        TRANSFER.
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (remaining > 0.1) {
+                            setMixtoStep(1);
+                            setMixtoCashAmount(0);
+                          }
+                        }}
+                        disabled={remaining <= 0.1}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 'var(--space-4)',
+                          borderRadius: 'var(--radius-lg)',
+                          background: '#fff',
+                          border: '2px solid var(--warning-300)',
+                          color: 'var(--warning-600)',
+                          fontWeight: 700,
+                          fontSize: 'var(--text-base)',
+                          cursor: remaining <= 0.1 ? 'not-allowed' : 'pointer',
+                          opacity: remaining <= 0.1 ? 0.5 : 1,
+                        }}
+                      >
+                        <CreditCard size={32} />
+                        MIXTO
+                      </button>
+                      <button
+                        onClick={() => addPayment('credito')}
+                        disabled={remaining <= 0.1 || !selectedCustomerId}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 'var(--space-4)',
+                          borderRadius: 'var(--radius-lg)',
+                          background: selectedCustomerId && remaining > 0.1 ? '#fff' : '#f9fafb',
+                          border: `2px solid ${selectedCustomerId ? '#f59e0b' : '#e5e7eb'}`,
+                          color: selectedCustomerId && remaining > 0.1 ? '#d97706' : '#9ca3af',
+                          fontWeight: 700,
+                          fontSize: 'var(--text-base)',
+                          cursor:
+                            remaining <= 0.1 || !selectedCustomerId ? 'not-allowed' : 'pointer',
+                          opacity: remaining <= 0.1 || !selectedCustomerId ? 0.5 : 1,
+                        }}
+                      >
+                        <Tag size={32} />
+                        CRÉDITO
+                      </button>
+                    </div>
+                  ) : (
+                    // Input efectivo
+                    <div
+                      style={{
+                        padding: 'var(--space-4)',
+                        background: 'linear-gradient(135deg, var(--success-50) 0%, #d1fae5 100%)',
+                        borderRadius: 'var(--radius-lg)',
+                        border: '2px solid var(--success-300)',
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontSize: 'var(--text-lg)',
+                          fontWeight: 700,
+                          color: 'var(--success-700)',
+                          marginBottom: 'var(--space-3)',
+                          textAlign: 'center',
+                        }}
+                      >
+                        ¿Con cuánto paga?
+                      </p>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          marginBottom: 'var(--space-2)',
+                          padding: 'var(--space-2)',
+                          background: '#fff',
+                          borderRadius: 'var(--radius-md)',
+                        }}
+                      >
+                        <span style={{ fontSize: 'var(--text-sm)' }}>Total:</span>
+                        <span style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>
+                          {formatCurrency(remaining)}
+                        </span>
+                      </div>
+                      <div style={{ position: 'relative', marginBottom: 'var(--space-3)' }}>
+                        <Banknote
+                          style={{
+                            position: 'absolute',
+                            left: 'var(--space-3)',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: 'var(--success-600)',
+                          }}
+                          size={24}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Monto..."
+                          value={cashReceived || ''}
+                          onChange={(e) => setCashReceived(Number(e.target.value))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') confirmCashPayment();
+                          }}
+                          className="tc-input"
+                          style={{
+                            paddingLeft: '48px',
+                            minHeight: '56px',
+                            fontSize: 'var(--text-xl)',
+                            fontWeight: 700,
+                            background: '#fff',
+                            textAlign: 'right',
+                          }}
+                          autoFocus
+                        />
+                      </div>
+                      {cashReceived > 0 && (
+                        <div
+                          style={{
+                            padding: 'var(--space-3)',
+                            background:
+                              cashReceived >= remaining
+                                ? 'var(--success-100)'
+                                : 'var(--warning-100)',
+                            borderRadius: 'var(--radius-md)',
+                            marginBottom: 'var(--space-3)',
+                            textAlign: 'center',
+                          }}
+                        >
+                          {cashReceived >= remaining ? (
+                            <div>
+                              <p
+                                style={{
+                                  fontSize: 'var(--text-sm)',
+                                  color: 'var(--success-600)',
+                                  marginBottom: '4px',
+                                }}
+                              >
+                                Cambio:
+                              </p>
+                              <p
+                                style={{
+                                  fontSize: 'var(--text-3xl)',
+                                  fontWeight: 900,
+                                  color: 'var(--success-700)',
+                                }}
+                              >
+                                {formatCurrency(cashReceived - remaining)}
+                              </p>
+                            </div>
+                          ) : (
+                            <div>
+                              <p
+                                style={{
+                                  fontSize: 'var(--text-sm)',
+                                  color: 'var(--warning-600)',
+                                  marginBottom: '4px',
+                                }}
+                              >
+                                Falta:
+                              </p>
+                              <p
+                                style={{
+                                  fontSize: 'var(--text-3xl)',
+                                  fontWeight: 900,
+                                  color: 'var(--warning-700)',
+                                }}
+                              >
+                                {formatCurrency(remaining - cashReceived)}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                        <button
+                          onClick={confirmCashPayment}
+                          disabled={cashReceived < remaining}
+                          style={{
+                            flex: 1,
+                            padding: 'var(--space-3)',
+                            borderRadius: 'var(--radius-md)',
+                            background:
+                              cashReceived >= remaining
+                                ? 'linear-gradient(135deg, var(--success-600) 0%, var(--success-500) 100%)'
+                                : 'var(--gray-300)',
+                            border: 'none',
+                            color: '#fff',
+                            fontWeight: 700,
+                            cursor: cashReceived >= remaining ? 'pointer' : 'not-allowed',
+                          }}
+                        >
+                          {cashReceived >= remaining ? 'Confirmar' : 'Monto insuficiente'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowCashInput(false);
+                            setCashReceived(0);
+                            setSelectedMethod(null);
+                          }}
+                          style={{
+                            padding: 'var(--space-3)',
+                            borderRadius: 'var(--radius-md)',
+                            background: 'transparent',
+                            border: '1px solid var(--gray-300)',
+                            color: 'var(--gray-600)',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Botón Confirmar Venta */}
+                <button
+                  onClick={handleCompleteSale}
+                  disabled={loading || remaining > 0.1 || cart.length === 0}
+                  className="tc-btn tc-btn--success"
+                  style={{
+                    width: '100%',
+                    minHeight: '56px',
+                    fontSize: 'var(--text-lg)',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    borderRadius: 'var(--radius-lg)',
+                    background:
+                      remaining > 0.1
+                        ? 'var(--gray-300)'
+                        : 'linear-gradient(135deg, var(--success-600) 0%, var(--success-500) 100%)',
+                    opacity: remaining > 0.1 || cart.length === 0 ? 0.6 : 1,
+                  }}
+                >
+                  {loading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                      <div
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          border: '2px solid rgba(255,255,255,0.3)',
+                          borderTop: '2px solid #fff',
+                          borderRadius: '50%',
+                          animation: 'spin 0.8s linear infinite',
+                        }}
+                      />
+                      <span>Procesando...</span>
+                    </div>
+                  ) : remaining > 0.1 ? (
+                    <span>Seleccione método de pago</span>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                      <CheckCircle2 size={24} />
+                      <span>Confirmar Venta</span>
+                    </div>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

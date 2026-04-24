@@ -110,10 +110,22 @@ export function registerSalesIpc(): void {
     'sales:getByDateRange',
     async (_event, startDate: string, endDate: string): Promise<ApiResponse<SaleRecord[]>> => {
       try {
-        const result = await salesService.getSalesByDateRange(
-          new Date(startDate),
-          new Date(endDate),
-        );
+        // Convertir fechas considerando timezone local
+        // Para evitar problemas de timezone, usamos el día siguiente a medianoche local
+        const start = new Date(startDate + 'T00:00:00');
+        // El endDate es el día siguiente a medianoche para incluir todo ese día
+        const endDateObj = new Date(endDate + 'T00:00:00');
+        endDateObj.setDate(endDateObj.getDate() + 1);
+
+        // eslint-disable-next-line no-console
+        console.log('[DEBUG IPC] getSalesByDateRange:', {
+          startDate,
+          endDate,
+          start: start.toISOString(),
+          end: endDateObj.toISOString(),
+        });
+
+        const result = await salesService.getSalesByDateRange(start, endDateObj);
         return { success: true, data: result };
       } catch (err) {
         return { success: false, error: toApiError(err) };

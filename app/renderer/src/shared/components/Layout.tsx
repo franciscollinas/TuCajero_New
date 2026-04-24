@@ -133,7 +133,15 @@ export function Layout({ children }: LayoutProps): JSX.Element {
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
       {/* Sidebar */}
       <aside className="tc-sidebar">
-        <div className="tc-sidebar-header">
+        <div
+          className="tc-sidebar-header"
+          style={{
+            justifyContent: isCollapsed ? 'center' : 'flex-start',
+            padding: isCollapsed
+              ? 'var(--space-6) 0 var(--space-4)'
+              : 'var(--space-6) var(--space-5) var(--space-4)',
+          }}
+        >
           <div
             className="tc-logo"
             style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
@@ -149,30 +157,6 @@ export function Layout({ children }: LayoutProps): JSX.Element {
               </span>
             )}
           </div>
-          <button
-            type="button"
-            className="tc-sidebar-toggle"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            title={isCollapsed ? 'Expandir' : 'Colapsar'}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{
-                transform: isCollapsed ? 'rotate(180deg)' : 'none',
-                transition: 'transform 0.3s',
-              }}
-            >
-              <polyline points="11 17 6 12 11 7" />
-              <polyline points="18 17 13 12 18 7" />
-            </svg>
-          </button>
         </div>
 
         <nav className="tc-nav">
@@ -294,6 +278,31 @@ export function Layout({ children }: LayoutProps): JSX.Element {
               minWidth: 0,
             }}
           >
+            <button
+              type="button"
+              className="tc-sidebar-toggle"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              title={isCollapsed ? 'Expandir Sidebar' : 'Colapsar Sidebar'}
+              style={{ flexShrink: 0 }}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  transform: isCollapsed ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.3s',
+                }}
+              >
+                <polyline points="11 17 6 12 11 7" />
+                <polyline points="18 17 13 12 18 7" />
+              </svg>
+            </button>
             {/* Logo + Name */}
             <div
               style={{
